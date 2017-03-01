@@ -1,10 +1,9 @@
 from __future__ import print_function
 
-import os
-from struct import pack
+import struct
 
 from .errors import FrameBuildError
-from .mask import mask
+from .mask import make_masking_key, mask
 
 class Opcode(object):
     continuation = 0
@@ -38,25 +37,31 @@ class Frame(object):
         self.masking_key = masking_key
         self.payload_data = payload
 
+    # Use struct module to pack ws frame header
+    _pack8 = struct.Struct('!BB4B').pack
+    _pack16 = struct.Struct('!BBH4B').pack
+    _pack64 = struct.Struct('!BBQ4B').pack
+
     @classmethod
-    def build(self, opcode, payload=b'', fin=0):
-        masking_key = os.urandom(4)
+    def build_header(cls, opcode, payload=b'', fin=0):
+        """Build a WS frame header."""
+        # https://tools.ietf.org/html/rfc6455#section-5.2
+        masking_key = make_masking_key()
         mask_bit = mask << 7
         byte0 = (fin << 7) | opcode
         length = len(payload)
         if length < 126:
-            frame_bytes = pack('!BB4B', byte0, mask_bit | length, masking_key)
+            header_bytes = cls._pack8(byte0, mask_bit | length, masking_key)
         elif length < (1 << 16):
-            frame_bytes = pack('!BBH4B', byte0, mask_bit | 126, length, masking_key)
+            header_bytes = cls._pack16(byte0, mask_bit | 126, length, masking_key)
         elif length < (1 << 63):
-            frame_bytes = pack('!BBQ4B', byte0, mask_bit | 127, length, masking_key)
+            header_bytes = cls._pack64(byte0, mask_bit | 127, length, masking_key)
         else:
-            # Can't send a payload > 2**64 bytes
+            # Can't send a payload > 2**63 bytes
             raise FrameBuildError(
                 'payload is too large for a single frame'
             )
-        frame_bytes += payload
-        return frame_bytes
+        return header_bytes
 
     @property
     def is_control(self):
