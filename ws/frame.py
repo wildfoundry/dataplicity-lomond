@@ -43,10 +43,10 @@ class FrameParser(Parser):
             frame.rsv1 = (byte1 >> 6) & 1
             frame.rsv2 = (byte1 >> 5) & 1
             frame.rsv3 = (byte1 >> 4) & 1
-            frame.opcode = byte1 & 0xf
+            frame.opcode = byte1 & 0b00001111
 
             frame.mask = byte2 >> 7
-            payload_length = byte2 & 127
+            payload_length = byte2 & 0b01111111
 
             if payload_length == 126:
                 payload_length = self.unpack16((yield self.read(2)))
@@ -133,6 +133,7 @@ class Frame(object):
 
     @property
     def text(self):
+        """Get decoded text."""
         if self._text is None:
             self._text = self.payload_data.decode()
         return self._text
