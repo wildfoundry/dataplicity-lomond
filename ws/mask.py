@@ -1,3 +1,11 @@
+"""
+Functions related to masking Websocket frames.
+https://tools.ietf.org/html/rfc6455#section-5.3
+
+# TODO: Use wsaccel for masking
+
+"""
+
 import os
 from functools import partial
 from itertools import izip, repeat
@@ -18,5 +26,4 @@ else:
     # Can't deny the Py3 version is nicer
     def mask(masking_key, data):
         return bytes(a ^ b for a, b in izip(repeat(masking_key), data))
-
 
