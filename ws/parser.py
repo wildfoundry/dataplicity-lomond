@@ -23,8 +23,9 @@ class Parser(object):
         self._awaiting = None
         self._buffer = []
         self._closed = False
-        self.read = type('ReadBytes', (int,), {})
         self.reset()
+
+    read = type('ReadBytes', (int,), {})
 
     def __del__(self):
         self.close()
