@@ -18,16 +18,12 @@ class Parser(object):
 
     """
 
-    class _ReadBytes(int):
-        """Tells the feed method that more bytes are required."""
-
-
     def __init__(self):
         self._gen = None
         self._awaiting = None
         self._buffer = []
         self._closed = False
-        self.read = self._ReadBytes
+        self.read = type('ReadBytes', (int,), {})
         self.reset()
 
     def __del__(self):
