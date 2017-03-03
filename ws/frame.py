@@ -20,6 +20,7 @@ class Frame(object):
         self.mask = 0
         self.masking_key = masking_key
         self._payload_data = payload
+        self._payload = None
         self._text = None
         self.validate()
 
@@ -63,7 +64,15 @@ class Frame(object):
 
     @property
     def payload(self):
-        return self._payload_data
+        if self._payload is None:
+            if self.masking_key is None:
+                self._payload = self._payload_data
+            else:
+                self._payload = mask(
+                    self.masking_key,
+                    self._payload_data
+                )
+        return self._payload
 
     @payload.setter
     def payload(self, data):
@@ -71,14 +80,12 @@ class Frame(object):
             raise errors.ProtocolError(
                 "Control frames must < 125 bytes in length"
             )
-        self._payload_data = mask(
-            self.masking_key,
-            data
-        )
+        self._payload_data = data
 
     def extend(self, frame):
         """Extend data from continuation."""
         self._payload_data += frame.data
+        self._payload = None
         self._text = None
 
     def validate(self):
