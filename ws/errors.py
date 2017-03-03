@@ -9,3 +9,7 @@ class WebsocketError(Exception):
 
 class ProtocolError(WebsocketError):
     pass
+
+
+class HandshakeError(Exception):
+    pass

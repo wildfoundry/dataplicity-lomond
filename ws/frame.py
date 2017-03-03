@@ -6,7 +6,7 @@ import six
 
 from .errors import FrameBuildError
 from .mask import make_masking_key, mask
-from.parser import Parser
+from .parser import Parser
 
 
 class Opcode(object):
@@ -28,45 +28,6 @@ class Opcode(object):
     reserved10 = 0xF
 
 
-class FrameParser(Parser):
-    """Parses a stream of data in to WS frames."""
-
-    unpack16 = struct.Struct('!H').unpack
-    unpack64 = struct.Struct('!Q').unpack
-
-    def parse(self):
-        while True:
-            frame = Frame.blank()
-            byte1, byte2 = bytearray((yield self.read(2)))
-
-            frame.fin = byte1 >> 7
-            frame.rsv1 = (byte1 >> 6) & 1
-            frame.rsv2 = (byte1 >> 5) & 1
-            frame.rsv3 = (byte1 >> 4) & 1
-            frame.opcode = byte1 & 0b00001111
-
-            frame.mask = byte2 >> 7
-            payload_length = byte2 & 0b01111111
-
-            if payload_length == 126:
-                payload_length = self.unpack16((yield self.read(2)))
-            elif payload_length == 127:
-                payload_length = self.unpack64((yield self.read(8)))
-
-            frame.payload_length = payload_length
-
-            if frame.mask:
-                masking_key = frame.masking_key = yield self.read(4)
-                frame.payload_data = mask(
-                    masking_key,
-                    frame.payload_data
-                )
-
-            frame.payload_data = yield self.read(payload_length)
-
-            yield frame
-
-
 class Frame(object):
 
     def __init__(self, opcode, payload=b'', masking_key=None, fin=0, rsv1=0, rsv2=0, rsv3=0):
@@ -81,11 +42,6 @@ class Frame(object):
         self.payload_data = payload
         self._text = None
 
-    @classmethod
-    def blank(cls):
-        frame = cls.__new__()
-        frame._text = None
-        return frame
 
     # Use struct module to pack ws frame header
     _pack8 = struct.Struct('!BB4B').pack
@@ -165,3 +121,47 @@ class Frame(object):
     @property
     def is_close(self):
         return self.opcode == Opcode.close
+
+
+class FrameParser(Parser):
+    """Parses a stream of data in to WS frames."""
+
+    unpack16 = struct.Struct('!H').unpack
+    unpack64 = struct.Struct('!Q').unpack
+
+    def __init__(self, frame_class=Frame):
+        self._frame_class = frame_class
+        super(FrameParser, self).__init__()
+
+    def parse(self):
+        while True:
+            byte1, byte2 = bytearray((yield self.read(2)))
+
+            fin = byte1 >> 7
+            rsv1 = (byte1 >> 6) & 1
+            rsv2 = (byte1 >> 5) & 1
+            rsv3 = (byte1 >> 4) & 1
+            opcode = byte1 & 0b00001111
+
+            mask = byte2 >> 7
+            payload_length = byte2 & 0b01111111
+
+            if payload_length == 126:
+                payload_length = self.unpack16((yield self.read(2)))
+            elif payload_length == 127:
+                payload_length = self.unpack64((yield self.read(8)))
+
+            payload_length = payload_length
+
+            if mask:
+                masking_key = yield self.read(4)
+                payload_data = mask(
+                    masking_key,
+                    payload_data
+                )
+
+            payload_data = yield self.read(payload_length)
+
+            f
+            yield frame
+

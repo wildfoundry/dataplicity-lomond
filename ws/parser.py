@@ -1,11 +1,4 @@
 
-class ParserEnd(Exception):
-    pass
-
-
-class _ReadBytes(int):
-    """Tells the feed method that more bytes are required."""
-
 
 class Parser(object):
     """
@@ -25,13 +18,17 @@ class Parser(object):
 
     """
 
+    class _ReadBytes(int):
+        """Tells the feed method that more bytes are required."""
+
+
     def __init__(self):
         self._gen = None
-        self._expecting = None
+        self._awaiting = None
         self._buffer = []
         self._closed = False
+        self.read = self._ReadBytes
         self.reset()
-        self.read = _ReadBytes
 
     def __del__(self):
         self.close()
@@ -39,7 +36,7 @@ class Parser(object):
     def reset(self):
         """Reset the parser, so it may be used on a fresh stream."""
         self._gen = self.parse()
-        self._expecting = self._gen.next()
+        self._awaiting = next(self._gen)
 
     def close(self):
         """Close the parser."""
@@ -53,23 +50,24 @@ class Parser(object):
         from the stream.
 
         """
-        remaining = data
-        while remaining:
-            chunk = data[:self._expecting]
-            chunk_size = len(chunk)
-            remaining = data[chunk_size:]
-            self._buffer.append(chunk)
-            self._expecting -= chunk_size
-            if not self._expecting:
-                send_bytes = b''.join(self._buffer)
-                del self._buffer[:]
-                result = self._gen.send(send_bytes)
-                if isinstance(result, _ReadBytes):
-                    # More bytes expected
-                    self._expecting = int(result)
+        pos = 0
+        while pos < len(data):
+            if isinstance(self._awaiting, self.read):
+                remaining = int(self._awaiting)
+                chunk = data[pos:pos + remaining]
+                chunk_size = len(chunk)
+                pos += chunk_size
+                self._buffer.append(chunk)
+                remaining -= chunk_size
+                if remaining:
+                    self._awaiting = self.read(remaining)
                 else:
-                    # Parsed something, yield result
-                    yield result
+                    send_bytes = b''.join(self._buffer)
+                    del self._buffer[:]
+                    self._awaiting = self._gen.send(send_bytes)
+            else:
+                yield self._awaiting
+                self._awaiting = next(self._gen)
 
     def parse(self):
         """
@@ -92,6 +90,8 @@ class Parser(object):
 if __name__ == "__main__":
     class TestParser(Parser):
         def parse(self):
+            data = yield self.read(0)
+            yield data
             data = yield self.read(2)
             yield data
             data = yield self.read(4)
@@ -99,7 +99,8 @@ if __name__ == "__main__":
             data = yield self.read(3)
             yield data
     parser = TestParser()
+    print(parser.read)
 
-    for b in b'123456890':
+    for b in (b'12', b'34', b'5', b'678', b'', b'90'):
         for frame in parser.feed(b):
             print(repr(frame))

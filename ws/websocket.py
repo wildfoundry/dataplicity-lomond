@@ -32,6 +32,7 @@ class WebSocketBase(object):
         if _url.query:
             self.resource = "{}?{}".format(_url.query)
         self._key = b64encode(os.urandom(16))
+        self._closed = False
 
     def feed(self, data):
         iter_stream = iter(self.stream.feed(data))
@@ -48,7 +49,6 @@ class WebSocketBase(object):
             "GET {} HTTP/1.1".format(self.resource).encode()
         ]
         protocols = ", ".join(self.protocols)
-        key = self._key
         version = '{}'.format(constants.WS_VERSION)
         headers = [
             ('Upgrade', 'websocket'),
@@ -64,16 +64,25 @@ class WebSocketBase(object):
         return request_bytes
 
     def _on_headers(self, headers):
-        pass
+        try:
+            return self.on_headers(headers)
+        except:
+            log.exception("error in on_headers")
+            return False
 
     def _on_message(message):
         try:
-            self.on_message(message)
-        except Exception as error:
+            return self.on_message(message)
+        except:
             log.exception("error in on_message")
 
     def on_headers(self, headers):
-        pass
+        """
+        Called with initial headers. Return `True` to continue, `False`
+        to close the connection.
+
+        """
+        return True
 
     def on_message(message):
         pass
