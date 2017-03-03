@@ -4,28 +4,9 @@ import struct
 
 import six
 
-from .errors import FrameBuildError
+from . import errors
 from .mask import make_masking_key, mask
-from .parser import Parser
-
-
-class Opcode(object):
-    continuation = 0
-    text = 1
-    binary = 2
-    reserved1 = 3
-    reserved2 = 4
-    reserved3 = 5
-    reserved4 = 6
-    reserved5 = 7
-    close = 8
-    ping = 9
-    pong = 0xA
-    reserved6 = 0xB
-    reserved7 = 0xC
-    reserved8 = 0xD
-    reserved9 = 0xE
-    reserved10 = 0xF
+from .opcode import is_reserved, is_control, Opcode
 
 
 class Frame(object):
@@ -34,14 +15,13 @@ class Frame(object):
         self.fin = fin
         self.rsv1 = rsv1
         self.rsv2 = rsv2
-        self.rsv2 = rsv3
+        self.rsv3 = rsv3
         self.opcode = opcode
         self.mask = 0
-        self.payload_length = len(payload)
         self.masking_key = masking_key
-        self.payload_data = payload
+        self._payload_data = payload
         self._text = None
-
+        self.validate()
 
     # Use struct module to pack ws frame header
     _pack8 = struct.Struct('!BB4B').pack
@@ -64,7 +44,7 @@ class Frame(object):
             header_bytes = cls._pack64(byte0, mask_bit | 127, length, masking_key)
         else:
             # Can't send a payload > 2**63 bytes
-            raise FrameBuildError(
+            raise errors.FrameBuildError(
                 'payload is too large for a single frame'
             )
         return header_bytes + payload
@@ -81,17 +61,53 @@ class Frame(object):
             raise TypeError("payload should be unicode")
         return cls.build(Opcode.text, payload)
 
+    @property
+    def payload(self):
+        return self._payload_data
+
+    @payload.setter
+    def payload(self, data):
+        if self.is_control and len(data) > 125:
+            raise errors.ProtocolError(
+                "Control frames must < 125 bytes in length"
+            )
+        self._payload_data = mask(
+            self.masking_key,
+            data
+        )
+
     def extend(self, frame):
         """Extend data from continuation."""
-        self.payload_data += frame.data
-        self.payload_length = len(self.payload_data)
+        self._payload_data += frame.data
         self._text = None
+
+    def validate(self):
+        """Check the frame and raise any errors."""
+        if self.rsv1 or self.rsv2 or self.rsv3:
+            raise errors.ProtocolError(
+                "reserved bits set"
+            )
+
+        if is_reserved(self.opcode):
+            raise errors.ProtocolError(
+                "opcode is reserved"
+            )
+
+        if not self.fin and is_control(self.opcode):
+            raise errors.ProtocolError(
+                "control frames may not be fragmented"
+            )
+
+    @property
+    def binary(self):
+        """Get binary payload."""
+        return self._payload_data
 
     @property
     def text(self):
         """Get decoded text."""
         if self._text is None:
-            self._text = self.payload_data.decode()
+            self._text = self.payload.decode()
         return self._text
 
     @property
@@ -121,47 +137,3 @@ class Frame(object):
     @property
     def is_close(self):
         return self.opcode == Opcode.close
-
-
-class FrameParser(Parser):
-    """Parses a stream of data in to WS frames."""
-
-    unpack16 = struct.Struct('!H').unpack
-    unpack64 = struct.Struct('!Q').unpack
-
-    def __init__(self, frame_class=Frame):
-        self._frame_class = frame_class
-        super(FrameParser, self).__init__()
-
-    def parse(self):
-        while True:
-            byte1, byte2 = bytearray((yield self.read(2)))
-
-            fin = byte1 >> 7
-            rsv1 = (byte1 >> 6) & 1
-            rsv2 = (byte1 >> 5) & 1
-            rsv3 = (byte1 >> 4) & 1
-            opcode = byte1 & 0b00001111
-
-            mask = byte2 >> 7
-            payload_length = byte2 & 0b01111111
-
-            if payload_length == 126:
-                payload_length = self.unpack16((yield self.read(2)))
-            elif payload_length == 127:
-                payload_length = self.unpack64((yield self.read(8)))
-
-            payload_length = payload_length
-
-            if mask:
-                masking_key = yield self.read(4)
-                payload_data = mask(
-                    masking_key,
-                    payload_data
-                )
-
-            payload_data = yield self.read(payload_length)
-
-            f
-            yield frame
-

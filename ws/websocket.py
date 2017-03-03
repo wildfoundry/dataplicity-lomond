@@ -87,3 +87,10 @@ class WebSocketBase(object):
     def on_message(message):
         pass
 
+
+    def on_ping(message):
+        pass
+
+
+    def on_pong(message):
+        pass
