@@ -1,5 +1,7 @@
 
 
+
+
 class Parser(object):
     """
     Coroutine based stream parser.
@@ -21,11 +23,23 @@ class Parser(object):
     def __init__(self):
         self._gen = None
         self._awaiting = None
-        self._buffer = []
+        self._buffer = []  # Buffer for reads
+        self._until = b''  # Buffer for read untils
         self._closed = False
         self.reset()
 
-    read = type('ReadBytes', (int,), {})
+    class _ReadBytes(object):
+        __slots__ = ['remaining']
+        def __init__(self, count):
+            self.remaining = count
+
+    class _ReadUntil(object):
+        __slots__ = ['sep']
+        def __init__(self, sep):
+            self.sep = sep
+
+    read = _ReadBytes
+    read_until = _ReadUntil
 
     def __del__(self):
         self.close()
@@ -49,19 +63,45 @@ class Parser(object):
         """
         pos = 0
         while pos < len(data):
+            # Awaiting a read of a fixed number of bytes
             if isinstance(self._awaiting, self.read):
-                remaining = int(self._awaiting)
+                # This many bytes left to read
+                remaining = self._awaiting.remaining
+                # Bite off remaining bytes
                 chunk = data[pos:pos + remaining]
                 chunk_size = len(chunk)
                 pos += chunk_size
+                # Add to buffer
                 self._buffer.append(chunk)
                 remaining -= chunk_size
                 if remaining:
+                    # Await more bytes
                     self._awaiting = self.read(remaining)
                 else:
+                    # Got all the bytes we need in buffer
                     send_bytes = b''.join(self._buffer)
                     del self._buffer[:]
+                    # Send to coroutine, get new 'awaitable'
                     self._awaiting = self._gen.send(send_bytes)
+            # Awaiting a read until a terminator
+            elif isinstance(self._awaiting, self.read_until):
+                # Reading to separator
+                self._until += data
+                sep = self._awaiting.sep
+                if sep in self._until:
+                    # Found separator
+                    # Get data prior to and including separator
+                    split_index = self._until.index(sep) + len(sep)
+                    send_bytes = self._until[:split_index]
+                    # Reset data, to continue parsing
+                    data = self._until[split_index:]
+                    self._until = b''
+                    pos = 0
+                    # Send bytes to coroutine, get new 'awaitable'
+                    self._awaiting = self._gen.send(send_bytes)
+                else:
+                    pos += len(data)
+            # Nothing to await, yield object to caller
             else:
                 yield self._awaiting
                 self._awaiting = next(self._gen)
@@ -87,17 +127,19 @@ class Parser(object):
 if __name__ == "__main__":
     class TestParser(Parser):
         def parse(self):
-            data = yield self.read(0)
+            data = yield self.read_until(b'\r\n\r\n')
+            yield data
+            data = yield self.read(1)
             yield data
             data = yield self.read(2)
             yield data
             data = yield self.read(4)
             yield data
-            data = yield self.read(3)
+            data = yield self.read(2)
             yield data
     parser = TestParser()
     print(parser.read)
 
-    for b in (b'12', b'34', b'5', b'678', b'', b'90'):
+    for b in (b'head', b'ers: example', b'\r\n', b'\r\n', b'12', b'34', b'5', b'678', b'', b'90'):
         for frame in parser.feed(b):
             print(repr(frame))
