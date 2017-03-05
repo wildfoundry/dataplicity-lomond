@@ -24,7 +24,7 @@ class Message(object):
         return "Message({})".format(Opcode.to_str(self.opcode))
 
     @classmethod
-    def build(self, frames):
+    def build(cls, frames):
         """Build a message from a sequence of frames."""
         opcode = frames[0].opcode
         payload = b''.join(frame.payload for frame in frames)
@@ -32,7 +32,7 @@ class Message(object):
             code = None
             reason = ''
             if len(payload) >= 2:
-                code = self._unpack16(payload[:2])
+                code = cls._unpack16(payload[:2])
                 reason = payload[2:].decode(errors='replace')
             return CloseMessage(code, reason)
         elif opcode == Opcode.PING:
@@ -48,22 +48,27 @@ class Message(object):
 
     @property
     def is_text(self):
+        """Check if the message is text."""
         return self.opcode == Opcode.TEXT
 
     @property
     def is_binary(self):
+        """Check if the message is binary."""
         return self.opcode == Opcode.BINARY
 
     @property
     def is_close(self):
+        """Check if this is a close message."""
         return self.opcode == Opcode.CLOSE
 
     @property
     def is_ping(self):
+        """Check if this is a ping message."""
         return self.opcode == Opcode.PING
 
     @property
     def is_pong(self):
+        """Check if this is a pong message."""
         return self.opcode == Opcode.PONG
 
 
@@ -90,7 +95,7 @@ class TextMessage(Message):
 
 
 class CloseMessage(BinaryMessage):
-    """Server close control code."""
+    """Connection close control message."""
     __slots__ = ['code', 'reason']
     def __init__(self, code, reason):
         self.code = code

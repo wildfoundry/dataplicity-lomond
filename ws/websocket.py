@@ -1,3 +1,8 @@
+"""
+Abstract websocket functionality.
+
+"""
+
 from __future__ import unicode_literals
 
 from base64 import b64encode
@@ -23,6 +28,8 @@ class WebSocketBase(object):
         self.url = url
         self.protocols = protocols or []
 
+        self.server_protocols = []
+        self.server_extensions = []
         self.stream = WebsocketStream()
         self._response = None
         _url = urlparse.urlparse(url)
@@ -32,11 +39,12 @@ class WebSocketBase(object):
         self.port = port
         self.resource = '/' or _url.path
         if _url.query:
-            self.resource = "{}?{}".format(_url.query)
+            self.resource = "{}?{}".format(host, _url.query)
         self.key = b64encode(os.urandom(16))
         self._closed = False
 
     def feed(self, data):
+        """Feed with data from the socket."""
         iter_stream = iter(self.stream.feed(data))
         if self._response is None:
             response = self._response = next(iter_stream, None)
@@ -66,6 +74,7 @@ class WebSocketBase(object):
         return request_bytes
 
     def on_response(self, response):
+        """Called when the HTTP response has been received."""
         if response.status_code != 101:
             raise errors.HandshakeError(
                 'Websocket upgrade failed (code={})',
@@ -96,7 +105,7 @@ class WebSocketBase(object):
         self.server_extensions = response.get_list(b'sec-websocket-extensions')
 
 
-    def _on_message(message):
+    def _on_message(self, message):
         """Called with new messages, to trap errors."""
         try:
             return self.on_message(message)
@@ -104,13 +113,13 @@ class WebSocketBase(object):
             log.exception("error in on_message")
 
 
-    def on_message(message):
+    def on_message(self, message):
         pass
 
 
-    def on_ping(message):
+    def on_ping(self, message):
         pass
 
 
-    def on_pong(message):
+    def on_pong(self, message):
         pass

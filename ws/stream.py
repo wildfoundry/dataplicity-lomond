@@ -23,15 +23,22 @@ class WebsocketStream(object):
         iter_frames = iter(self.frame_parser.feed(data))
 
         if not self._parsed_response:
+            # Process status line and headers from frame parser
             header_data = next(iter_frames, None)
-            if header_data is not None:
-                self._parsed_response = True
-                yield Response(header_data)
-            else:
+            if header_data is None:
                 return
+            self._parsed_response = True
+            yield Response(header_data)
 
+        # Process incoming frames
         for frame in iter_frames:
-            self._frames.append(frame)
-            if frame.fin:
-                yield Message.build(self._frames)
-                del self._frames[:]
+            if frame.is_control:
+                # Control message's are never fragmented
+                yield Message.build([frame])
+            else:
+                # May be fragmented
+                self._frames.append(frame)
+                if frame.fin:
+                    # Combine any multi part frames in to a single Message
+                    yield Message.build(self._frames)
+                    del self._frames[:]

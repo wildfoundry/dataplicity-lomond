@@ -1,3 +1,8 @@
+"""
+Parse a stream of Websocket frames, and optional HTTP headers.
+
+"""
+
 import struct
 
 from . import errors

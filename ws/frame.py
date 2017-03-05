@@ -13,10 +13,11 @@ import six
 
 from . import errors
 from .mask import make_masking_key, mask
-from .opcode import is_reserved, is_control, Opcode
+from .opcode import is_reserved, Opcode
 
 
 class Frame(object):
+    """A raw websocket frame."""
 
     def __init__(self, opcode, payload=b'', masking_key=None,
                  fin=1, rsv1=0, rsv2=0, rsv3=0):
@@ -33,7 +34,9 @@ class Frame(object):
 
     def __repr__(self):
         opcode_name = Opcode.to_str(self.opcode)
-        return "<frame {} ({} bytes)>".format(
+        frame_type = "frame" if self.fin else "frame-fragment"
+        return "<{} {} ({} bytes)>".format(
+            frame_type,
             opcode_name,
             len(self)
         )
@@ -47,7 +50,7 @@ class Frame(object):
     _pack64 = struct.Struct('!BBQ4B').pack  # 64 bit length field
 
     @classmethod
-    def build(cls, opcode, payload=b'', fin=0, rsv1=0, rsv2=0, rsv3=0):
+    def build(cls, opcode, payload=b'', fin=1, rsv1=0, rsv2=0, rsv3=0):
         """Build a WS frame header."""
         # https://tools.ietf.org/html/rfc6455#section-5.2
         masking_key = make_masking_key()
@@ -76,12 +79,14 @@ class Frame(object):
 
     @classmethod
     def build_binary(cls, payload):
+        """Build a binary frame."""
         if not isinstance(payload, bytes):
             raise TypeError("payload should be bytes")
         return cls.build(Opcode.BINARY, payload)
 
     @classmethod
     def build_text(cls, payload):
+        """Build a text frame."""
         if not isinstance(payload, six.text_type):
             raise TypeError("payload should be unicode")
         return cls.build(Opcode.TEXT, payload)
@@ -102,40 +107,47 @@ class Frame(object):
                 "opcode is reserved"
             )
 
-        if not self.fin and is_control(self.opcode):
+        if not self.fin and self.is_control:
             raise errors.ProtocolError(
                 "control frames may not be fragmented"
             )
 
     @property
     def is_control(self):
+        """Check if this frame has a control opcode."""
         return self.opcode >= 8
 
     @property
     def is_text(self):
+        """Check if this is a text frame."""
         return self.opcode == Opcode.TEXT
 
     @property
     def is_binary(self):
+        """Check if this is a binary frame."""
         return self.opcode == Opcode.BINARY
 
     @property
     def is_continuation(self):
+        """Check if this is a continuation."""
         return self.opcode == Opcode.CONTINUATION
 
     @property
     def is_ping(self):
+        """Check if this is a ping frame."""
         return self.opcode == Opcode.PING
 
     @property
     def is_pong(self):
+        """Check if this is a pong frame."""
         return self.opcode == Opcode.PONG
 
     @property
     def is_close(self):
+        """Check if this is a close frame."""
         return self.opcode == Opcode.CLOSE
 
 
 if __name__ == "__main__":
-    msg = Frame(Opcode.BINARY, b'Hello, World', fin=1)
-    print(msg)
+    print(Frame(Opcode.BINARY, b'Hello, World', fin=0))
+    print(Frame(Opcode.TEXT, b'Hello, World', fin=1))
