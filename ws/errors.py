@@ -1,21 +1,25 @@
+class Error(Exception):
+    def __init__(self, msg, **info):
+        error_msg = msg.format(**info)
+        super(Error, self).__init__(error_msg)
 
-class FrameBuildError(Exception):
+class FrameBuildError(Error):
     pass
 
 
-class HandshakeError(Exception):
+class HandshakeError(Error):
     pass
 
 
-class WebsocketError(Exception):
+class WebsocketError(Error):
     pass
 
 
-class ProtocolError(WebsocketError):
+class ProtocolError(Error):
     pass
 
 
-class PayloadTooLarge(ProtocolError):
+class PayloadTooLarge(Error):
     pass
 
 

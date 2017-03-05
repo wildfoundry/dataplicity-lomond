@@ -1,5 +1,9 @@
+"""
+Coroutine base stream parser.
 
+"""
 
+from __future__ import unicode_literals
 
 
 class Parser(object):

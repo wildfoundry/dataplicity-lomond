@@ -9,7 +9,7 @@ classifiers = [
 ]
 
 # http://bit.ly/2alyerp
-with open('dataplicity/_version.py') as f:
+with open('ws/_version.py') as f:
     exec(f.read())
 
 with open('README.md') as f:
