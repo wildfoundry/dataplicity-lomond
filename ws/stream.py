@@ -1,52 +1,44 @@
 from __future__ import unicode_literals
 
 from .frame_parser import FrameParser
-from .headers import Headers
+from .message import Message
+from .response import Response
 
 
-class FrameStream(object):
-    """Parses a stream of data in to logical Websocket frames"""
+class WebsocketStream(object):
+    """
+    Parses a stream of data in to Headers and logical Websocket
+    frames.
+
+    """
 
     def __init__(self):
         self.frame_parser = FrameParser()
-        self.continuation_frame = None
+        self._parsed_response = False
+        self._frames = []
 
     def feed(self, data):
         """Feed in data from a socket to yield 0 or more frames."""
         # This combines fragmented frames in to a single frame
-        for frame in self.frame_parser.feed(data):
-            if frame.is_continuation:
-                yield self.continuation_frame
-                self.continuation_frame = None
-            else:
-                if frame.fin:
-                    yield frame
-                else:
-                    if self.continuation_frame is None:
-                        self.continuation_frame = frame
-                    else:
-                        self.continuation_frame.extend(frame)
+        iter_frames = iter(self.frame_parser.feed(data))
 
-
-class WebsocketStream(object):
-    """Parses socket data in to headers + frames."""
-
-    def __init__(self):
-        self.websocket_stream = FrameStream()
-        self._parse_headers = True
-        self._header_data = b''
-
-    def feed(self, data):
-        """Yield header data, then a stream of logical WS frames."""
-        if self._parse_headers:
-            self._header_data += data
-            if b'\r\n' in self._header_data:
-                header_data, _, data = self._header_data.partition(b'\r\n\r\n')
-                self._parse_headers = False
-                yield Headers(header_data)
-                del self._header_data
-            else:
+        if not self._parsed_response:
+            # Process status line and headers from frame parser
+            header_data = next(iter_frames, None)
+            if header_data is None:
                 return
-        else:
-            for frame in self.websocket_stream.feed(data):
-                yield frame
+            self._parsed_response = True
+            yield Response(header_data)
+
+        # Process incoming frames
+        for frame in iter_frames:
+            if frame.is_control:
+                # Control message's are never fragmented
+                yield Message.build([frame])
+            else:
+                # May be fragmented
+                self._frames.append(frame)
+                if frame.fin:
+                    # Combine any multi part frames in to a single Message
+                    yield Message.build(self._frames)
+                    del self._frames[:]

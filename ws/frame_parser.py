@@ -1,3 +1,8 @@
+"""
+Parse a stream of Websocket frames, and optional HTTP headers.
+
+"""
+
 import struct
 
 from . import errors
@@ -6,16 +11,23 @@ from .parser import Parser
 
 
 class FrameParser(Parser):
-    """Parses a stream of data in to WS frames."""
+    """Parses a stream of data in to HTTP headers + WS frames."""
 
     unpack16 = struct.Struct('!H').unpack
     unpack64 = struct.Struct('!Q').unpack
 
-    def __init__(self, frame_class=Frame):
+    def __init__(self, frame_class=Frame, parse_headers=True):
         self._frame_class = frame_class
+        self._parse_headers = parse_headers
         super(FrameParser, self).__init__()
 
     def parse(self):
+        # Get the HTTP headers
+        if self._parse_headers:
+            header_data = yield self.read_until(b'\r\n\r\n')
+            yield header_data
+
+        # Get any WS frames
         while True:
             byte1, byte2 = bytearray((yield self.read(2)))
 

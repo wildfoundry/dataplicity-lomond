@@ -1,21 +1,27 @@
+from __future__ import unicode_literals
 
-class FrameBuildError(Exception):
+class Error(Exception):
+    def __init__(self, msg, *args, **kwargs):
+        error_msg = msg.format(*args, **kwargs)
+        super(Error, self).__init__(error_msg)
+
+class FrameBuildError(Error):
     pass
 
 
-class HandshakeError(Exception):
+class HandshakeError(Error):
     pass
 
 
-class WebsocketError(Exception):
+class WebsocketError(Error):
     pass
 
 
-class ProtocolError(WebsocketError):
+class ProtocolError(Error):
     pass
 
 
-class PayloadTooLarge(ProtocolError):
+class PayloadTooLarge(Error):
     pass
 
 
