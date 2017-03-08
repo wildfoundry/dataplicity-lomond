@@ -85,7 +85,7 @@ class WebsocketSession(object):
         while True:
             yield self, events.Connecting()
             try:
-                sock = self._make_socket()
+                sock = self._sock = self._make_socket()
                 sock.connect(self._address)
             except socket.error as error:
                 yield self, events.ConnectFail(six.text_type(error))
