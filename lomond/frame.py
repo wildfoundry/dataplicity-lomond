@@ -45,9 +45,10 @@ class Frame(object):
         return len(self.payload)
 
     # Use struct module to pack ws frame header
-    _pack8 = struct.Struct('!BB4B').pack  # 8 bit length field
-    _pack16 = struct.Struct('!BBH4B').pack  # 16 bit length field
-    _pack64 = struct.Struct('!BBQ4B').pack  # 64 bit length field
+    _pack8 = struct.Struct('!BB4s').pack  # 8 bit length field
+    _pack16 = struct.Struct('!BBH4s').pack  # 16 bit length field
+    _pack64 = struct.Struct('!BBQ4s').pack  # 64 bit length field
+    _pack_close_code = struct.Struct('!H').pack
 
     @classmethod
     def build(cls, opcode, payload=b'', fin=1, rsv1=0, rsv2=0, rsv3=0):
@@ -87,9 +88,24 @@ class Frame(object):
     @classmethod
     def build_text(cls, payload):
         """Build a text frame."""
+        payload_bytes = payload.encode()
         if not isinstance(payload, six.text_type):
             raise TypeError("payload should be unicode")
-        return cls.build(Opcode.TEXT, payload)
+        return cls.build(Opcode.TEXT, payload_bytes)
+
+    @classmethod
+    def build_close(cls, status, reason=''):
+        """Build a close frame."""
+        payload_bytes = cls._pack_close_code(status) + reason.encode()
+        return cls.build(Opcode.CLOSE, payload_bytes)
+
+
+    def to_bytes(self):
+        frame_bytes = self.build(
+            self.opcode,
+            payload=self.payload
+        )
+        return frame_bytes
 
     def validate(self):
         """Check the frame and raise any errors."""

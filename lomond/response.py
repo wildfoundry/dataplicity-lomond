@@ -25,13 +25,14 @@ class Response(object):
 
         headers = defaultdict(list)
         for line in lines:
-            header, _, value = line.partition(b':')
-            header = header.lower()
-            value = value
-            headers[header].append(value)
+            if line:
+                header, _, value = line.partition(b':')
+                header = header.lower().strip()
+                value = value.strip()
+                headers[header].append(value)
 
-        self._headers = {
-            header: ','.join(value)
+        self.headers = {
+            header: b','.join(value)
             for header, value in headers.items()
         }
 
@@ -45,7 +46,7 @@ class Response(object):
     def get(self, name, default=None):
         """Get a header."""
         assert isinstance(name, bytes), "must be bytes"
-        return self._headers.get(name.lower(), default)
+        return self.headers.get(name.lower(), default)
 
     def get_list(self, name):
         """Extract a list from a header."""

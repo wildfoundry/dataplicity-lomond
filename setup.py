@@ -9,14 +9,14 @@ classifiers = [
 ]
 
 # http://bit.ly/2alyerp
-with open('ws/_version.py') as f:
+with open('lomond/_version.py') as f:
     exec(f.read())
 
 with open('README.md') as f:
     long_desc = f.read()
 
 setup(
-    name='ws',
+    name='lomond',
     version=__version__,
     description="Websocket Client Library",
     long_description=long_desc,

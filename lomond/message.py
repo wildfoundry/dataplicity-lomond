@@ -21,7 +21,7 @@ class Message(object):
         self.opcode = opcode
 
     def __repr__(self):
-        return "Message({})".format(Opcode.to_str(self.opcode))
+        return "<message {}>".format(Opcode.to_str(self.opcode))
 
     @classmethod
     def build(cls, frames):
@@ -34,15 +34,15 @@ class Message(object):
             if len(payload) >= 2:
                 code = cls._unpack16(payload[:2])
                 reason = payload[2:].decode(errors='replace')
-            return CloseMessage(code, reason)
+            return Close(code, reason)
         elif opcode == Opcode.PING:
-            return PingMessage(payload)
+            return Ping(payload)
         elif opcode == Opcode.PONG:
-            return PongMessage(payload)
+            return Pong(payload)
         elif opcode == Opcode.BINARY:
-            return BinaryMessage(payload)
+            return Binary(payload)
         elif opcode == Opcode.TEXT:
-            return TextMessage(payload.decode(errors='replace'))
+            return Text(payload.decode(errors='replace'))
         else:
             return Message(opcode)
 
@@ -72,64 +72,64 @@ class Message(object):
         return self.opcode == Opcode.PONG
 
 
-class BinaryMessage(Message):
+class Binary(Message):
     """Binary application data."""
     __slots__ = ['data']
     def __init__(self, data):
         self.data = data
-        super(BinaryMessage, self).__init__(Opcode.BINARY)
+        super(Binary, self).__init__(Opcode.BINARY)
 
     def __repr__(self):
-        return "BinaryMessage({!r})".format(self.data)
+        return "Binary({!r})".format(self.data)
 
 
-class TextMessage(Message):
+class Text(Message):
     """Text application data."""
     __slots__ = ['text']
     def __init__(self, text):
         self.text = text
-        super(TextMessage, self).__init__(Opcode.TEXT)
+        super(Text, self).__init__(Opcode.TEXT)
 
     def __repr__(self):
-        return "TextMessage({!r})".format(self.text)
+        return "Text({!r})".format(self.text)
 
 
-class CloseMessage(BinaryMessage):
+class Close(Message):
     """Connection close control message."""
     __slots__ = ['code', 'reason']
     def __init__(self, code, reason):
         self.code = code
         self.reason = reason
-        super(CloseMessage, self).__init__(Opcode.CLOSE)
+        super(Close, self).__init__(Opcode.CLOSE)
 
     def __repr__(self):
-        return "CloseMessage({}, {!r})".format(self.code, self.reason)
+        return "Close({}, {!r})".format(self.code, self.reason)
 
 
-class PingMessage(BinaryMessage):
+class Ping(Message):
     """Ping message."""
     __slots__ = ['data']
     def __init__(self, data):
         self.data = data
-        super(PingMessage, self).__init__(Opcode.PING)
+        super(Ping, self).__init__(Opcode.PING)
 
     def __repr__(self):
-        return "PingMessage({!r})".format(self.data)
+        return "Ping({!r})".format(self.data)
 
 
-class PongMessage(BinaryMessage):
+class Pong(Binary):
     """Pong message."""
     __slots__ = ['data']
     def __init__(self, data):
         self.data = data
-        super(PongMessage, self).__init__(Opcode.PONG)
+        super(Pong, self).__init__(Opcode.PONG)
 
     def __repr__(self):
-        return "PongMessage({!r})".format(self.data)
+        return "Pong({!r})".format(self.data)
 
 
 if __name__ == "__main__":
-    msg1 = TextMessage("Hello, World")
+    msg1 = Text("Hello, World")
     print(msg1)
-    msg2 = CloseMessage(100, 'going away')
+    msg2 = Close(100, 'going away')
     print(msg2)

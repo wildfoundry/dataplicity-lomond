@@ -33,12 +33,14 @@ class WebsocketStream(object):
         # Process incoming frames
         for frame in iter_frames:
             if frame.is_control:
-                # Control message's are never fragmented
+                # Control messages are never fragmented
+                # And may be sent in the middle of a multi-part message
                 yield Message.build([frame])
             else:
                 # May be fragmented
                 self._frames.append(frame)
                 if frame.fin:
-                    # Combine any multi part frames in to a single Message
+                    # Combine any multi part frames in to a single
+                    # Message
                     yield Message.build(self._frames)
                     del self._frames[:]

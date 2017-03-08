@@ -32,12 +32,18 @@ class Parser(object):
         self._closed = False
         self.reset()
 
-    class _ReadBytes(object):
+    class _Awaitable(object):
+        """An operation that effectively suspends the coroutine."""
+        # Analogous to Python3 asyncio concept
+
+    class _ReadBytes(_Awaitable):
+        """Reads a fixed number of bytes."""
         __slots__ = ['remaining']
         def __init__(self, count):
             self.remaining = count
 
-    class _ReadUntil(object):
+    class _ReadUntil(_Awaitable):
+        """Read until a separator."""
         __slots__ = ['sep']
         def __init__(self, sep):
             self.sep = sep
@@ -105,10 +111,11 @@ class Parser(object):
                     self._awaiting = self._gen.send(send_bytes)
                 else:
                     pos += len(data)
-            # Nothing to await, yield object to caller
-            else:
+            # Yield any non-awaitables...
+            while not isinstance(self._awaiting, self._Awaitable):
                 yield self._awaiting
                 self._awaiting = next(self._gen)
+
 
     def parse(self):
         """
@@ -142,8 +149,6 @@ if __name__ == "__main__":
             data = yield self.read(2)
             yield data
     parser = TestParser()
-    print(parser.read)
-
     for b in (b'head', b'ers: example', b'\r\n', b'\r\n', b'12', b'34', b'5', b'678', b'', b'90'):
         for frame in parser.feed(b):
             print(repr(frame))
