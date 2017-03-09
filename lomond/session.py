@@ -113,6 +113,8 @@ class WebsocketSession(object):
             sock.close()
         except socket.error:
             pass
+        else:
+            sock = None
 
 
 if __name__ == "__main__":

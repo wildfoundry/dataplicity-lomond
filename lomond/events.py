@@ -21,6 +21,7 @@ class Connecting(Event):
 
     def __init__(self, url):
         self.url = url
+        super(Connecting, self).__init__()
 
     def __repr__(self):
         return "{}('{}')".format(self.__class__.__name__, self.url)
@@ -72,6 +73,7 @@ class Disconnected(Event):
 
 
 class Closed(Event):
+    """Websocket connection is closed."""
     def __init__(self, code, reason):
         self.code = code
         self.reason = reason
