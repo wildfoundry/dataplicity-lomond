@@ -16,9 +16,11 @@ from six.moves.urllib.parse import urlparse
 from . import constants
 from . import errors
 from . import events
+from .frame import Frame
 from .opcode import Opcode
 from .response import Response
 from .stream import WebsocketStream
+from .session import WebsocketSession
 
 
 log = logging.getLogger('ws')
@@ -30,6 +32,7 @@ class WebSocket(object):
     def __init__(self, url, protocols=None):
         self.url = url
         self.protocols = protocols or []
+        self._session = None
 
         self.stream = WebsocketStream()
         _url = urlparse(url)
@@ -47,26 +50,59 @@ class WebSocket(object):
         if _url.query:
             self.resource = "{}?{}".format(host, _url.query)
         self.key = b64encode(os.urandom(16))
+
+        self._closing = False
         self._closed = False
 
     def __repr__(self):
-        return "WebSocket({!r})".format(self.url)
+        return "WebSocket('{}')".format(self.url)
 
-    def connect(self):
-        from .session import WebsocketSession
-        return WebsocketSession(self)
+    @property
+    def session(self):
+        return self._session
+
+    def connect(self, session_class=WebsocketSession):
+        self._session = WebsocketSession(self)
+
+    def events(self, poll=5):
+        return self._session.events(poll=poll)
+
+    def close(self, code, reason):
+        self._send_close(code, reason)
+        self._closing = True
+
+    @property
+    def is_closing(self):
+        return self._closing
+
+    @property
+    def is_closed(self):
+        return self._closed
 
     def feed(self, data, session):
         """Feed with data from the socket."""
         for message in self.stream.feed(data):
             log.debug('%r', message)
             if isinstance(message, Response):
-                yield self.on_response(message)
+                try:
+                    yield self.on_response(message)
+                except errors.HandshakeError as error:
+                    yield events.Rejected(str(error))
+                    break
+                except Exception as error:
+                    log.exception('on_response failed')
+                    yield events.Rejected(str(error))
+                    break
             else:
                 if message.is_close:
-                    session.on_close_message(message)
+                    if self._closing:
+                        yield events.Closed(message.code, message.reason)
+                        self._closed = True
+                    else:
+                        self.close(message.code, message.reason)
+                        self._closing = True
                 elif message.is_ping:
-                    session.write(Opcode.PONG, message.payload)
+                    self.session.write(Opcode.PONG, message.payload)
                 elif message.is_pong:
                     pass
                 elif message.is_binary:
@@ -99,6 +135,7 @@ class WebSocket(object):
 
     def on_response(self, response):
         """Called when the HTTP response has been received."""
+
         if response.status_code != 101:
             raise errors.HandshakeError(
                 'Websocket upgrade failed (code={})',
@@ -117,6 +154,7 @@ class WebSocket(object):
             raise errors.HandshakeError(
                 "No Sec-WebSocket-Accept header"
             )
+
         challenge = b64encode(
             sha1(self.key + constants.WS_KEY).digest()
         )
@@ -130,3 +168,27 @@ class WebSocket(object):
         extensions = set(response.get_list(b'sec-websocket-extensions') or [])
 
         return events.Accepted(protocol, extensions)
+
+    def send_ping(self, data):
+        """Send a ping request."""
+        if len(data) <= 125:
+            raise ValueError('ping data should be <= 125')
+        self.session.send(Opcode.PING, data)
+
+    def send_binary(self, data):
+        """Send a binary frame."""
+        self.session.send(Opcode.BINARY, data)
+
+    def send_text(self, text):
+        """Send a text frame."""
+        self.session.send(Opcode.TEXT, text.encode(errors='replace'))
+
+    def _send_close(self, code, reason):
+        """Send a close frame."""
+        frame_bytes = Frame.build_close_payload(code, reason)
+        self.session.send(Opcode.CLOSE, frame_bytes)
+
+    def send_request(self):
+        """Send the HTTP request."""
+        request = self.get_request()
+        self.session.write(request)

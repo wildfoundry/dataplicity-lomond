@@ -32,7 +32,7 @@ class Message(object):
             code = None
             reason = ''
             if len(payload) >= 2:
-                code = cls._unpack16(payload[:2])
+                code = cls._unpack16(payload[:2])[0]
                 reason = payload[2:].decode(errors='replace')
             return Close(code, reason)
         elif opcode == Opcode.PING:

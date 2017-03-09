@@ -9,7 +9,6 @@ import time
 
 import six
 
-from .websocket import WebSocket
 
 from . import events
 
@@ -29,33 +28,17 @@ class WebsocketSession(object):
     def __repr__(self):
         return "<ws-session '{}'>".format(self.url)
 
-    def _write(self, data):
+    def write(self, data, flush=True):
+        """Send raw data."""
         # TODO: split large packets?
         self._write_buffer.append(data)
+        if flush:
+            self.flush()
 
     def send(self, opcode, data):
+        """Send a WS Frame."""
         frame = Frame(opcode, payload=data)
-        self._write(frame.to_bytes())
-
-    def send_binary(self, data):
-        frame_bytes = Frame.build_binary(data)
-        self._write(frame_bytes)
-
-    def send_text(self, text):
-        frame_bytes = Frame.build_text(text)
-        self._write(frame_bytes)
-
-    def send_close(self, code, reason):
-        frame_bytes = Frame.build_close(code, reason)
-        self._write(frame_bytes)
-        self._sent_close = True
-
-    def send_request(self):
-        request = self.websocket.get_request()
-        self._write(request)
-
-    def on_close(message):
-        pass
+        self.write(frame.to_bytes())
 
     def _select(self, sock, poll):
         return select.select(
@@ -82,50 +65,69 @@ class WebsocketSession(object):
     def events(self, poll=15):
         # TODO: implement exponential back off
         websocket = self.websocket
-        while True:
-            yield self, events.Connecting()
+
+        while 1:
+            yield websocket, events.Connecting(websocket.url)
             try:
                 sock = self._sock = self._make_socket()
                 sock.connect(self._address)
             except socket.error as error:
-                yield self, events.ConnectFail(six.text_type(error))
+                yield websocket, events.ConnectFail(six.text_type(error))
                 time.sleep(5)
                 continue
+            else:
+                break
 
-            yield self, events.Connected()
-            self.send_request()
+        yield websocket, events.Connected(websocket.url)
+        websocket.send_request()
 
-            poll_start = time.time()
-            while True:
+        poll_start = time.time()
+        while not websocket.is_closed:
+            try:
                 reads, writes, errors = self._select(sock, poll)
-                if errors:
-                    break
-                if writes:
-                    self.flush()
-                if reads:
+            except KeyboardInterrupt:
+                websocket.close(1000, 'goodbye')
+                continue
+            if writes:
+                self.flush()
+            if reads:
+                try:
                     data = sock.recv(4096)
-                    if not data:
-                        break
-                    for event in websocket.feed(data, self):
-                        yield self, event
+                except socket.error:
+                    break
+                if not data:
+                    break
+                for event in websocket.feed(data, self):
+                    yield websocket, event
 
-                current_time = time.time()
-                if current_time - poll_start > poll:
-                    poll_start = current_time
-                    yield self, events.Poll()
+            current_time = time.time()
+            if current_time - poll_start > poll:
+                poll_start = current_time
+                yield websocket, events.Poll()
+            if errors:
+                print(errors)
+                break
+
+        yield websocket, events.Disconnected()
+        try:
+            sock.shutdown(socket.SHUT_RDWR)
+            sock.close()
+        except socket.error:
+            pass
 
 
 if __name__ == "__main__":
 
     # Test with wstest -m echoserver -w ws://127.0.0.1:9001 -d
+    # Get wstest app from http://autobahn.ws/testsuite/
 
     from .websocket import WebSocket
 
-    websocket = WebSocket('ws://127.0.0.1:9001')
-    session = websocket.connect()
-    for session, event in session.events(poll=5):
-        print("{} : {}".format(session, event))
+    ws = WebSocket('ws://127.0.0.1:9001')
+    ws.connect()
+    for ws, event in ws.events(poll=5):
+        print(event)
         if isinstance(event, events.Poll):
-            session.send_text('Hello, World')
-            session.send_binary(b'hello world in binary')
+            ws.send_text('Hello, World')
+            ws.send_binary(b'hello world in binary')
 

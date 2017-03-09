@@ -19,8 +19,16 @@ class Poll(Event):
 class Connecting(Event):
     """Connection process has started."""
 
+    def __init__(self, url):
+        self.url = url
 
-class Connected(Event):
+    def __repr__(self):
+        return "{}('{})'".format(self.__class__.__name__,
+                                 self.url)
+
+
+
+class Connected(Connecting):
     """Connected to server (but not yet received response)."""
 
 
@@ -51,7 +59,6 @@ def Rejected(Event):
 
 class ConnectFail(Event):
     """Connection failed (connectivity related)."""
-
     def __init__(self, reason):
         self.reason = reason
         super(ConnectFail, self).__init__()
@@ -62,16 +69,15 @@ class ConnectFail(Event):
             self.reason,
         )
 
-
 class Disconnected(Event):
     """Server disconnected."""
 
 
-class Close(Event):
+class Closed(Event):
     def __init__(self, code, reason):
         self.code = code
         self.reason = reason
-        super(Close, self).__init__()
+        super(Closed, self).__init__()
 
     def __repr__(self):
         return '{}({!r}, {!r})'.format(
@@ -79,7 +85,6 @@ class Close(Event):
             self.code,
             self.reason,
         )
-
 
 class UnknownMessage(Event):
     """
