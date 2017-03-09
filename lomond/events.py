@@ -23,9 +23,7 @@ class Connecting(Event):
         self.url = url
 
     def __repr__(self):
-        return "{}('{})'".format(self.__class__.__name__,
-                                 self.url)
-
+        return "{}('{}')".format(self.__class__.__name__, self.url)
 
 
 class Connected(Connecting):
