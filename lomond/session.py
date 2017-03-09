@@ -67,18 +67,18 @@ class WebsocketSession(object):
         websocket = self.websocket
 
         while 1:
-            yield websocket, events.Connecting(websocket.url)
+            yield events.Connecting(websocket.url)
             try:
                 sock = self._sock = self._make_socket()
                 sock.connect(self._address)
             except socket.error as error:
-                yield websocket, events.ConnectFail(six.text_type(error))
+                yield events.ConnectFail(six.text_type(error))
                 time.sleep(5)
                 continue
             else:
                 break
 
-        yield websocket, events.Connected(websocket.url)
+        yield events.Connected(websocket.url)
         websocket.send_request()
 
         poll_start = time.time()
@@ -98,17 +98,16 @@ class WebsocketSession(object):
                 if not data:
                     break
                 for event in websocket.feed(data, self):
-                    yield websocket, event
-
+                    yield event
+            if errors:
+                break
             current_time = time.time()
             if current_time - poll_start > poll:
                 poll_start = current_time
-                yield websocket, events.Poll()
-            if errors:
-                print(errors)
-                break
+                yield events.Poll()
 
-        yield websocket, events.Disconnected()
+
+        yield events.Disconnected()
         try:
             sock.shutdown(socket.SHUT_RDWR)
             sock.close()
@@ -124,8 +123,7 @@ if __name__ == "__main__":
     from .websocket import WebSocket
 
     ws = WebSocket('ws://127.0.0.1:9001')
-    ws.connect()
-    for ws, event in ws.events(poll=5):
+    for event in ws.connect(poll=5):
         print(event)
         if isinstance(event, events.Poll):
             ws.send_text('Hello, World')

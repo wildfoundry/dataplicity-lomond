@@ -61,10 +61,8 @@ class WebSocket(object):
     def session(self):
         return self._session
 
-    def connect(self, session_class=WebsocketSession):
+    def connect(self, poll=5, session_class=WebsocketSession):
         self._session = WebsocketSession(self)
-
-    def events(self, poll=5):
         return self._session.events(poll=poll)
 
     def close(self, code, reason):
