@@ -6,6 +6,7 @@ classifiers = [
     'Development Status :: 3 - Alpha',
     'Intended Audience :: Developers',
     'Programming Language :: Python',
+    'License :: OSI Approved :: BSD License',
 ]
 
 # http://bit.ly/2alyerp
@@ -26,19 +27,10 @@ setup(
     platforms=['any'],
     packages=find_packages(),
     classifiers=classifiers,
-
-    # entry_points={
-    #     "console_scripts": [
-    #        'dataplicity = dataplicity.app:main'
-    #     ]
-    # },
-
     setup_requires=['pytest-runner'],
     tests_require=['pytest'],
-
     install_requires=[
 
     ],
-
     zip_safe=True
 )

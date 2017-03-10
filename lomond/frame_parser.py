@@ -3,11 +3,15 @@ Parse a stream of Websocket frames, and optional HTTP headers.
 
 """
 
+import logging
 import struct
 
 from . import errors
 from .frame import Frame
 from .parser import Parser
+
+
+log = logging.getLogger('ws')
 
 
 class FrameParser(Parser):
@@ -25,6 +29,7 @@ class FrameParser(Parser):
         # Get the HTTP headers
         if self._parse_headers:
             header_data = yield self.read_until(b'\r\n\r\n')
+            log.debug('HEADERS: %r', header_data)
             yield header_data
 
         # Get any WS frames
@@ -41,9 +46,9 @@ class FrameParser(Parser):
             payload_length = byte2 & 0b01111111
 
             if payload_length == 126:
-                payload_length = self.unpack16((yield self.read(2)))
+                payload_length = self.unpack16((yield self.read(2)))[0]
             elif payload_length == 127:
-                payload_length = self.unpack64((yield self.read(8)))
+                payload_length = self.unpack64((yield self.read(8)))[0]
             if payload_length > 0x7fffffffffffffff:
                 raise errors.PayloadTooLarge("payload is too large")
 
@@ -61,6 +66,7 @@ class FrameParser(Parser):
                 rsv3=rsv3
             )
             frame.payload = yield self.read(payload_length)
+            log.debug('PARSED: %r', frame)
             yield frame
 
 if __name__ == "__main__":

@@ -15,7 +15,7 @@ class Response(object):
     def __init__(self, header_data):
         lines = iter(header_data.split(b'\r\n'))
         status_line = next(lines, b'')
-        tokens = iter(status_line.split(None, 3))
+        tokens = iter(status_line.split(None, 2))
         self.http_ver = next(tokens, b'').decode(errors='replace')
         try:
             self.status_code = int(next(tokens, b''))
@@ -37,7 +37,7 @@ class Response(object):
         }
 
     def __repr__(self):
-        return "{} {} {}".format(
+        return "<response {} {} {}>".format(
             self.http_ver,
             self.status_code,
             self.status

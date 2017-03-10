@@ -31,6 +31,19 @@ class Connected(Connecting):
     """Connected to server (but not yet received response)."""
 
 
+class ConnectFail(Event):
+    """Connection failed (connectivity related)."""
+    def __init__(self, reason):
+        self.reason = reason
+        super(ConnectFail, self).__init__()
+
+    def __repr__(self):
+        return '{}({!r})'.format(
+            self.__class__.__name__,
+            self.reason,
+        )
+
+
 class Accepted(Event):
     """Server accepted WS connection."""
     def __init__(self, protocol, extensions):
@@ -55,18 +68,6 @@ def Rejected(Event):
     def __repr__(self):
         return "{}({})".format(self.__class__.__name__, self.reason)
 
-
-class ConnectFail(Event):
-    """Connection failed (connectivity related)."""
-    def __init__(self, reason):
-        self.reason = reason
-        super(ConnectFail, self).__init__()
-
-    def __repr__(self):
-        return '{}({!r})'.format(
-            self.__class__.__name__,
-            self.reason,
-        )
 
 class Disconnected(Event):
     """Server disconnected."""
@@ -96,11 +97,32 @@ class UnknownMessage(Event):
         super(UnknownMessage, self).__init__()
 
 
-class AppMessage(Event):
+class Binary(Event):
     """An application message was received."""
     def __init__(self, message):
-        self.message = message
-        super(AppMessage, self).__init__()
+        self.data = message.data
+        super(Binary, self).__init__()
 
     def __repr__(self):
-        return "{}({!r})".format(self.__class__.__name__, self.message)
+        return "{}({!r})".format(self.__class__.__name__, self.data)
+
+
+class Pong(Event):
+    """An application message was received."""
+    def __init__(self, message):
+        self.data = message.data
+        super(Pong, self).__init__()
+
+    def __repr__(self):
+        return "{}({!r})".format(self.__class__.__name__, self.data)
+
+
+class Text(Event):
+    """An application text message was received."""
+    def __init__(self, message):
+        self.text = message.text
+        super(Text, self).__init__()
+
+    def __repr__(self):
+        return "{}({!r})".format(self.__class__.__name__, self.text)
+

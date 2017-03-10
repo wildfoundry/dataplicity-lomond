@@ -21,6 +21,7 @@ from .opcode import Opcode
 from .response import Response
 from .stream import WebsocketStream
 from .session import WebsocketSession
+from .status import Status
 
 
 log = logging.getLogger('ws')
@@ -39,18 +40,20 @@ class WebSocket(object):
         self.scheme = _url.scheme
         host, _, port = _url.netloc.partition(':')
         if not port:
-            host = '443' if self.scheme == 'wss' else '80'
+            port = '443' if self.scheme == 'wss' else '80'
         if not port.isdigit():
             raise ValueError('illegal port value')
         port = int(port)
         self.host = host
         self.port = port
         self._host_port = "{}:{}".format(host, port)
-        self.resource = '/' or _url.path
+        self.resource = _url.path or '/'
         if _url.query:
             self.resource = "{}?{}".format(host, _url.query)
         self.key = b64encode(os.urandom(16))
 
+        self._sent_request = False
+        self._running = False
         self._closing = False
         self._closed = False
 
@@ -62,10 +65,17 @@ class WebSocket(object):
         return self._session
 
     def connect(self, poll=5, session_class=WebsocketSession):
+        if self._running:
+            raise errors.WebSocketInUse(
+                "Can't connect while WebSocket is running"
+            )
         self._session = WebsocketSession(self)
+        self._running = True
         return self._session.events(poll=poll)
 
-    def close(self, code, reason):
+    __iter__ = connect
+
+    def close(self, code=Status.NORMAL, reason=b'goodbye'):
         self._send_close(code, reason)
         self._closing = True
 
@@ -77,8 +87,9 @@ class WebSocket(object):
     def is_closed(self):
         return self._closed
 
-    def feed(self, data, session):
+    def feed(self, data):
         """Feed with data from the socket."""
+        session = self.session
         for message in self.stream.feed(data):
             log.debug('%r', message)
             if isinstance(message, Response):
@@ -100,13 +111,13 @@ class WebSocket(object):
                         self.close(message.code, message.reason)
                         self._closing = True
                 elif message.is_ping:
-                    self.session.write(Opcode.PONG, message.payload)
+                    session.write(Opcode.PONG, message.payload)
                 elif message.is_pong:
-                    pass
+                    yield events.Pong(message)
                 elif message.is_binary:
-                    yield events.AppMessage(message)
+                    yield events.Binary(message)
                 elif message.is_text:
-                    yield events.AppMessage(message)
+                    yield events.Text(message)
                 else:
                     yield events.UnknownMessage(message)
 
@@ -173,6 +184,12 @@ class WebSocket(object):
             raise ValueError('ping data should be <= 125')
         self.session.send(Opcode.PING, data)
 
+    def send_pong(self, data):
+        """Send a ping request."""
+        if len(data) <= 125:
+            raise ValueError('ping data should be <= 125')
+        self.session.send(Opcode.PONG, data)
+
     def send_binary(self, data):
         """Send a binary frame."""
         self.session.send(Opcode.BINARY, data)
@@ -189,4 +206,6 @@ class WebSocket(object):
     def send_request(self):
         """Send the HTTP request."""
         request = self.get_request()
+        log.debug('REQUEST: %r', request)
         self.session.write(request)
+        self._sent_request = True

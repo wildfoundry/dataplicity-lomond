@@ -9,8 +9,6 @@ from __future__ import print_function
 
 import struct
 
-import six
-
 from . import errors
 from .mask import make_masking_key, mask
 from .opcode import is_reserved, Opcode
@@ -78,21 +76,6 @@ class Frame(object):
         frame_bytes = header_bytes + mask(masking_key, payload)
         return frame_bytes
 
-    # @classmethod
-    # def build_binary(cls, payload):
-    #     """Build a binary frame."""
-    #     if not isinstance(payload, bytes):
-    #         raise TypeError("payload should be bytes")
-    #     return cls.build(Opcode.BINARY, payload)
-
-    # @classmethod
-    # def build_text(cls, payload):
-    #     """Build a text frame."""
-    #     payload_bytes = payload.encode()
-    #     if not isinstance(payload, six.text_type):
-    #         raise TypeError("payload should be unicode")
-    #     return cls.build(Opcode.TEXT, payload_bytes)
-
     @classmethod
     def build_close_payload(cls, status, reason=''):
         """Build a close frame."""
@@ -102,8 +85,8 @@ class Frame(object):
         payload_bytes = cls._pack_close_code(status) + reason
         return payload_bytes
 
-
     def to_bytes(self):
+        """Return binary encoding of WS frame."""
         frame_bytes = self.build(
             self.opcode,
             payload=self.payload

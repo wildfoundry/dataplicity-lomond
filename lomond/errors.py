@@ -27,3 +27,5 @@ class PayloadTooLarge(Error):
     pass
 
 
+class WebSocketInUse(Error):
+    pass

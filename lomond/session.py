@@ -2,14 +2,14 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from collections import deque
-from .frame import Frame
 import select
 import socket
+import threading
 import time
 
 import six
 
-
+from .frame import Frame
 from . import events
 
 
@@ -19,6 +19,7 @@ class WebsocketSession(object):
         self.websocket = websocket
         self.reconnect = reconnect
         self._address = (websocket.host, websocket.port)
+        self._lock = threading.Lock()
 
         self._sock = None
         self.url = websocket.url
@@ -49,12 +50,13 @@ class WebsocketSession(object):
         )
 
     def flush(self):
-        sock = self._sock
-        while self._write_buffer:
-            data = self._write_buffer.popleft()
-            sent = sock.send(data)
-            if sent != len(data):
-                self._write_buffer.appendleft(data[sent:])
+        with self._lock:
+            sock = self._sock
+            while self._write_buffer:
+                data = self._write_buffer.popleft()
+                sent = sock.send(data)
+                if sent != len(data):
+                    self._write_buffer.appendleft(data[sent:])
 
     def _make_socket(self):
         sock = socket.socket(
@@ -97,7 +99,7 @@ class WebsocketSession(object):
                     break
                 if not data:
                     break
-                for event in websocket.feed(data, self):
+                for event in websocket.feed(data):
                     yield event
             if errors:
                 break
@@ -105,7 +107,6 @@ class WebsocketSession(object):
             if current_time - poll_start > poll:
                 poll_start = current_time
                 yield events.Poll()
-
 
         yield events.Disconnected()
         try:
