@@ -61,6 +61,14 @@ class WebSocket(object):
         return "WebSocket('{}')".format(self.url)
 
     @property
+    def is_closing(self):
+        return self._closing
+
+    @property
+    def is_closed(self):
+        return self._closed
+
+    @property
     def session(self):
         return self._session
 
@@ -79,37 +87,41 @@ class WebSocket(object):
         self._send_close(code, reason)
         self._closing = True
 
-    @property
-    def is_closing(self):
-        return self._closing
+    def stop(self):
+        self._closed = True
 
-    @property
-    def is_closed(self):
-        return self._closed
+    def _on_close(self, message):
+        if self._closing:
+            yield events.Closed(message.code, message.reason)
+            self._closing = False
+            self._closed = True
+        else:
+            self.close(message.code, message.reason)
+            self._closing = True
+
+    def disconnect(self):
+        self._closing = False
+        self._closed = True
 
     def feed(self, data):
         """Feed with data from the socket."""
+        if self.is_closed:
+            return
         session = self.session
         for message in self.stream.feed(data):
             log.debug('%r', message)
             if isinstance(message, Response):
                 try:
-                    yield self.on_response(message)
+                    protocol, extensions = self.on_response(message)
                 except errors.HandshakeError as error:
+                    self.disconnect()
                     yield events.Rejected(str(error))
-                    break
-                except Exception as error:
-                    log.exception('on_response failed')
-                    yield events.Rejected(str(error))
-                    break
+                else:
+                    yield events.Connected(protocol, extensions)
             else:
                 if message.is_close:
-                    if self._closing:
-                        yield events.Closed(message.code, message.reason)
-                        self._closed = True
-                    else:
-                        self.close(message.code, message.reason)
-                        self._closing = True
+                    for event in self._on_close(message):
+                        yield event
                 elif message.is_ping:
                     session.write(Opcode.PONG, message.payload)
                 elif message.is_pong:
@@ -175,8 +187,8 @@ class WebSocket(object):
 
         protocol = response.get(b'sec-websocket-protocol')
         extensions = set(response.get_list(b'sec-websocket-extensions') or [])
+        return protocol, extensions
 
-        return events.Accepted(protocol, extensions)
 
     def send_ping(self, data):
         """Send a ping request."""
@@ -203,9 +215,3 @@ class WebSocket(object):
         frame_bytes = Frame.build_close_payload(code, reason)
         self.session.send(Opcode.CLOSE, frame_bytes)
 
-    def send_request(self):
-        """Send the HTTP request."""
-        request = self.get_request()
-        log.debug('REQUEST: %r', request)
-        self.session.write(request)
-        self._sent_request = True

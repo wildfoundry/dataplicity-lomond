@@ -11,7 +11,7 @@ ws = WebSocket('ws://ws.willmcgugan.com/chat/')
 
 def run():
     for event in ws:
-        if isinstance(event, events.Accepted):
+        if isinstance(event, events.Connected):
             ws.send_text("<{} connected>".format(name))
         elif isinstance(event, events.Text):
             print event.text

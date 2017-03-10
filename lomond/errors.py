@@ -29,3 +29,11 @@ class PayloadTooLarge(Error):
 
 class WebSocketInUse(Error):
     pass
+
+
+class TransportFail(Error):
+    pass
+
+
+class WebSocketClosed(Error):
+    pass

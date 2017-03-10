@@ -1,7 +1,7 @@
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from collections import deque
+import logging
 import select
 import socket
 import threading
@@ -10,7 +10,11 @@ import time
 import six
 
 from .frame import Frame
+from . import errors
 from . import events
+
+
+log = logging.getLogger('ws')
 
 
 class WebsocketSession(object):
@@ -23,18 +27,19 @@ class WebsocketSession(object):
 
         self._sock = None
         self.url = websocket.url
-        self._write_buffer = deque()
         self._sent_close = False
 
     def __repr__(self):
         return "<ws-session '{}'>".format(self.url)
 
-    def write(self, data, flush=True):
+    def write(self, data):
         """Send raw data."""
-        # TODO: split large packets?
-        self._write_buffer.append(data)
-        if flush:
-            self.flush()
+        try:
+            self._sock.sendall(data)
+        except socket.error as error:
+            raise errors.TransportFail(
+                six.text_type(error)
+            )
 
     def send(self, opcode, data):
         """Send a WS Frame."""
@@ -42,21 +47,8 @@ class WebsocketSession(object):
         self.write(frame.to_bytes())
 
     def _select(self, sock, poll):
-        return select.select(
-            [sock],
-            [sock] if self._write_buffer else [],
-            [sock],
-            poll
-        )
-
-    def flush(self):
-        with self._lock:
-            sock = self._sock
-            while self._write_buffer:
-                data = self._write_buffer.popleft()
-                sent = sock.send(data)
-                if sent != len(data):
-                    self._write_buffer.appendleft(data[sent:])
+        reads, writes, errors = select.select([sock], [], [sock], poll)
+        return reads, errors
 
     def _make_socket(self):
         sock = socket.socket(
@@ -70,28 +62,36 @@ class WebsocketSession(object):
 
         while 1:
             yield events.Connecting(websocket.url)
+            request_bytes = websocket.get_request()
+            log.debug('REQUEST: %r', request_bytes)
             try:
                 sock = self._sock = self._make_socket()
                 sock.connect(self._address)
+                self.write(request_bytes)
+            except errors.TransportFail as error:
+                yield events.ConnectFail('{}'.format(error))
             except socket.error as error:
-                yield events.ConnectFail(six.text_type(error))
-                time.sleep(5)
-                continue
+                yield events.ConnectFail('{}'.format(error))
             else:
                 break
+            time.sleep(5)
 
-        yield events.Connected(websocket.url)
-        websocket.send_request()
+        try:
+            self.write(request_bytes)
+        except errors.TransportFail as error:
+            yield events.ConnectFail('{}'.format(error))
+            return
 
         poll_start = time.time()
         while not websocket.is_closed:
             try:
-                reads, writes, errors = self._select(sock, poll)
+                reads, errors = self._select(sock, poll)
             except KeyboardInterrupt:
-                websocket.close(1000, 'goodbye')
-                continue
-            if writes:
-                self.flush()
+                if websocket.is_closing:
+                    raise
+                else:
+                    websocket.close(1000, 'goodbye')
+                    continue
             if reads:
                 try:
                     data = sock.recv(4096)
@@ -103,10 +103,12 @@ class WebsocketSession(object):
                     yield event
             if errors:
                 break
+
             current_time = time.time()
             if current_time - poll_start > poll:
                 poll_start = current_time
                 yield events.Poll()
+
 
         yield events.Disconnected()
         try:

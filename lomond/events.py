@@ -27,10 +27,6 @@ class Connecting(Event):
         return "{}('{}')".format(self.__class__.__name__, self.url)
 
 
-class Connected(Connecting):
-    """Connected to server (but not yet received response)."""
-
-
 class ConnectFail(Event):
     """Connection failed (connectivity related)."""
     def __init__(self, reason):
@@ -44,21 +40,6 @@ class ConnectFail(Event):
         )
 
 
-class Accepted(Event):
-    """Server accepted WS connection."""
-    def __init__(self, protocol, extensions):
-        self.protocol = protocol
-        self.extensions = extensions
-        super(Accepted, self).__init__()
-
-    def __repr__(self):
-        return '{}(protocol={!r}, extensions={!r})'.format(
-            self.__class__.__name__,
-            self.protocol,
-            self.extensions
-        )
-
-
 def Rejected(Event):
     """Server rejected WS connection."""
     def __init__(self, reason):
@@ -68,6 +49,20 @@ def Rejected(Event):
     def __repr__(self):
         return "{}({})".format(self.__class__.__name__, self.reason)
 
+
+class Connected(Event):
+    """Server accepted WS connection."""
+    def __init__(self, protocol, extensions):
+        self.protocol = protocol
+        self.extensions = extensions
+        super(Connected, self).__init__()
+
+    def __repr__(self):
+        return '{}(protocol={!r}, extensions={!r})'.format(
+            self.__class__.__name__,
+            self.protocol,
+            self.extensions
+        )
 
 class Disconnected(Event):
     """Server disconnected."""
