@@ -69,6 +69,7 @@ class FrameParser(Parser):
             log.debug('PARSED: %r', frame)
             yield frame
 
+
 if __name__ == "__main__":
     data = b'\x88\x02\x03\xe8'
     parser = FrameParser(parse_headers=False)

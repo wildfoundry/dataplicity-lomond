@@ -4,6 +4,7 @@ from __future__ import unicode_literals
 import logging
 import select
 import socket
+import ssl
 import threading
 import time
 
@@ -17,107 +18,173 @@ from . import events
 log = logging.getLogger('ws')
 
 
-class WebsocketSession(object):
 
-    def __init__(self, websocket, reconnect=True):
+class WebsocketSession(object):
+    """Manages the mechanics of running the websocket."""
+
+    def __init__(self, websocket):
         self.websocket = websocket
-        self.reconnect = reconnect
+
         self._address = (websocket.host, websocket.port)
         self._lock = threading.Lock()
 
         self._sock = None
-        self.url = websocket.url
-        self._sent_close = False
+        self._poll_start = time.time()
 
     def __repr__(self):
         return "<ws-session '{}'>".format(self.url)
 
+    @property
+    def url(self):
+        return self.websocket.url
+
     def write(self, data):
         """Send raw data."""
-        try:
-            self._sock.sendall(data)
-        except socket.error as error:
-            raise errors.TransportFail(
-                six.text_type(error)
-            )
+        with self._lock:
+            try:
+                self._sock.sendall(data)
+            except socket.error as error:
+                raise errors.TransportFail(
+                    six.text_type(error)
+                )
 
     def send(self, opcode, data):
         """Send a WS Frame."""
         frame = Frame(opcode, payload=data)
         self.write(frame.to_bytes())
 
+    class _SocketFail(Exception):
+        pass
+
+    @classmethod
+    def _socket_fail(cls, msg, *args, **kwargs):
+        raise cls._SocketFail(msg.format(*args, **kwargs))
+
     def _select(self, sock, poll):
-        reads, writes, errors = select.select([sock], [], [sock], poll)
+        try:
+            reads, _, errors = select.select([sock], [], [sock], poll)
+        except select.error as error:
+            self._socket_fail("select error; {}", error)
         return reads, errors
 
-    def _make_socket(self):
+    def _connect(self):
         sock = socket.socket(
             socket.AF_INET, socket.SOCK_STREAM
         )
+        if self.websocket.is_secure:
+            sock = ssl.wrap_socket(sock)
+        sock.connect(self._address)
         return sock
 
-    def events(self, poll=15):
+    def _close_socket(self):
+        try:
+            # Get the write lock, so we can be certain data sending
+            # in another thread is sent.
+            with self._lock:
+                self._sock.shutdown(socket.SHUT_RDWR)
+                self._sock.close()
+        except socket.error:
+            # Socket is already closed.
+            # That's fine, just a no-op.
+            pass
+        except Exception as error:
+            # Paranoia
+            log.warn('error closing socket')
+        finally:
+            self._sock = None
+
+    def _send_request(self):
+        request_bytes = self.websocket.get_request()
+        log.debug('REQUEST: %r', request_bytes)
+        self.write(request_bytes)
+
+    def _check_poll(self, poll):
+        current_time = time.time()
+        if current_time - self._poll_start >= poll:
+            self._poll_start = current_time
+            return True
+        else:
+            return False
+
+    def _recv(self, count):
+        try:
+            if self.websocket.is_secure:
+                recv_bytes = []
+                while count:
+                    data = self._sock.recv(count)
+                    recv_bytes.append(data)
+                    count = self._sock.pending()
+                return b''.join(recv_bytes)
+            else:
+                return self._sock.recv(count)
+        except socket.error as error:
+            self._socket_fail('recv fail; {}', error)
+
+    def run(self, poll=5):
         # TODO: implement exponential back off
         websocket = self.websocket
+        url = websocket.url
+        # Connecting event
+        yield events.Connecting(url)
 
-        while 1:
-            yield events.Connecting(websocket.url)
-            request_bytes = websocket.get_request()
-            log.debug('REQUEST: %r', request_bytes)
-            try:
-                sock = self._sock = self._make_socket()
-                sock.connect(self._address)
-                self.write(request_bytes)
-            except errors.TransportFail as error:
-                yield events.ConnectFail('{}'.format(error))
-            except socket.error as error:
-                yield events.ConnectFail('{}'.format(error))
-            else:
-                break
-            time.sleep(5)
-
+        # Create socket and connect to remote server
         try:
-            self.write(request_bytes)
-        except errors.TransportFail as error:
+            sock = self._sock = self._connect()
+        except socket.error as error:
             yield events.ConnectFail('{}'.format(error))
             return
+        except Exception as error:
+            log.error('error connecting to %s; %s', url, error)
+            yield events.ConnectFail('error; {}'.format(error))
+            return
 
-        poll_start = time.time()
-        while not websocket.is_closed:
-            try:
-                reads, errors = self._select(sock, poll)
-            except KeyboardInterrupt:
-                if websocket.is_closing:
-                    raise
-                else:
-                    websocket.close(1000, 'goodbye')
-                    continue
-            if reads:
-                try:
-                    data = sock.recv(4096)
-                except socket.error:
-                    break
-                if not data:
-                    break
-                for event in websocket.feed(data):
-                    yield event
-            if errors:
-                break
-
-            current_time = time.time()
-            if current_time - poll_start > poll:
-                poll_start = current_time
-                yield events.Poll()
-
-
-        yield events.Disconnected()
+        # We now have a socket.
+        # Send the request.
         try:
-            sock.shutdown(socket.SHUT_RDWR)
-            sock.close()
-        except socket.error:
-            pass
+            self._send_request()
+        except errors.TransportFail as error:
+            self._close_socket()
+            yield events.ConnectFail('request failed; {}'.format(error))
+            return
+        except Exception as error:
+            self._close_socket()
+            log.error('error sending request; %s', error)
+            yield events.ConnectFail('request error; {}'.format(error))
+            return
+
+        # Connected to the server, but not yet upgraded to websockets
+        yield events.Connected(url)
+        self._poll_start = time.time()
+
+        try:
+            while not websocket.is_closed:
+                if self._check_poll(poll):
+                    yield events.Poll()
+                reads, errors = self._select(sock, poll)
+                if reads:
+                    data = self._recv(4096)
+                    if not data:
+                        self._socket_fail('connection lost')
+                    for event in websocket.feed(data):
+                        yield event
+                if errors:
+                    self._socket_fail('socket error')
+                    break
+        except self._SocketFail as error:
+            # Session methods will translate socket errors to this
+            # exception. The result is we are disconnected.
+            self._close_socket()
+            yield events.Disconnected('socket fail; {}'.format(error))
+        except Exception as error:
+            # It pays to be paranoid.
+            log.exception('error in websocket loop')
+            self._close_socket()
+            yield events.Disconnected('error; {}'.format(error))
         else:
-            sock = None
+            # websocket instance terminate the loop, which means
+            # it was a graceful exit.
+            self._close_socket()
+            yield events.Disconnected(graceful=True)
 
 
 if __name__ == "__main__":
@@ -127,10 +194,12 @@ if __name__ == "__main__":
 
     from .websocket import WebSocket
 
-    ws = WebSocket('ws://127.0.0.1:9001')
+    #ws = WebSocket('wss://echo.websocket.org')
+    ws = WebSocket('ws://127.0.0.1:9001/')
     for event in ws.connect(poll=5):
         print(event)
         if isinstance(event, events.Poll):
             ws.send_text('Hello, World')
             ws.send_binary(b'hello world in binary')
+            ws.send_ping(b'test')
 

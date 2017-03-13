@@ -51,6 +51,8 @@ class Response(object):
     def get_list(self, name):
         """Extract a list from a header."""
         value = self.get(name, b'').decode(errors='replace')
+        if not value.strip():
+            return []
         parts = [part.strip() for part in value.split(',')]
         return parts
 

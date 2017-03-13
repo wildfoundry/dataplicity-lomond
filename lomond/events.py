@@ -5,6 +5,8 @@ import time
 
 class Event(object):
     """Base class for a websocket 'event'."""
+    __slots__ = ['received_time']
+
     def __init__(self):
         self.received_time = time.time()
 
@@ -14,62 +16,98 @@ class Event(object):
 
 class Poll(Event):
     """A generated poll event."""
+    name = 'poll'
 
 
 class Connecting(Event):
     """Connection process has started."""
+    __slots__ = ['url']
+    name = 'connecting'
 
     def __init__(self, url):
         self.url = url
         super(Connecting, self).__init__()
 
     def __repr__(self):
-        return "{}('{}')".format(self.__class__.__name__, self.url)
+        return "{}(url='{}')".format(self.__class__.__name__, self.url)
 
 
 class ConnectFail(Event):
     """Connection failed (connectivity related)."""
+    __slots__ = ['reason']
+    name = 'connect_fail'
+
     def __init__(self, reason):
         self.reason = reason
         super(ConnectFail, self).__init__()
 
     def __repr__(self):
-        return '{}({!r})'.format(
+        return "{}('{}')".format(
             self.__class__.__name__,
             self.reason,
         )
 
 
-def Rejected(Event):
+class Connected(Connecting):
+    name = 'connected'
+
+
+class Rejected(Event):
     """Server rejected WS connection."""
-    def __init__(self, reason):
+    __slots__ = ['response', 'reason']
+    name = 'rejected'
+
+    def __init__(self, response, reason):
+        self.response = response
         self.reason = reason
         super(Rejected, self).__init__()
 
     def __repr__(self):
-        return "{}({})".format(self.__class__.__name__, self.reason)
+        return "{}({!r}, '{}')".format(self.__class__.__name__, self.reason)
 
 
-class Connected(Event):
+class Ready(Event):
     """Server accepted WS connection."""
-    def __init__(self, protocol, extensions):
+    __slots__ = ['response', 'protocol', 'extensions']
+    name = 'ready'
+
+    def __init__(self, response, protocol, extensions):
+        self.response = response
         self.protocol = protocol
         self.extensions = extensions
-        super(Connected, self).__init__()
+        super(Ready, self).__init__()
 
     def __repr__(self):
-        return '{}(protocol={!r}, extensions={!r})'.format(
+        return '{}({!r}, protocol={!r}, extensions={!r})'.format(
             self.__class__.__name__,
+            self.response,
             self.protocol,
             self.extensions
         )
 
+
 class Disconnected(Event):
     """Server disconnected."""
+    __slots__ = ['graceful', 'reason']
+    name = 'disconnected'
+
+    def __init__(self, reason='closed', graceful=False):
+        self.reason = reason
+        self.graceful = graceful
+
+    def __repr__(self):
+        return "{}('{}', graceful={!r})".format(
+            self.__class__.__name__,
+            self.reason,
+            self.graceful
+        )
 
 
 class Closed(Event):
     """Websocket connection is closed."""
+    __slots__ = ['code', 'reason']
+    name = 'closed'
+
     def __init__(self, code, reason):
         self.code = code
         self.reason = reason
@@ -87,6 +125,9 @@ class UnknownMessage(Event):
     An application message was received, with an unknown
     opcode.
     """
+    __slots__ = ['message']
+    name = 'unknown'
+
     def __init__(self, message):
         self.message = message
         super(UnknownMessage, self).__init__()
@@ -94,8 +135,11 @@ class UnknownMessage(Event):
 
 class Binary(Event):
     """An application message was received."""
-    def __init__(self, message):
-        self.data = message.data
+    __slots__ = ['data']
+    name = 'binary'
+
+    def __init__(self, data):
+        self.data = data
         super(Binary, self).__init__()
 
     def __repr__(self):
@@ -104,8 +148,11 @@ class Binary(Event):
 
 class Pong(Event):
     """An application message was received."""
-    def __init__(self, message):
-        self.data = message.data
+    __slots__ = ['data']
+    name = 'pong'
+
+    def __init__(self, data):
+        self.data = data
         super(Pong, self).__init__()
 
     def __repr__(self):
@@ -114,10 +161,25 @@ class Pong(Event):
 
 class Text(Event):
     """An application text message was received."""
-    def __init__(self, message):
-        self.text = message.text
+    __slots__ = ['text']
+    name = 'text'
+
+    def __init__(self, text):
+        self.text = text
         super(Text, self).__init__()
 
     def __repr__(self):
         return "{}({!r})".format(self.__class__.__name__, self.text)
 
+
+class BackOff(Event):
+    """Unable to connect, so the client will wait and try again."""
+    __slots__ = ['delay']
+    name = 'back_off'
+
+    def __init__(self, delay):
+        self.delay = delay
+        super(BackOff, self).__init__()
+
+    def __repr__(self):
+        return "{}(delay={:0.1f})".format(self.__class__.__name__, self.delay)

@@ -80,7 +80,7 @@ class Binary(Message):
         super(Binary, self).__init__(Opcode.BINARY)
 
     def __repr__(self):
-        return "Binary({!r})".format(self.data)
+        return "<message BINARY {!r}>".format(self.data)
 
 
 class Text(Message):
@@ -91,7 +91,7 @@ class Text(Message):
         super(Text, self).__init__(Opcode.TEXT)
 
     def __repr__(self):
-        return "Text({!r})".format(self.text)
+        return "<message TEXT {!r}>".format(self.text)
 
 
 class Close(Message):
@@ -103,7 +103,7 @@ class Close(Message):
         super(Close, self).__init__(Opcode.CLOSE)
 
     def __repr__(self):
-        return "Close({}, {!r})".format(self.code, self.reason)
+        return "<message CLOSE {}, {!r}>".format(self.code, self.reason)
 
 
 class Ping(Message):
@@ -114,10 +114,10 @@ class Ping(Message):
         super(Ping, self).__init__(Opcode.PING)
 
     def __repr__(self):
-        return "Ping({!r})".format(self.data)
+        return "<message PING {!r}>".format(self.data)
 
 
-class Pong(Binary):
+class Pong(Message):
     """Pong message."""
     __slots__ = ['data']
     def __init__(self, data):
@@ -125,7 +125,7 @@ class Pong(Binary):
         super(Pong, self).__init__(Opcode.PONG)
 
     def __repr__(self):
-        return "Pong({!r})".format(self.data)
+        return "<message PONG {!r}>".format(self.data)
 
 
 if __name__ == "__main__":
