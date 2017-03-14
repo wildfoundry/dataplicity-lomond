@@ -22,6 +22,7 @@ do this an another thread, but it isn't required.
 A successful websocket connection will result in a series of events
 such as the following:
 
+```
 ┌──────────────────────┐
 │      Connecting      │     Contacting server
 └──────────────────────┘
@@ -51,7 +52,7 @@ such as the following:
 ┌──────────────────────┐
 │     Disconnected     │     Disconnected TCP/IP
 └──────────────────────┘     connection to server
-
+```
 
 
 ## Example
