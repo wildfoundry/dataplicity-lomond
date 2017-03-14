@@ -1,3 +1,21 @@
+"""
+Events emitted from Lomond Websockets.
+
+Events may be distinguished either by their type or by the `name`
+attribute. For example:
+
+    if isinstance(event, events.PING)
+
+or
+
+    if event.name == 'ping'
+
+
+All events have a `received_time` attribute which is the epoch time
+the event was created from the network stream.
+
+"""
+
 from __future__ import unicode_literals
 
 import time
@@ -49,6 +67,7 @@ class ConnectFail(Event):
 
 
 class Connected(Connecting):
+    """Connected to the server (but not yet negotiated websockets)."""
     name = 'connected'
 
 
@@ -63,7 +82,11 @@ class Rejected(Event):
         super(Rejected, self).__init__()
 
     def __repr__(self):
-        return "{}({!r}, '{}')".format(self.__class__.__name__, self.reason)
+        return "{}({!r}, '{}')".format(
+            self.__class__.__name__,
+            self.response,
+            self.reason
+        )
 
 
 class Ready(Event):
@@ -120,6 +143,7 @@ class Closed(Event):
             self.reason,
         )
 
+
 class UnknownMessage(Event):
     """
     An application message was received, with an unknown
@@ -169,7 +193,7 @@ class Text(Event):
         super(Text, self).__init__()
 
     def __repr__(self):
-        return "{}({!r})".format(self.__class__.__name__, self.text)
+        return "{}('{}')".format(self.__class__.__name__, self.text)
 
 
 class BackOff(Event):
@@ -182,4 +206,7 @@ class BackOff(Event):
         super(BackOff, self).__init__()
 
     def __repr__(self):
-        return "{}(delay={:0.1f})".format(self.__class__.__name__, self.delay)
+        return "{}(delay={:0.1f})".format(
+            self.__class__.__name__,
+            self.delay
+        )

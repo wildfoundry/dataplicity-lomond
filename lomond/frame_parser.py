@@ -29,7 +29,6 @@ class FrameParser(Parser):
         # Get the HTTP headers
         if self._parse_headers:
             header_data = yield self.read_until(b'\r\n\r\n')
-            log.debug('HEADERS: %r', header_data)
             yield header_data
 
         # Get any WS frames
@@ -66,7 +65,7 @@ class FrameParser(Parser):
                 rsv3=rsv3
             )
             frame.payload = yield self.read(payload_length)
-            log.debug('PARSED: %r', frame)
+            log.debug('parsed %r', frame)
             yield frame
 
 

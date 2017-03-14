@@ -1,6 +1,9 @@
 """
 Coroutine base stream parser.
 
+This little but of 'magic' makes parsing a stream of bytes from a socket
+a relatively pain-free exercise.
+
 """
 
 from __future__ import unicode_literals

@@ -1,12 +1,14 @@
+"""
+Websocket status codes
 
+https://tools.ietf.org/html/rfc6455#section-7.4
 
-class Status:
+"""
+
+class Status(object):
     NORMAL = 1000
     GOING_AWAY = 1001
-    DATA_ERROR = 1002
-
-    RESERVED = 1004
-    RESERVED2 = 1005
+    PROTOCOL_ERROR = 1002
 
     BAD_DATA = 1007
     POLICY_VIOLATION = 1008

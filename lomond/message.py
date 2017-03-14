@@ -33,7 +33,7 @@ class Message(object):
             reason = ''
             if len(payload) >= 2:
                 code = cls._unpack16(payload[:2])[0]
-                reason = payload[2:].decode(errors='replace')
+                reason = payload[2:].decode('utf-8', errors='replace')
             return Close(code, reason)
         elif opcode == Opcode.PING:
             return Ping(payload)
@@ -42,7 +42,7 @@ class Message(object):
         elif opcode == Opcode.BINARY:
             return Binary(payload)
         elif opcode == Opcode.TEXT:
-            return Text(payload.decode(errors='replace'))
+            return Text(payload.decode('utf-8', errors='replace'))
         else:
             return Message(opcode)
 

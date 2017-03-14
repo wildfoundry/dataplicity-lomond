@@ -1,3 +1,10 @@
+"""
+Parses a websocket connection.
+
+Yields a response object followed by 0 or more Websocket messages.
+
+"""
+
 from __future__ import unicode_literals
 
 from .frame_parser import FrameParser

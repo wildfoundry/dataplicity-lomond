@@ -7,6 +7,7 @@ Not using enum34 purely to keep dependencies to a minimum.
 
 """
 
+from __future__ import print_function
 from __future__ import unicode_literals
 
 

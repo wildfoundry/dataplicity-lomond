@@ -11,6 +11,7 @@ from hashlib import sha1
 import logging
 import os
 
+import six
 from six.moves.urllib.parse import urlparse
 
 from . import constants
@@ -89,10 +90,11 @@ class WebSocket(object):
 
     def connect(self,
                 session_class=WebsocketSession,
-                poll=5):
+                poll=5,
+                ping_rate=30):
         self.reset()
         self.state.session = WebsocketSession(self)
-        return self.session.run(poll=poll)
+        return self.session.run(poll=poll, ping_rate=ping_rate)
 
     def reset(self):
         """Reset the state."""
@@ -124,53 +126,58 @@ class WebSocket(object):
         """Feed with data from the socket."""
         if self.is_closed:
             return
-        session = self.session
-        for message in self.stream.feed(data):
-            log.debug('%r', message)
-            if isinstance(message, Response):
-                try:
-                    protocol, extensions = self.on_response(message)
-                except errors.HandshakeError as error:
-                    self.disconnect()
-                    yield events.Rejected(message, str(error))
+        try:
+            session = self.session
+            for message in self.stream.feed(data):
+                log.debug('%r', message)
+                if isinstance(message, Response):
+                    try:
+                        protocol, extensions = self.on_response(message)
+                    except errors.HandshakeError as error:
+                        self.disconnect()
+                        yield events.Rejected(message, str(error))
+                    else:
+                        yield events.Ready(message, protocol, extensions)
                 else:
-                    yield events.Ready(message, protocol, extensions)
-            else:
-                if message.is_close:
-                    for event in self._on_close(message):
-                        yield event
-                elif message.is_ping:
-                    session.send(Opcode.PONG, message.payload)
-                elif message.is_pong:
-                    yield events.Pong(message.data)
-                elif message.is_binary:
-                    yield events.Binary(message.data)
-                elif message.is_text:
-                    yield events.Text(message.text)
-                else:
-                    yield events.UnknownMessage(message)
-            if self.is_closed:
-                break
+                    if message.is_close:
+                        for event in self._on_close(message):
+                            yield event
+                    elif message.is_ping:
+                        session.send(Opcode.PONG, message.payload)
+                    elif message.is_pong:
+                        yield events.Pong(message.data)
+                    elif message.is_binary:
+                        yield events.Binary(message.data)
+                    elif message.is_text:
+                        yield events.Text(message.text)
+                    else:
+                        yield events.UnknownMessage(message)
+                if self.is_closed:
+                    break
+        except errors.ProtocolError as error:
+            log.warn('protocol error; %s', error)
+            self.close(Status.PROTOCOL_ERROR, six.text_type(error))
+            self.disconnect()
 
     def get_request(self):
         """Get the request (in bytes)"""
         request = [
-            "GET {} HTTP/1.1".format(self.resource)
+            "GET {} HTTP/1.1".format(self.resource).encode('utf-8')
         ]
         protocols = ", ".join(self.protocols)
         version = '{}'.format(constants.WS_VERSION)
         headers = [
-            ('Host', self._host_port),
-            ('Upgrade', 'websocket'),
-            ('Connection', 'Upgrade'),
-            ('Sec-WebSocket-Protocol', protocols),
-            ('Sec-WebSocket-Key', self.key),
-            ('Sec-WebSocket-Version', version)
+            (b'Host', self._host_port.encode('utf-8')),
+            (b'Upgrade', b'websocket'),
+            (b'Connection', b'Upgrade'),
+            (b'Sec-WebSocket-Protocol', protocols.encode('utf-8')),
+            (b'Sec-WebSocket-Key', self.key),
+            (b'Sec-WebSocket-Version', version.encode('utf-8'))
         ]
         for header, value in headers:
-            request.append('{}: {}'.format(header, value).encode())
-        request.append('\r\n')
-        request_bytes = b'\r\n'.join(line.encode() for line in request)
+            request.append(header + b': ' + value)
+        request.append(b'\r\n')
+        request_bytes = b'\r\n'.join(request)
         return request_bytes
 
     def on_response(self, response):
@@ -186,7 +193,7 @@ class WebSocket(object):
         if upgrade_header != b'websocket':
             raise errors.HandshakeError(
                 "Can't upgrade to {}",
-                upgrade_header.decode(errors='replace')
+                upgrade_header.decode('utf-8', errors='replace')
             )
 
         accept_header = response.get(b'sec-websocket-accept', None)
@@ -226,7 +233,7 @@ class WebSocket(object):
 
     def send_text(self, text):
         """Send a text frame."""
-        self.session.send(Opcode.TEXT, text.encode(errors='replace'))
+        self.session.send(Opcode.TEXT, text.encode('utf-8', errors='replace'))
 
     def _send_close(self, code, reason):
         """Send a close frame."""

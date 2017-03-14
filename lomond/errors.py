@@ -23,7 +23,7 @@ class ProtocolError(Error):
     pass
 
 
-class PayloadTooLarge(Error):
+class PayloadTooLarge(ProtocolError):
     pass
 
 

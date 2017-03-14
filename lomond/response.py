@@ -13,19 +13,20 @@ class Response(object):
     """The status line + headers."""
 
     def __init__(self, header_data):
+        self.raw = header_data
         lines = iter(header_data.split(b'\r\n'))
         status_line = next(lines, b'')
         tokens = iter(status_line.split(None, 2))
-        self.http_ver = next(tokens, b'').decode(errors='replace')
+        self.http_ver = next(tokens, b'').decode('utf-8', errors='replace')
         try:
             self.status_code = int(next(tokens, b''))
         except ValueError:
             self.status_code = None
-        self.status = next(tokens, b'').decode(errors='replace')
+        self.status = next(tokens, b'').decode('utf-8', errors='replace')
 
         headers = defaultdict(list)
         for line in lines:
-            if line:
+            if line.strip():
                 header, _, value = line.partition(b':')
                 header = header.lower().strip()
                 value = value.strip()
@@ -50,7 +51,7 @@ class Response(object):
 
     def get_list(self, name):
         """Extract a list from a header."""
-        value = self.get(name, b'').decode(errors='replace')
+        value = self.get(name, b'').decode('utf-8', errors='replace')
         if not value.strip():
             return []
         parts = [part.strip() for part in value.split(',')]

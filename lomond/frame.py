@@ -81,7 +81,7 @@ class Frame(object):
         """Build a close frame."""
 
         if not isinstance(reason, bytes):
-            reason = reason.encode(errors='replace')
+            reason = reason.encode('utf-8', errors='replace')
         payload_bytes = cls._pack_close_code(status) + reason
         return payload_bytes
 
@@ -97,7 +97,7 @@ class Frame(object):
         """Check the frame and raise any errors."""
         if self.is_control and len(self.payload) > 125:
             raise errors.ProtocolError(
-                "Control frames must < 125 bytes in length"
+                "control frames must <= 125 bytes in length"
             )
         if self.rsv1 or self.rsv2 or self.rsv3:
             raise errors.ProtocolError(

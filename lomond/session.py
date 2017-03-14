@@ -1,3 +1,9 @@
+"""
+The session manages the mechanics of receiving and sending data over
+the websocket.
+
+"""
+
 from __future__ import print_function
 from __future__ import unicode_literals
 
@@ -30,6 +36,7 @@ class WebsocketSession(object):
 
         self._sock = None
         self._poll_start = time.time()
+        self._last_ping = time.time()
 
     def __repr__(self):
         return "<ws-session '{}'>".format(self.url)
@@ -40,6 +47,9 @@ class WebsocketSession(object):
 
     def write(self, data):
         """Send raw data."""
+        if self.websocket.is_closed or self._sock is None:
+            raise errors.WebSocketClosed('data not sent')
+
         with self._lock:
             try:
                 self._sock.sendall(data)
@@ -51,6 +61,7 @@ class WebsocketSession(object):
     def send(self, opcode, data):
         """Send a WS Frame."""
         frame = Frame(opcode, payload=data)
+        log.debug('send %r', frame)
         self.write(frame.to_bytes())
 
     class _SocketFail(Exception):
@@ -71,6 +82,7 @@ class WebsocketSession(object):
         sock = socket.socket(
             socket.AF_INET, socket.SOCK_STREAM
         )
+        sock.settimeout(30)
         if self.websocket.is_secure:
             sock = ssl.wrap_socket(sock)
         sock.connect(self._address)
@@ -95,7 +107,6 @@ class WebsocketSession(object):
 
     def _send_request(self):
         request_bytes = self.websocket.get_request()
-        log.debug('REQUEST: %r', request_bytes)
         self.write(request_bytes)
 
     def _check_poll(self, poll):
@@ -105,6 +116,13 @@ class WebsocketSession(object):
             return True
         else:
             return False
+
+    def _check_auto_ping(self, ping_rate):
+        if ping_rate:
+            current_time = time.time()
+            if current_time - self._last_ping >= ping_rate:
+                self._last_ping = current_time
+                self.websocket.send_ping()
 
     def _recv(self, count):
         try:
@@ -120,7 +138,16 @@ class WebsocketSession(object):
         except socket.error as error:
             self._socket_fail('recv fail; {}', error)
 
-    def run(self, poll=5):
+    def _feed(self, data, poll, ping_rate):
+        """Feed the websocket, yielding events."""
+        # Also emits poll events and sends pings
+        for event in self.websocket.feed(data):
+            yield event
+            if self._check_poll(poll):
+                yield events.Poll()
+            self._check_auto_ping(ping_rate)
+
+    def run(self, poll=5, ping_rate=30):
         # TODO: implement exponential back off
         websocket = self.websocket
         url = websocket.url
@@ -158,14 +185,12 @@ class WebsocketSession(object):
 
         try:
             while not websocket.is_closed:
-                if self._check_poll(poll):
-                    yield events.Poll()
                 reads, errors = self._select(sock, poll)
                 if reads:
                     data = self._recv(4096)
                     if not data:
                         self._socket_fail('connection lost')
-                    for event in websocket.feed(data):
+                    for event in self._feed(data, poll, ping_rate):
                         yield event
                 if errors:
                     self._socket_fail('socket error')
@@ -201,5 +226,4 @@ if __name__ == "__main__":
         if isinstance(event, events.Poll):
             ws.send_text('Hello, World')
             ws.send_binary(b'hello world in binary')
-            ws.send_ping(b'test')
 
