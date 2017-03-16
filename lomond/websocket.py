@@ -217,22 +217,30 @@ class WebSocket(object):
 
     def send_ping(self, data=b''):
         """Send a ping request."""
+        if not isinstance(data, bytes):
+            raise TypeError('data argument must be bytes')
         if len(data) > 125:
             raise ValueError('ping data should be <= 125 bytes')
         self.session.send(Opcode.PING, data)
 
     def send_pong(self, data):
         """Send a ping request."""
+        if not isinstance(data, bytes):
+            raise TypeError('data argument must be bytes')
         if len(data) > 125:
             raise ValueError('ping data should be <= 125 bytes')
         self.session.send(Opcode.PONG, data)
 
     def send_binary(self, data):
         """Send a binary frame."""
+        if not isinstance(data, bytes):
+            raise TypeError('data argument must be bytes')
         self.session.send(Opcode.BINARY, data)
 
     def send_text(self, text):
         """Send a text frame."""
+        if not isinstance(text, six.text_type):
+            raise TypeError('text argument must be bytes')
         self.session.send(Opcode.TEXT, text.encode('utf-8', errors='replace'))
 
     def _send_close(self, code, reason):
