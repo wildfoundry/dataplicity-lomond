@@ -193,7 +193,7 @@ class Text(Event):
         super(Text, self).__init__()
 
     def __repr__(self):
-        return "{}('{}')".format(self.__class__.__name__, self.text)
+        return "{}({!r})".format(self.__class__.__name__, self.text)
 
 
 class BackOff(Event):

@@ -45,9 +45,9 @@ class FrameParser(Parser):
             payload_length = byte2 & 0b01111111
 
             if payload_length == 126:
-                payload_length = self.unpack16((yield self.read(2)))[0]
+                (payload_length,) = self.unpack16((yield self.read(2)))
             elif payload_length == 127:
-                payload_length = self.unpack64((yield self.read(8)))[0]
+                (payload_length,) = self.unpack64((yield self.read(8)))
             if payload_length > 0x7fffffffffffffff:
                 raise errors.PayloadTooLarge("payload is too large")
 
