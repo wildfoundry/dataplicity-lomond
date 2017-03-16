@@ -99,7 +99,8 @@ class Parser(object):
             # Awaiting a read until a terminator
             elif isinstance(self._awaiting, self.read_until):
                 # Reading to separator
-                self._until += data
+                chunk = data[pos:]
+                self._until += chunk
                 sep = self._awaiting.sep
                 if sep in self._until:
                     # Found separator
@@ -113,7 +114,7 @@ class Parser(object):
                     # Send bytes to coroutine, get new 'awaitable'
                     self._awaiting = self._gen.send(send_bytes)
                 else:
-                    pos += len(data)
+                    pos += len(chunk)
             # Yield any non-awaitables...
             while not isinstance(self._awaiting, self._Awaitable):
                 yield self._awaiting
