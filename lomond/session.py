@@ -138,14 +138,20 @@ class WebsocketSession(object):
         except socket.error as error:
             self._socket_fail('recv fail; {}', error)
 
+
+    def _regular(self, poll, ping_rate):
+        """Run regularly to do polling / pings."""
+        if self._check_poll(poll):
+            yield events.Poll()
+        self._check_auto_ping(ping_rate)
+
     def _feed(self, data, poll, ping_rate):
         """Feed the websocket, yielding events."""
         # Also emits poll events and sends pings
         for event in self.websocket.feed(data):
             yield event
-            if self._check_poll(poll):
-                yield events.Poll()
-            self._check_auto_ping(ping_rate)
+            for regular_event in self._regular(poll, ping_rate):
+                yield regular_event
 
     def run(self, poll=5, ping_rate=30):
         # TODO: implement exponential back off
@@ -186,6 +192,11 @@ class WebsocketSession(object):
         try:
             while not websocket.is_closed:
                 reads, errors = self._select(sock, poll)
+
+                # Check for polls / pings
+                for event in self._regular(poll, ping_rate):
+                    yield event
+
                 if reads:
                     data = self._recv(4096)
                     if not data:
