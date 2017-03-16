@@ -138,7 +138,6 @@ class WebsocketSession(object):
         except socket.error as error:
             self._socket_fail('recv fail; {}', error)
 
-
     def _regular(self, poll, ping_rate):
         """Run regularly to do polling / pings."""
         if self._check_poll(poll):
