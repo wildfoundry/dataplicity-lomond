@@ -208,7 +208,7 @@ class WebSocket(object):
 
         if accept_header.lower() != challenge.lower():
             raise errors.HandshakeError(
-                "Web-WebSocket-Accept challenge failed"
+                "Sec-WebSocket-Accept challenge failed"
             )
 
         protocol = response.get(b'sec-websocket-protocol')
