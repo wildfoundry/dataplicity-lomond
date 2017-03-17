@@ -23,14 +23,14 @@ setup(
     long_description=long_desc,
     author='WildFoundry',
     author_email='willmcgugan@gmail.com',
-    url='https://www.dataplicity.com',
+    url='https://github.com/wildfoundry/dataplicity-lomond',
     platforms=['any'],
     packages=find_packages(),
     classifiers=classifiers,
     setup_requires=['pytest-runner'],
     tests_require=['pytest'],
     install_requires=[
-        'six==1.10.0'
+        'six>=1.10.0'
     ],
     zip_safe=True
 )
