@@ -40,9 +40,10 @@ class WebSocket(object):
             self.closing = False
             self.closed = False
 
-    def __init__(self, url, protocols=None):
+    def __init__(self, url, protocols=None, agent=None):
         self.url = url
         self.protocols = protocols or []
+        self.agent = agent or constants.USER_AGENT
 
         _url = urlparse(url)
         self.scheme = _url.scheme
@@ -57,7 +58,7 @@ class WebSocket(object):
         self._host_port = "{}:{}".format(host, port)
         self.resource = _url.path or '/'
         if _url.query:
-            self.resource = "{}?{}".format(host, _url.query)
+            self.resource = "{}?{}".format(self.resource, _url.query)
 
         self.state = self.State()
 
@@ -143,7 +144,7 @@ class WebSocket(object):
                         for event in self._on_close(message):
                             yield event
                     elif message.is_ping:
-                        session.send(Opcode.PONG, message.payload)
+                        session.send(Opcode.PONG, message.data)
                     elif message.is_pong:
                         yield events.Pong(message.data)
                     elif message.is_binary:
@@ -172,7 +173,8 @@ class WebSocket(object):
             (b'Connection', b'Upgrade'),
             (b'Sec-WebSocket-Protocol', protocols.encode('utf-8')),
             (b'Sec-WebSocket-Key', self.key),
-            (b'Sec-WebSocket-Version', version.encode('utf-8'))
+            (b'Sec-WebSocket-Version', version.encode('utf-8')),
+            (b'User-Agent', self.agent.encode('utf-8'))
         ]
         for header, value in headers:
             request.append(header + b': ' + value)
