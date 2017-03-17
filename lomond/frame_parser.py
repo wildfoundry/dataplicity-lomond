@@ -1,3 +1,9 @@
+"""
+Parse a stream of Websocket frames, and optional HTTP headers.
+
+"""
+
+import logging
 import struct
 
 from . import errors
@@ -5,17 +11,27 @@ from .frame import Frame
 from .parser import Parser
 
 
+log = logging.getLogger('ws')
+
+
 class FrameParser(Parser):
-    """Parses a stream of data in to WS frames."""
+    """Parses a stream of data in to HTTP headers + WS frames."""
 
     unpack16 = struct.Struct('!H').unpack
     unpack64 = struct.Struct('!Q').unpack
 
-    def __init__(self, frame_class=Frame):
+    def __init__(self, frame_class=Frame, parse_headers=True):
         self._frame_class = frame_class
+        self._parse_headers = parse_headers
         super(FrameParser, self).__init__()
 
     def parse(self):
+        # Get the HTTP headers
+        if self._parse_headers:
+            header_data = yield self.read_until(b'\r\n\r\n')
+            yield header_data
+
+        # Get any WS frames
         while True:
             byte1, byte2 = bytearray((yield self.read(2)))
 
@@ -24,14 +40,13 @@ class FrameParser(Parser):
             rsv2 = (byte1 >> 5) & 1
             rsv3 = (byte1 >> 4) & 1
             opcode = byte1 & 0b00001111
-
             mask_bit = byte2 >> 7
             payload_length = byte2 & 0b01111111
 
             if payload_length == 126:
-                payload_length = self.unpack16((yield self.read(2)))
+                (payload_length,) = self.unpack16((yield self.read(2)))
             elif payload_length == 127:
-                payload_length = self.unpack64((yield self.read(8)))
+                (payload_length,) = self.unpack64((yield self.read(8)))
             if payload_length > 0x7fffffffffffffff:
                 raise errors.PayloadTooLarge("payload is too large")
 
@@ -49,4 +64,11 @@ class FrameParser(Parser):
                 rsv3=rsv3
             )
             frame.payload = yield self.read(payload_length)
+            log.debug('parsed %r', frame)
             yield frame
+
+
+if __name__ == "__main__":
+    data = b'\x88\x02\x03\xe8'
+    parser = FrameParser(parse_headers=False)
+    print(list(parser.feed(data)))
