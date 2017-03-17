@@ -11,9 +11,9 @@ threads and callbacks.
 ## How to Use
 
 First construct a `WebSocket` object, then call the `connect` method,
-which will return a generator of socket events.
+which will return a generator of websocket events.
 
-To run the socket, simply iterate over the returned generator. You may
+To run the websocket, simply iterate over the returned generator. You may
 do this an another thread, but it isn't required.
 
 

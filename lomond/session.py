@@ -39,11 +39,7 @@ class WebsocketSession(object):
         self._last_ping = time.time()
 
     def __repr__(self):
-        return "<ws-session '{}'>".format(self.url)
-
-    @property
-    def url(self):
-        return self.websocket.url
+        return "<ws-session '{}'>".format(self.websocket.url)
 
     def write(self, data):
         """Send raw data."""

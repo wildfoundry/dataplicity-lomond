@@ -40,7 +40,6 @@ class FrameParser(Parser):
             rsv2 = (byte1 >> 5) & 1
             rsv3 = (byte1 >> 4) & 1
             opcode = byte1 & 0b00001111
-
             mask_bit = byte2 >> 7
             payload_length = byte2 & 0b01111111
 
