@@ -102,10 +102,14 @@ class Parser(object):
                 chunk = data[pos:]
                 self._until += chunk
                 sep = self._awaiting.sep
-                if sep in self._until:
+                sep_index = self._until.find(sep)
+                if sep_index == -1:
+                    # Separator not found, advance position
+                    pos += len(chunk)
+                else:
                     # Found separator
                     # Get data prior to and including separator
-                    split_index = self._until.index(sep) + len(sep)
+                    split_index = sep_index + len(sep)
                     send_bytes = self._until[:split_index]
                     # Reset data, to continue parsing
                     data = self._until[split_index:]
@@ -113,8 +117,6 @@ class Parser(object):
                     pos = 0
                     # Send bytes to coroutine, get new 'awaitable'
                     self._awaiting = self._gen.send(send_bytes)
-                else:
-                    pos += len(chunk)
             # Yield any non-awaitables...
             while not isinstance(self._awaiting, self._Awaitable):
                 yield self._awaiting
