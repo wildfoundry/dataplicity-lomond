@@ -8,6 +8,7 @@ from __future__ import unicode_literals
 
 import struct
 
+from . import errors
 from .opcode import Opcode
 
 
@@ -33,7 +34,13 @@ class Message(object):
             reason = ''
             if len(payload) >= 2:
                 (code,) = cls._unpack16(payload[:2])
-                reason = payload[2:].decode('utf-8', errors='replace')
+                try:
+                    reason = payload[2:].decode('utf-8')
+                except UnicodeDecodeError as error:
+                    raise errors.ProtocolError(
+                        'failed to decode unicode in close; {}',
+                        error
+                    )
             return Close(code, reason)
         elif opcode == Opcode.PING:
             return Ping(payload)
@@ -42,7 +49,13 @@ class Message(object):
         elif opcode == Opcode.BINARY:
             return Binary(payload)
         elif opcode == Opcode.TEXT:
-            return Text(payload.decode('utf-8', errors='replace'))
+            try:
+                return Text(payload.decode('utf-8'))
+            except UnicodeDecodeError as error:
+                raise errors.ProtocolError(
+                    'failed to decode unicode in TEXT; {}',
+                    error
+                )
         else:
             return Message(opcode)
 

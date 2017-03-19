@@ -45,13 +45,23 @@ class WebsocketStream(object):
 
         # Process incoming frames
         for frame in iter_frames:
-            log.debug(" <- %r", frame)
+            log.debug("CLI <- SRV : %r", frame)
             if frame.is_control:
                 # Control messages are never fragmented
                 # And may be sent in the middle of a multi-part message
                 yield Message.build([frame])
             else:
                 # May be fragmented
+                if frame.is_continuation and not self._frames:
+                    raise errors.ProtocolError(
+                        'continuation frame has nothing to continue'
+                    )
+                if not frame.is_continuation and self._frames:
+                    raise errors.ProtocolError(
+                        'continuation frame expected'
+                    )
+
+
                 self._frames.append(frame)
                 if frame.fin:
                     # Combine any multi part frames in to a single

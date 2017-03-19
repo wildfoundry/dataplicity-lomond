@@ -57,7 +57,7 @@ class WebsocketSession(object):
     def send(self, opcode, data):
         """Send a WS Frame."""
         frame = Frame(opcode, payload=data)
-        log.debug(' -> %r', frame)
+        log.debug('CLI -> SRV : %r', frame)
         self.write(frame.to_bytes())
 
     class _SocketFail(Exception):
@@ -78,6 +78,7 @@ class WebsocketSession(object):
         sock = socket.socket(
             socket.AF_INET, socket.SOCK_STREAM
         )
+        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         sock.settimeout(30)
         if self.websocket.is_secure:
             sock = ssl.wrap_socket(sock)

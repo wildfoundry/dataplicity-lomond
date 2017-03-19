@@ -103,7 +103,11 @@ class WebSocket(object):
 
     __iter__ = connect
 
-    def close(self, code=Status.NORMAL, reason=b'goodbye'):
+    def close(self, code=None, reason=None):
+        if code is None:
+            code = Status.NORMAL
+        if reason is None:
+            reason = b'goodbye'
         self._send_close(code, reason)
         self.state.closing = True
 
@@ -111,6 +115,11 @@ class WebSocket(object):
         self.state.closed = True
 
     def _on_close(self, message):
+        if message.code is not None and message.code not in Status.codes:
+            raise errors.ProtocolError(
+                'reserved close code ({})',
+                message.code
+            )
         if self.is_closing:
             yield events.Closed(message.code, message.reason)
             self.state.closing = False
@@ -157,6 +166,10 @@ class WebSocket(object):
         except errors.ProtocolError as error:
             log.warn('protocol error; %s', error)
             self.close(Status.PROTOCOL_ERROR, six.text_type(error))
+            self.disconnect()
+
+        except StopIteration:
+            log.warn('disconnecting websocket')
             self.disconnect()
 
     def get_request(self):
