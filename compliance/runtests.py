@@ -1,6 +1,8 @@
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import logging
+import sys
 import json
 
 from lomond import WebSocket
@@ -23,10 +25,9 @@ def run_tests():
     for test_no in range(1, test_count + 1):
         print("[{} of {}]".format(test_no, test_count))
         run_test(test_no)
+    update_report
 
-def run_test(test_no):
-    url = server + '/runCase?case={}&agent={}'.format(test_no, USER_AGENT)
-    print(url)
+def run_ws(url):
     ws = WebSocket(url)
     for event in ws:
         print(event)
@@ -35,7 +36,30 @@ def run_test(test_no):
         elif event.name == 'binary':
             ws.send_binary(event.data)
 
+def run_test(test_no):
+    url = server + '/runCase?case={}&agent={}'.format(test_no, USER_AGENT)
+    run_ws(url)
+
+
+def run_test_case(case_tuple):
+    print("Running test case {}".format(case_tuple))
+    url = server + '/runCase?casetuple={}&agent={}'.format(case_tuple, USER_AGENT)
+    run_ws(url)
+    update_report()
+
+
+def update_report():
+    url = server + "/updateReports?agent=" + USER_AGENT;
+    for event in WebSocket(url):
+        pass
+
 
 if __name__ == "__main__":
     print("Run `wstest -m fuzzingserver` to test")
-    run_tests()
+    logging.basicConfig(format='%(message)s', level=logging.DEBUG)
+    try:
+        test_case = sys.argv[1]
+    except ValueError:
+        run_tests()
+    else:
+        run_test_case(test_case)

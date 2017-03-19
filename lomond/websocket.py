@@ -130,7 +130,6 @@ class WebSocket(object):
         try:
             session = self.session
             for message in self.stream.feed(data):
-                log.debug('%r', message)
                 if isinstance(message, Response):
                     try:
                         protocol, extensions = self.on_response(message)

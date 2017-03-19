@@ -7,9 +7,15 @@ Yields a response object followed by 0 or more Websocket messages.
 
 from __future__ import unicode_literals
 
+import logging
+
+from . import errors
 from .frame_parser import FrameParser
 from .message import Message
 from .response import Response
+
+
+log = logging.getLogger('ws')
 
 
 class WebsocketStream(object):
@@ -39,6 +45,7 @@ class WebsocketStream(object):
 
         # Process incoming frames
         for frame in iter_frames:
+            log.debug(" <- %r", frame)
             if frame.is_control:
                 # Control messages are never fragmented
                 # And may be sent in the middle of a multi-part message

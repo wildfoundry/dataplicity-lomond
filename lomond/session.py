@@ -57,7 +57,7 @@ class WebsocketSession(object):
     def send(self, opcode, data):
         """Send a WS Frame."""
         frame = Frame(opcode, payload=data)
-        log.debug('send %r', frame)
+        log.debug(' -> %r', frame)
         self.write(frame.to_bytes())
 
     class _SocketFail(Exception):

@@ -63,8 +63,8 @@ class FrameParser(Parser):
                 rsv2=rsv2,
                 rsv3=rsv3
             )
-            frame.payload = yield self.read(payload_length)
-            log.debug('parsed %r', frame)
+            if payload_length:
+                frame.payload = yield self.read(payload_length)
             yield frame
 
 

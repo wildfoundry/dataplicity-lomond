@@ -33,10 +33,11 @@ class Frame(object):
     def __repr__(self):
         opcode_name = Opcode.to_str(self.opcode)
         frame_type = "frame" if self.fin else "frame-fragment"
-        return "<{} {} ({} bytes)>".format(
+        return "<{} {} ({} bytes) fin={!r}>".format(
             frame_type,
             opcode_name,
-            len(self)
+            len(self),
+            self.fin
         )
 
     def __len__(self):
@@ -79,9 +80,10 @@ class Frame(object):
     @classmethod
     def build_close_payload(cls, status, reason=''):
         """Build a close frame."""
-
         if not isinstance(reason, bytes):
             reason = reason.encode('utf-8', errors='replace')
+        if status is None:
+            return b''
         payload_bytes = cls._pack_close_code(status) + reason
         return payload_bytes
 
@@ -103,12 +105,10 @@ class Frame(object):
             raise errors.ProtocolError(
                 "reserved bits set"
             )
-
         if is_reserved(self.opcode):
             raise errors.ProtocolError(
                 "opcode is reserved"
             )
-
         if not self.fin and self.is_control:
             raise errors.ProtocolError(
                 "control frames may not be fragmented"
