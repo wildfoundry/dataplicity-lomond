@@ -17,14 +17,9 @@ class Status(object):
     EXTENSION_FAILED = 1010
     UNEXPECTED_CONDITION = 1011
 
-    codes = {
-        1000,
-        1001,
-        1002,
-        1003,
-        1007,
-        1008,
-        1009,
-        1010,
-        1011
+    # Reserved or forbidden close codes
+    invalid_codes = {
+        1004, 1005, 1006, 1014, 1015, 1016
     }
+    invalid_codes.update(range(1000))
+    invalid_codes.update(range(1016, 3000))

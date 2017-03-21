@@ -10,6 +10,7 @@ import struct
 
 from . import errors
 from .opcode import Opcode
+from .utf8validator import Utf8Validator
 
 
 class Message(object):
@@ -30,18 +31,7 @@ class Message(object):
         opcode = frames[0].opcode
         payload = b''.join(frame.payload for frame in frames)
         if opcode == Opcode.CLOSE:
-            code = None
-            reason = ''
-            if len(payload) >= 2:
-                (code,) = cls._unpack16(payload[:2])
-                try:
-                    reason = payload[2:].decode('utf-8')
-                except UnicodeDecodeError as error:
-                    raise errors.ProtocolError(
-                        'failed to decode unicode in close; {}',
-                        error
-                    )
-            return Close(code, reason)
+            return Close.from_payload(payload)
         elif opcode == Opcode.PING:
             return Ping(payload)
         elif opcode == Opcode.PONG:
@@ -49,13 +39,7 @@ class Message(object):
         elif opcode == Opcode.BINARY:
             return Binary(payload)
         elif opcode == Opcode.TEXT:
-            try:
-                return Text(payload.decode('utf-8'))
-            except UnicodeDecodeError as error:
-                raise errors.ProtocolError(
-                    'failed to decode unicode in TEXT; {}',
-                    error
-                )
+            return Text.from_payload(payload)
         else:
             return Message(opcode)
 
@@ -103,6 +87,17 @@ class Text(Message):
         self.text = text
         super(Text, self).__init__(Opcode.TEXT)
 
+    @classmethod
+    def from_payload(cls, payload):
+        try:
+            text = payload.decode('utf-8')
+        except UnicodeDecodeError as error:
+            raise errors.CriticalProtocolError(
+                'payload contains invalid utf-8 ({})',
+                error
+            )
+        return cls(text)
+
     def __repr__(self):
         return "<message TEXT {!r}>".format(self.text)
 
@@ -114,6 +109,32 @@ class Close(Message):
         self.code = code
         self.reason = reason
         super(Close, self).__init__(Opcode.CLOSE)
+
+    @classmethod
+    def from_payload(cls, payload):
+        """Decode the error 'code' and 'reason'."""
+        code = None
+        reason = ''
+        if len(payload) == 1:
+            raise errors.ProtocolError(
+                'invalid close frame payload'
+            )
+        elif len(payload) >= 2:
+            (code,) = cls._unpack16(payload[:2])
+            reason_bytes = payload[2:]
+            is_valid, _, _, _ = Utf8Validator().validate(reason_bytes)
+            if not is_valid:
+                raise errors.CriticalProtocolError(
+                    'close frame contains invalid utf-8'
+                )
+            try:
+                reason = reason_bytes.decode('utf-8')
+            except UnicodeDecodeError as error:
+                raise errors.CriticalProtocolError(
+                    'invalid utf-8 in close reason ({})',
+                    error
+                )
+        return cls(code, reason)
 
     def __repr__(self):
         return "<message CLOSE {}, {!r}>".format(self.code, self.reason)

@@ -54,9 +54,6 @@ reserved_opcodes = {
     Opcode.RESERVED10,
 }
 
-def is_control(opcode):
-    """Check if an opcode is a control code."""
-    return opcode >= 8
 
 def is_reserved(opcode):
     """Check if an opcode is reserved."""

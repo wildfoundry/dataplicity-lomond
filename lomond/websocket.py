@@ -25,7 +25,7 @@ from .session import WebsocketSession
 from .status import Status
 
 
-log = logging.getLogger('ws')
+log = logging.getLogger('lomond')
 
 
 class WebSocket(object):
@@ -93,6 +93,7 @@ class WebSocket(object):
                 session_class=WebsocketSession,
                 poll=5,
                 ping_rate=30):
+        """Connect the websocket to a session."""
         self.reset()
         self.state.session = WebsocketSession(self)
         return self.session.run(poll=poll, ping_rate=ping_rate)
@@ -104,6 +105,7 @@ class WebSocket(object):
     __iter__ = connect
 
     def close(self, code=None, reason=None):
+        """Close the websocket."""
         if code is None:
             code = Status.NORMAL
         if reason is None:
@@ -111,11 +113,9 @@ class WebSocket(object):
         self._send_close(code, reason)
         self.state.closing = True
 
-    def stop(self):
-        self.state.closed = True
-
     def _on_close(self, message):
-        if message.code is not None and message.code not in Status.codes:
+        """Close logic generator."""
+        if message.code in Status.invalid_codes:
             raise errors.ProtocolError(
                 'reserved close code ({})',
                 message.code
@@ -129,6 +129,7 @@ class WebSocket(object):
             self.state.closing = True
 
     def disconnect(self):
+        """Disconnect the websocket."""
         self.state.closing = False
         self.state.closed = True
 
@@ -140,13 +141,15 @@ class WebSocket(object):
             session = self.session
             for message in self.stream.feed(data):
                 if isinstance(message, Response):
+                    response = message
                     try:
-                        protocol, extensions = self.on_response(message)
+                        protocol, extensions = self.on_response(response)
                     except errors.HandshakeError as error:
                         self.disconnect()
-                        yield events.Rejected(message, str(error))
+                        yield events.Rejected(response, str(error))
+                        break
                     else:
-                        yield events.Ready(message, protocol, extensions)
+                        yield events.Ready(response, protocol, extensions)
                 else:
                     if message.is_close:
                         for event in self._on_close(message):
@@ -163,12 +166,21 @@ class WebSocket(object):
                         yield events.UnknownMessage(message)
                 if self.is_closed:
                     break
+
+        except errors.CriticalProtocolError as error:
+            # An error that warrants an immediate disconnect.
+            # Usually invalid unicode.
+            log.debug('critical protocol error; %s', error)
+            self.disconnect()
+
         except errors.ProtocolError as error:
-            log.warn('protocol error; %s', error)
+            # A violation of the protocol that allows for a graceful
+            # disconnect.
+            log.debug('protocol error; %s', error)
             self.close(Status.PROTOCOL_ERROR, six.text_type(error))
             self.disconnect()
 
-        except StopIteration:
+        except GeneratorExit:
             log.warn('disconnecting websocket')
             self.disconnect()
 
@@ -226,7 +238,7 @@ class WebSocket(object):
             )
 
         protocol = response.get(b'sec-websocket-protocol')
-        extensions = set(response.get_list(b'sec-websocket-extensions') or [])
+        extensions = set(response.get_list(b'sec-websocket-extensions'))
         return protocol, extensions
 
     def send_ping(self, data=b''):

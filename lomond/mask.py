@@ -2,8 +2,6 @@
 Functions related to masking Websocket frames.
 https://tools.ietf.org/html/rfc6455#section-5.3
 
-# TODO: Use wsaccel for masking
-
 """
 
 import os
@@ -13,10 +11,21 @@ from itertools import cycle
 import six
 
 
+try:
+    from wsaccel.xormask import XorMaskerSimple
+except ImportError:
+    XorMaskerSimple = None
+
+
 make_masking_key = partial(os.urandom, 4)
 
+if XorMaskerSimple is not None:
+    # Fast C version (works with Py2 and Py3)
+    def mask(masking_key, data):
+        return XorMaskerSimple(masking_key).process(data)
 
-if six.PY2:
+elif six.PY2:
+    # Python 2 compatible version
     from itertools import izip
     def mask(masking_key, data):
         """XOR mask bytes."""

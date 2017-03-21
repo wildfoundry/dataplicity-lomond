@@ -11,7 +11,7 @@ from .frame import Frame
 from .parser import Parser
 
 
-log = logging.getLogger('ws')
+log = logging.getLogger('lomond')
 
 
 class FrameParser(Parser):
