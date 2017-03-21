@@ -61,7 +61,7 @@ class WebsocketSession(object):
         self.write(frame.to_bytes())
 
     class _SocketFail(Exception):
-        """Used in internally to respond to socket fails."""
+        """Used internally to respond to socket fails."""
 
     @classmethod
     def _socket_fail(cls, msg, *args, **kwargs):
