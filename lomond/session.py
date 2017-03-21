@@ -21,7 +21,7 @@ from . import errors
 from . import events
 
 
-log = logging.getLogger('ws')
+log = logging.getLogger('lomond')
 
 
 
@@ -57,17 +57,19 @@ class WebsocketSession(object):
     def send(self, opcode, data):
         """Send a WS Frame."""
         frame = Frame(opcode, payload=data)
-        log.debug('send %r', frame)
+        log.debug('CLI -> SRV : %r', frame)
         self.write(frame.to_bytes())
 
     class _SocketFail(Exception):
-        pass
+        """Used internally to respond to socket fails."""
 
     @classmethod
     def _socket_fail(cls, msg, *args, **kwargs):
+        """Raises a socket fail error to exit select loop."""
         raise cls._SocketFail(msg.format(*args, **kwargs))
 
     def _select(self, sock, poll):
+        """Wait on data or errors."""
         try:
             reads, _, errors = select.select([sock], [], [sock], poll)
         except select.error as error:
@@ -75,16 +77,20 @@ class WebsocketSession(object):
         return reads, errors
 
     def _connect(self):
+        """Creat socket and connect."""
         sock = socket.socket(
             socket.AF_INET, socket.SOCK_STREAM
         )
-        sock.settimeout(30)
+        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        sock.settimeout(30)  # TODO: make a parameter for this?
         if self.websocket.is_secure:
             sock = ssl.wrap_socket(sock)
         sock.connect(self._address)
         return sock
 
     def _close_socket(self):
+        """Close the socket safely."""
+        # Is a no-op if the socket is already closed.
         try:
             # Get the write lock, so we can be certain data sending
             # in another thread is sent.
@@ -97,15 +103,17 @@ class WebsocketSession(object):
             pass
         except Exception as error:
             # Paranoia
-            log.warn('error closing socket')
+            log.warn('error closing socket (%s)', error)
         finally:
             self._sock = None
 
     def _send_request(self):
+        """Send the request over the wire."""
         request_bytes = self.websocket.get_request()
         self.write(request_bytes)
 
     def _check_poll(self, poll):
+        """Check if it is time for a poll."""
         current_time = time.time()
         if current_time - self._poll_start >= poll:
             self._poll_start = current_time
@@ -114,15 +122,19 @@ class WebsocketSession(object):
             return False
 
     def _check_auto_ping(self, ping_rate):
+        """Check if a ping is required."""
         if ping_rate:
             current_time = time.time()
             if current_time - self._last_ping >= ping_rate:
                 self._last_ping = current_time
+                # TODO: Calculate the round trip time
                 self.websocket.send_ping()
 
     def _recv(self, count):
+        """Receive and return pending data from the socket."""
         try:
             if self.websocket.is_secure:
+                # exhaust ssl buffer
                 recv_bytes = []
                 while count:
                     data = self._sock.recv(count)
@@ -130,12 +142,14 @@ class WebsocketSession(object):
                     count = self._sock.pending()
                 return b''.join(recv_bytes)
             else:
+                # Plain socket recv
                 return self._sock.recv(count)
         except socket.error as error:
             self._socket_fail('recv fail; {}', error)
 
     def _regular(self, poll, ping_rate):
         """Run regularly to do polling / pings."""
+        # Check for regularly running actions.
         if self._check_poll(poll):
             yield events.Poll()
         self._check_auto_ping(ping_rate)
@@ -149,7 +163,7 @@ class WebsocketSession(object):
                 yield regular_event
 
     def run(self, poll=5, ping_rate=30):
-        # TODO: implement exponential back off
+        """Run the websocket."""
         websocket = self.websocket
         url = websocket.url
         # Connecting event

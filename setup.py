@@ -30,7 +30,7 @@ setup(
     setup_requires=['pytest-runner'],
     tests_require=['pytest'],
     install_requires=[
-        'six>=1.10.0'
+        'six>=1.10.0',
     ],
     zip_safe=True
 )

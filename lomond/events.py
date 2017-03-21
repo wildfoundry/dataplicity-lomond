@@ -31,6 +31,24 @@ class Event(object):
     def __repr__(self):
         return "{}()".format(self.__class__.__name__)
 
+    def _summarize_bytes(cls, data, max_len=16):
+        """Avoid spamming logs by truncating byte strings in repr."""
+        if len(data) > max_len:
+            return "{!r} + {} bytes".format(
+                data[:max_len],
+                len(data) - max_len
+            )
+        return repr(data)
+
+    def _summarize_text(cls, text, max_len=16):
+        """Avoid spamming logs by truncating text."""
+        if len(text) > max_len:
+            return "{!r} + {} chars".format(
+                text[:max_len],
+                len(text) - max_len
+            )
+        return repr(text)
+
 
 class Poll(Event):
     """A generated poll event."""
@@ -167,7 +185,10 @@ class Binary(Event):
         super(Binary, self).__init__()
 
     def __repr__(self):
-        return "{}({!r})".format(self.__class__.__name__, self.data)
+        return "{}({})".format(
+            self.__class__.__name__,
+            self._summarize_bytes(self.data)
+        )
 
 
 class Pong(Event):
@@ -193,7 +214,10 @@ class Text(Event):
         super(Text, self).__init__()
 
     def __repr__(self):
-        return "{}({!r})".format(self.__class__.__name__, self.text)
+        return "{}({})".format(
+            self.__class__.__name__,
+            self._summarize_text(self.text)
+        )
 
 
 class BackOff(Event):

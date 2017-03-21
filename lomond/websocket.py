@@ -25,7 +25,7 @@ from .session import WebsocketSession
 from .status import Status
 
 
-log = logging.getLogger('ws')
+log = logging.getLogger('lomond')
 
 
 class WebSocket(object):
@@ -40,9 +40,10 @@ class WebSocket(object):
             self.closing = False
             self.closed = False
 
-    def __init__(self, url, protocols=None):
+    def __init__(self, url, protocols=None, agent=None):
         self.url = url
         self.protocols = protocols or []
+        self.agent = agent or constants.USER_AGENT
 
         _url = urlparse(url)
         self.scheme = _url.scheme
@@ -57,7 +58,7 @@ class WebSocket(object):
         self._host_port = "{}:{}".format(host, port)
         self.resource = _url.path or '/'
         if _url.query:
-            self.resource = "{}?{}".format(host, _url.query)
+            self.resource = "{}?{}".format(self.resource, _url.query)
 
         self.state = self.State()
 
@@ -92,6 +93,7 @@ class WebSocket(object):
                 session_class=WebsocketSession,
                 poll=5,
                 ping_rate=30):
+        """Connect the websocket to a session."""
         self.reset()
         self.state.session = WebsocketSession(self)
         return self.session.run(poll=poll, ping_rate=ping_rate)
@@ -102,14 +104,22 @@ class WebSocket(object):
 
     __iter__ = connect
 
-    def close(self, code=Status.NORMAL, reason=b'goodbye'):
+    def close(self, code=None, reason=None):
+        """Close the websocket."""
+        if code is None:
+            code = Status.NORMAL
+        if reason is None:
+            reason = b'goodbye'
         self._send_close(code, reason)
         self.state.closing = True
 
-    def stop(self):
-        self.state.closed = True
-
     def _on_close(self, message):
+        """Close logic generator."""
+        if message.code in Status.invalid_codes:
+            raise errors.ProtocolError(
+                'reserved close code ({})',
+                message.code
+            )
         if self.is_closing:
             yield events.Closed(message.code, message.reason)
             self.state.closing = False
@@ -119,6 +129,7 @@ class WebSocket(object):
             self.state.closing = True
 
     def disconnect(self):
+        """Disconnect the websocket."""
         self.state.closing = False
         self.state.closed = True
 
@@ -129,21 +140,22 @@ class WebSocket(object):
         try:
             session = self.session
             for message in self.stream.feed(data):
-                log.debug('%r', message)
                 if isinstance(message, Response):
+                    response = message
                     try:
-                        protocol, extensions = self.on_response(message)
+                        protocol, extensions = self.on_response(response)
                     except errors.HandshakeError as error:
                         self.disconnect()
-                        yield events.Rejected(message, str(error))
+                        yield events.Rejected(response, str(error))
+                        break
                     else:
-                        yield events.Ready(message, protocol, extensions)
+                        yield events.Ready(response, protocol, extensions)
                 else:
                     if message.is_close:
                         for event in self._on_close(message):
                             yield event
                     elif message.is_ping:
-                        session.send(Opcode.PONG, message.payload)
+                        session.send(Opcode.PONG, message.data)
                     elif message.is_pong:
                         yield events.Pong(message.data)
                     elif message.is_binary:
@@ -154,9 +166,22 @@ class WebSocket(object):
                         yield events.UnknownMessage(message)
                 if self.is_closed:
                     break
+
+        except errors.CriticalProtocolError as error:
+            # An error that warrants an immediate disconnect.
+            # Usually invalid unicode.
+            log.debug('critical protocol error; %s', error)
+            self.disconnect()
+
         except errors.ProtocolError as error:
-            log.warn('protocol error; %s', error)
+            # A violation of the protocol that allows for a graceful
+            # disconnect.
+            log.debug('protocol error; %s', error)
             self.close(Status.PROTOCOL_ERROR, six.text_type(error))
+            self.disconnect()
+
+        except GeneratorExit:
+            log.warn('disconnecting websocket')
             self.disconnect()
 
     def get_request(self):
@@ -172,7 +197,8 @@ class WebSocket(object):
             (b'Connection', b'Upgrade'),
             (b'Sec-WebSocket-Protocol', protocols.encode('utf-8')),
             (b'Sec-WebSocket-Key', self.key),
-            (b'Sec-WebSocket-Version', version.encode('utf-8'))
+            (b'Sec-WebSocket-Version', version.encode('utf-8')),
+            (b'User-Agent', self.agent.encode('utf-8')),
         ]
         for header, value in headers:
             request.append(header + b': ' + value)
@@ -212,7 +238,7 @@ class WebSocket(object):
             )
 
         protocol = response.get(b'sec-websocket-protocol')
-        extensions = set(response.get_list(b'sec-websocket-extensions') or [])
+        extensions = set(response.get_list(b'sec-websocket-extensions'))
         return protocol, extensions
 
     def send_ping(self, data=b''):
