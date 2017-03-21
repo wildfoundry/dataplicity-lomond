@@ -198,7 +198,7 @@ class WebSocket(object):
             (b'Sec-WebSocket-Protocol', protocols.encode('utf-8')),
             (b'Sec-WebSocket-Key', self.key),
             (b'Sec-WebSocket-Version', version.encode('utf-8')),
-            (b'User-Agent', self.agent.encode('utf-8'))
+            (b'User-Agent', self.agent.encode('utf-8')),
         ]
         for header, value in headers:
             request.append(header + b': ' + value)
