@@ -31,7 +31,6 @@ setup(
     tests_require=['pytest'],
     install_requires=[
         'six>=1.10.0',
-        'wsaccel>=0.6.2'
     ],
     zip_safe=True
 )
