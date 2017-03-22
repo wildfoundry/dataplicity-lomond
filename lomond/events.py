@@ -137,6 +137,7 @@ class Disconnected(Event):
     def __init__(self, reason='closed', graceful=False):
         self.reason = reason
         self.graceful = graceful
+        super(Disconnected, self).__init()
 
     def __repr__(self):
         return "{}('{}', graceful={!r})".format(
