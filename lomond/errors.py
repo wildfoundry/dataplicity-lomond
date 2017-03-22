@@ -43,7 +43,7 @@ class TransportFail(Error):
 
 
 class WebSocketUnavailable(Error):
-    """The websocket may not be used."""
+    """The websocket can not be used."""
 
 
 class WebSocketClosed(WebSocketUnavailable):
