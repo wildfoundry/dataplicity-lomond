@@ -14,8 +14,6 @@ import ssl
 import threading
 import time
 
-import six
-
 from .frame import Frame
 from . import errors
 from . import events
