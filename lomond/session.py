@@ -222,7 +222,7 @@ class WebsocketSession(object):
                     if not data:
                         self._socket_fail('connection lost')
                     for event in self._feed(data, poll, ping_rate):
-                        if auto_pong and event.name == 'ping':
+                        if event.name == 'ping' and auto_pong:
                             self._on_ping(event)
                         yield event
                 if errors:
