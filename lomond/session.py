@@ -169,7 +169,11 @@ class WebsocketSession(object):
             for regular_event in self._regular(poll, ping_rate):
                 yield regular_event
 
-    def run(self, poll=5, ping_rate=30):
+    def _on_ping(self, event):
+        """Send a pong message in response to ping event."""
+        self.websocket.send_pong(event.data)
+
+    def run(self, poll=5, ping_rate=30, auto_pong=True):
         """Run the websocket."""
         websocket = self.websocket
         url = websocket.url
@@ -218,6 +222,8 @@ class WebsocketSession(object):
                     if not data:
                         self._socket_fail('connection lost')
                     for event in self._feed(data, poll, ping_rate):
+                        if auto_pong and event.name == 'ping':
+                            self._on_ping(event)
                         yield event
                 if errors:
                     self._socket_fail('socket error')

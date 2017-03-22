@@ -191,6 +191,19 @@ class Binary(Event):
         )
 
 
+class Ping(Event):
+    """An application message was received."""
+    __slots__ = ['data']
+    name = 'ping'
+
+    def __init__(self, data):
+        self.data = data
+        super(Ping, self).__init__()
+
+    def __repr__(self):
+        return "{}({!r})".format(self.__class__.__name__, self.data)
+
+
 class Pong(Event):
     """An application message was received."""
     __slots__ = ['data']

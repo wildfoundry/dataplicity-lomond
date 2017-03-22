@@ -151,7 +151,7 @@ class WebSocket(object):
                         protocol, extensions = self.on_response(response)
                     except errors.HandshakeError as error:
                         self.disconnect()
-                        yield events.Rejected(response, str(error))
+                        yield events.Rejected(response, six.text_type(error))
                         break
                     else:
                         yield events.Ready(response, protocol, extensions)
@@ -160,7 +160,7 @@ class WebSocket(object):
                         for event in self._on_close(message):
                             yield event
                     elif message.is_ping:
-                        session.send(Opcode.PONG, message.data)
+                        yield events.Ping(message.data)
                     elif message.is_pong:
                         yield events.Pong(message.data)
                     elif message.is_binary:
