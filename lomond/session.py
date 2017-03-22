@@ -43,15 +43,24 @@ class WebsocketSession(object):
 
     def write(self, data):
         """Send raw data."""
-        if self.websocket.is_closed or self._sock is None:
-            raise errors.WebSocketClosed('data not sent')
-
         with self._lock:
+            if self._sock is None:
+                raise errors.WebSocketUnavailable('not connected')
+            if self.websocket.is_closed:
+                raise errors.WebSocketClosed('data not sent')
+            if self.websocket.is_closing:
+                raise errors.WebSocketClosing('data not sent')
             try:
                 self._sock.sendall(data)
             except socket.error as error:
                 raise errors.TransportFail(
-                    six.text_type(error)
+                    'socket fail; {}',
+                    error
+                )
+            except:
+                raise errors.TransportFail(
+                    'socket error; {}',
+                    error
                 )
 
     def send(self, opcode, data):
