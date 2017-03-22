@@ -279,7 +279,7 @@ class WebSocket(object):
         frame_bytes = Frame.build_close_payload(code, reason)
         try:
             self.session.send(Opcode.CLOSE, frame_bytes)
-        except errors.TransportFail:
+        except (errors.WebSocketUnavailable, errors.TransportFail):
             return False
         else:
             return True
