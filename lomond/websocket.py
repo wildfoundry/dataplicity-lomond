@@ -266,7 +266,7 @@ class WebSocket(object):
         """Send a binary frame."""
         if not isinstance(data, bytes):
             raise TypeError('data argument must be bytes')
-        return self.session.send(Opcode.BINARY, data)
+        self.session.send(Opcode.BINARY, data)
 
     def send_text(self, text):
         """Send a text frame."""
