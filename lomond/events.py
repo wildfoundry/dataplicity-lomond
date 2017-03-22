@@ -31,6 +31,7 @@ class Event(object):
     def __repr__(self):
         return "{}()".format(self.__class__.__name__)
 
+    @classmethod
     def _summarize_bytes(cls, data, max_len=16):
         """Avoid spamming logs by truncating byte strings in repr."""
         if len(data) > max_len:
@@ -40,6 +41,7 @@ class Event(object):
             )
         return repr(data)
 
+    @classmethod
     def _summarize_text(cls, text, max_len=16):
         """Avoid spamming logs by truncating text."""
         if len(text) > max_len:
@@ -175,24 +177,8 @@ class UnknownMessage(Event):
         super(UnknownMessage, self).__init__()
 
 
-class Binary(Event):
-    """An application message was received."""
-    __slots__ = ['data']
-    name = 'binary'
-
-    def __init__(self, data):
-        self.data = data
-        super(Binary, self).__init__()
-
-    def __repr__(self):
-        return "{}({})".format(
-            self.__class__.__name__,
-            self._summarize_bytes(self.data)
-        )
-
-
 class Ping(Event):
-    """An application message was received."""
+    """A ping message was received."""
     __slots__ = ['data']
     name = 'ping'
 
@@ -205,7 +191,7 @@ class Ping(Event):
 
 
 class Pong(Event):
-    """An application message was received."""
+    """A pong message was received."""
     __slots__ = ['data']
     name = 'pong'
 
@@ -230,6 +216,22 @@ class Text(Event):
         return "{}({})".format(
             self.__class__.__name__,
             self._summarize_text(self.text)
+        )
+
+
+class Binary(Event):
+    """An binary application message was received."""
+    __slots__ = ['data']
+    name = 'binary'
+
+    def __init__(self, data):
+        self.data = data
+        super(Binary, self).__init__()
+
+    def __repr__(self):
+        return "{}({})".format(
+            self.__class__.__name__,
+            self._summarize_bytes(self.data)
         )
 
 
