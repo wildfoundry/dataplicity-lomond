@@ -106,12 +106,15 @@ class WebSocket(object):
 
     def close(self, code=None, reason=None):
         """Close the websocket."""
-        if code is None:
-            code = Status.NORMAL
-        if reason is None:
-            reason = b'goodbye'
-        self._send_close(code, reason)
-        self.state.closing = True
+        if self.is_closed:
+            log.debug('%r already closed', self)
+        else:
+            if code is None:
+                code = Status.NORMAL
+            if reason is None:
+                reason = b'goodbye'
+            self._send_close(code, reason)
+            self.state.closing = True
 
     def _on_close(self, message):
         """Close logic generator."""
@@ -120,6 +123,8 @@ class WebSocket(object):
                 'reserved close code ({})',
                 message.code
             )
+        if self.is_closed:
+            return
         if self.is_closing:
             yield events.Closed(message.code, message.reason)
             self.state.closing = False
@@ -146,7 +151,7 @@ class WebSocket(object):
                         protocol, extensions = self.on_response(response)
                     except errors.HandshakeError as error:
                         self.disconnect()
-                        yield events.Rejected(response, str(error))
+                        yield events.Rejected(response, six.text_type(error))
                         break
                     else:
                         yield events.Ready(response, protocol, extensions)
@@ -155,7 +160,7 @@ class WebSocket(object):
                         for event in self._on_close(message):
                             yield event
                     elif message.is_ping:
-                        session.send(Opcode.PONG, message.data)
+                        yield events.Ping(message.data)
                     elif message.is_pong:
                         yield events.Pong(message.data)
                     elif message.is_binary:
@@ -267,9 +272,14 @@ class WebSocket(object):
         """Send a text frame."""
         if not isinstance(text, six.text_type):
             raise TypeError('text argument must be bytes')
-        self.session.send(Opcode.TEXT, text.encode('utf-8', errors='replace'))
+        self.session.send(Opcode.TEXT, text.encode('utf-8'))
 
     def _send_close(self, code, reason):
         """Send a close frame."""
         frame_bytes = Frame.build_close_payload(code, reason)
-        self.session.send(Opcode.CLOSE, frame_bytes)
+        try:
+            self.session.send(Opcode.CLOSE, frame_bytes)
+        except (errors.WebSocketUnavailable, errors.TransportFail):
+            return False
+        else:
+            return True

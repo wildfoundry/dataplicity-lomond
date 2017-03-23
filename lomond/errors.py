@@ -42,5 +42,13 @@ class TransportFail(Error):
     # Likely indicates the socket failed
 
 
-class WebSocketClosed(Error):
+class WebSocketUnavailable(Error):
+    """The websocket can not be used."""
+
+
+class WebSocketClosed(WebSocketUnavailable):
     """Raised when attempting to send over a closed websocket."""
+
+
+class WebSocketClosing(WebSocketUnavailable):
+    """Raised when attempting to send over a closing websocket."""

@@ -14,8 +14,6 @@ import ssl
 import threading
 import time
 
-import six
-
 from .frame import Frame
 from . import errors
 from . import events
@@ -43,15 +41,24 @@ class WebsocketSession(object):
 
     def write(self, data):
         """Send raw data."""
-        if self.websocket.is_closed or self._sock is None:
-            raise errors.WebSocketClosed('data not sent')
-
         with self._lock:
+            if self._sock is None:
+                raise errors.WebSocketUnavailable('not connected')
+            if self.websocket.is_closed:
+                raise errors.WebSocketClosed('data not sent')
+            if self.websocket.is_closing:
+                raise errors.WebSocketClosing('data not sent')
             try:
                 self._sock.sendall(data)
             except socket.error as error:
                 raise errors.TransportFail(
-                    six.text_type(error)
+                    'socket fail; {}',
+                    error
+                )
+            except Exception as error:
+                raise errors.TransportFail(
+                    'socket error; {}',
+                    error
                 )
 
     def send(self, opcode, data):
@@ -162,7 +169,11 @@ class WebsocketSession(object):
             for regular_event in self._regular(poll, ping_rate):
                 yield regular_event
 
-    def run(self, poll=5, ping_rate=30):
+    def _on_ping(self, event):
+        """Send a pong message in response to ping event."""
+        self.websocket.send_pong(event.data)
+
+    def run(self, poll=5, ping_rate=30, auto_pong=True):
         """Run the websocket."""
         websocket = self.websocket
         url = websocket.url
@@ -211,6 +222,8 @@ class WebsocketSession(object):
                     if not data:
                         self._socket_fail('connection lost')
                     for event in self._feed(data, poll, ping_rate):
+                        if event.name == 'ping' and auto_pong:
+                            self._on_ping(event)
                         yield event
                 if errors:
                     self._socket_fail('socket error')

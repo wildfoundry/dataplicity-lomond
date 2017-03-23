@@ -31,6 +31,7 @@ class Event(object):
     def __repr__(self):
         return "{}()".format(self.__class__.__name__)
 
+    @classmethod
     def _summarize_bytes(cls, data, max_len=16):
         """Avoid spamming logs by truncating byte strings in repr."""
         if len(data) > max_len:
@@ -40,6 +41,7 @@ class Event(object):
             )
         return repr(data)
 
+    @classmethod
     def _summarize_text(cls, text, max_len=16):
         """Avoid spamming logs by truncating text."""
         if len(text) > max_len:
@@ -135,6 +137,7 @@ class Disconnected(Event):
     def __init__(self, reason='closed', graceful=False):
         self.reason = reason
         self.graceful = graceful
+        super(Disconnected, self).__init__()
 
     def __repr__(self):
         return "{}('{}', graceful={!r})".format(
@@ -175,24 +178,21 @@ class UnknownMessage(Event):
         super(UnknownMessage, self).__init__()
 
 
-class Binary(Event):
-    """An application message was received."""
+class Ping(Event):
+    """A ping message was received."""
     __slots__ = ['data']
-    name = 'binary'
+    name = 'ping'
 
     def __init__(self, data):
         self.data = data
-        super(Binary, self).__init__()
+        super(Ping, self).__init__()
 
     def __repr__(self):
-        return "{}({})".format(
-            self.__class__.__name__,
-            self._summarize_bytes(self.data)
-        )
+        return "{}({!r})".format(self.__class__.__name__, self.data)
 
 
 class Pong(Event):
-    """An application message was received."""
+    """A pong message was received."""
     __slots__ = ['data']
     name = 'pong'
 
@@ -217,6 +217,22 @@ class Text(Event):
         return "{}({})".format(
             self.__class__.__name__,
             self._summarize_text(self.text)
+        )
+
+
+class Binary(Event):
+    """An binary application message was received."""
+    __slots__ = ['data']
+    name = 'binary'
+
+    def __init__(self, data):
+        self.data = data
+        super(Binary, self).__init__()
+
+    def __repr__(self):
+        return "{}({})".format(
+            self.__class__.__name__,
+            self._summarize_bytes(self.data)
         )
 
 

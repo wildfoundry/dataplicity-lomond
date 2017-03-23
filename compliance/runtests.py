@@ -17,9 +17,13 @@ log = logging.getLogger('wstests')
 def get_test_count():
     """Gets the number of test cases."""
     ws = WebSocket(server + '/getCaseCount')
+    case_count = None
     for event in ws:
         if event.name == 'text':
             case_count = json.loads(event.text)
+    if case_count is None:
+        print('Could not get case count. Is the test server running?')
+        sys.exit(-1)
     return case_count
 
 
