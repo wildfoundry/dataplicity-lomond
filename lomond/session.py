@@ -55,7 +55,7 @@ class WebsocketSession(object):
                     'socket fail; {}',
                     error
                 )
-            except:
+            except Exception as error:
                 raise errors.TransportFail(
                     'socket error; {}',
                     error
