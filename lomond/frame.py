@@ -150,6 +150,6 @@ class Frame(object):
         return self.opcode == Opcode.CLOSE
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     print(Frame(Opcode.BINARY, b'Hello, World', fin=0))
     print(Frame(Opcode.TEXT, b'Hello, World', fin=1))
