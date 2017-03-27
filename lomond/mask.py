@@ -11,6 +11,10 @@ from itertools import cycle
 import six
 
 
+if six.PY2:
+    from itertools import izip
+
+
 try:
     from wsaccel.xormask import XorMaskerSimple
 except ImportError:
@@ -26,12 +30,11 @@ if XorMaskerSimple is not None:
 
 elif six.PY2:
     # Python 2 compatible version
-    from itertools import izip
-    def mask(masking_key, data):
+    def mask(masking_key, data, _chr=b''.join(chr(n) for n in range(256))):
         """XOR mask bytes."""
         return b''.join(
-            chr(ord(a) ^ ord(b))
-            for a, b in izip(cycle(masking_key), data)
+            _chr[a ^ b]
+            for a, b in izip(cycle(bytearray(masking_key)), bytearray(data))
         )
 else:
     # Can't deny the Py3 version is nicer
