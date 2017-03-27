@@ -11,10 +11,6 @@ from itertools import cycle
 import six
 
 
-if six.PY2:
-    from itertools import izip
-
-
 try:
     from wsaccel.xormask import XorMaskerSimple
 except ImportError:
@@ -22,6 +18,7 @@ except ImportError:
 
 
 make_masking_key = partial(os.urandom, 4)
+
 
 if XorMaskerSimple is not None:
     # Fast C version (works with Py2 and Py3)
