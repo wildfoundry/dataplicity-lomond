@@ -30,7 +30,7 @@ if XorMaskerSimple is not None:
 
 elif six.PY2:
     # Python 2 compatible version
-    # This is about 60 (!) times faster than the commented out version
+    # This is about 60 (!) times faster than a simple loop
     _XOR_TABLE = [b''.join(chr(a ^ b) for a in range(256)) for b in range(256)]
     def mask(masking_key, data):
         """XOR mask bytes."""
