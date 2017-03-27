@@ -11,3 +11,7 @@ dist/
 .DS_Store
 .eggs
 compliance/reports
+.cache
+.coverage
+.python-version
+reports
