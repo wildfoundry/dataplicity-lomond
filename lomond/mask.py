@@ -30,7 +30,7 @@ if XorMaskerSimple is not None:
 
 elif six.PY2:
     # Python 2 compatible version
-    def mask(masking_key, data, _chr=b''.join(chr(n) for n in range(256))):
+    def mask(masking_key, data, _chr=[chr(n) for n in range(256)]):
         """XOR mask bytes."""
         return b''.join(
             _chr[a ^ b]

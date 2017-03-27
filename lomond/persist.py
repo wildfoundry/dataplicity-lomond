@@ -13,10 +13,10 @@ from . import events
 
 def persist(websocket, poll=5,
             min_wait=5, max_wait=30,
-            ping_rate=30, retry_event=None):
+            ping_rate=30, exit_event=None):
     """Run a websocket, with a retry mechanism and exponential back-off."""
-    if retry_event is None:
-        retry_event = threading.Event()
+    if exit_event is None:
+        exit_event = threading.Event()
     retries = 0
     random_wait = max_wait - min_wait
     while True:
@@ -28,7 +28,7 @@ def persist(websocket, poll=5,
             yield event
         wait_for = min_wait + random() * min(random_wait, 2**retries)
         yield events.BackOff(wait_for)
-        if retry_event.wait(wait_for):
+        if exit_event.wait(wait_for):
             break
 
 
