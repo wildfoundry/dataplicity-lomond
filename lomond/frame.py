@@ -69,7 +69,7 @@ class Frame(object):
             header_bytes = cls._pack64(
                 byte0, mask_bit | 127, length, masking_key
             )
-        else:
+        else:  # pragma no cover
             # Can't send a payload > 2**63 bytes
             raise errors.FrameBuildError(
                 'payload is too large for a single frame'
