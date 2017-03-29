@@ -38,15 +38,3 @@ else:
     def mask(masking_key, data):
         """XOR mask bytes."""
         return bytes(a ^ b for a, b in zip(cycle(masking_key), data))
-
-
-if __name__ == "__main__":
-
-    plain = b"Hello, World!"
-    key = make_masking_key()
-
-    masked = mask(key, plain)
-    print(masked)
-
-    plain = mask(key, masked)
-    print(plain)
