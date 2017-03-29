@@ -1,12 +1,11 @@
 from lomond.constants import WS_KEY, WS_VERSION, USER_AGENT
-from uuid import UUID
 
 
 def test_ws_key():
-    _uuid = UUID(hex=WS_KEY.decode())
-    # if we are already here it means that UUID constructor did not raise an
-    # exception
-    assert _uuid.version == 4
+    # this is a constant, which, if changed to something else, will break
+    # the websocket handshake
+    # https://tools.ietf.org/html/rfc6455#page-7
+    assert WS_KEY == b'258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
 
 
 def test_ws_version():
