@@ -32,7 +32,7 @@ def persist(websocket, poll=5,
             break
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     # Test with wstest -m broadcastserver -w ws://127.0.0.1:9001 -d
 
     from .websocket import WebSocket
@@ -44,4 +44,3 @@ if __name__ == "__main__":
             ws.send_text('Hello, World')
             ws.send_binary(b'hello world in binary')
             ws.send_ping(b'test')
-

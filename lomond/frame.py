@@ -69,7 +69,7 @@ class Frame(object):
             header_bytes = cls._pack64(
                 byte0, mask_bit | 127, length, masking_key
             )
-        else:
+        else:  # pragma: no cover
             # Can't send a payload > 2**63 bytes
             raise errors.FrameBuildError(
                 'payload is too large for a single frame'
@@ -150,6 +150,6 @@ class Frame(object):
         return self.opcode == Opcode.CLOSE
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     print(Frame(Opcode.BINARY, b'Hello, World', fin=0))
     print(Frame(Opcode.TEXT, b'Hello, World', fin=1))
