@@ -143,7 +143,6 @@ class WebSocket(object):
         if self.is_closed:
             return
         try:
-            session = self.session
             for message in self.stream.feed(data):
                 if isinstance(message, Response):
                     response = message
