@@ -1,23 +1,31 @@
 from lomond.websocket import WebSocket
 from lomond.stream import WebsocketStream
 from lomond.session import WebsocketSession
-from lomond.events import Ready, Ping, Pong, Binary, Text
 from lomond.message import Close
+from lomond.opcode import Opcode
+from lomond.events import Ping, Pong, Binary, Text, Ready
 from lomond.errors import ProtocolError
 import pytest
 from base64 import b64decode
 
 
+
 class FakeSession(object):
+    def __init__(self, *args, **kwargs):
+        self.socket_buffer = []
+
     def run(self, *args, **kwargs):
         pass
 
     def send(self, opcode, bytes):
-        pass
+        self.socket_buffer.append((opcode, bytes))
 
 
 @pytest.fixture
-def websocket():
+def websocket(monkeypatch):
+    monkeypatch.setattr(
+        'os.urandom', lambda len: b'\x00' * len)
+
     ws = WebSocket('ws://example.com')
     return ws
 
@@ -77,11 +85,8 @@ def test_is_secure(websocket):
     assert WebSocket('wss://example.com').is_secure is True
 
 
-def test_get_request(monkeypatch):
-    monkeypatch.setattr(
-        'os.urandom', lambda len: b'\x00' * len)
-    ws = websocket()
-    assert ws.get_request() == (
+def test_get_request(websocket):
+    assert websocket.get_request() == (
         b'GET / HTTP/1.1\r\n'
         b'Host: example.com:80\r\n'
         b'Upgrade: websocket\r\n'
@@ -151,3 +156,54 @@ def test_close_with_reserved_code(websocket):
     reserved_message = Close(code=1005, reason='reserved-close-code')
     with pytest.raises(ProtocolError):
         next(websocket._on_close(reserved_message))
+
+
+@pytest.mark.parametrize('method_name, payload, expected_buffer', [
+    ('send_pong', b'PONG', [(Opcode.PONG, b'PONG')]),
+    ('send_ping', b'PING', [(Opcode.PING, b'PING')]),
+    ('send_binary', b'BIN', [(Opcode.BINARY, b'BIN')]),
+    ('send_text', u'TEXT', [(Opcode.TEXT, b'TEXT')])
+])
+def test_send_methods_functionalities(
+        websocket_with_fake_session, method_name, payload, expected_buffer):
+    ws = websocket_with_fake_session
+    method = getattr(ws, method_name)
+    method(payload)
+    assert ws.state.session.socket_buffer == expected_buffer
+
+
+@pytest.mark.parametrize(
+    (
+        'method_name, payload, expected_exception_class, '
+        'expected_exception_string'
+    ),
+    [
+        ("send_pong", u"PONG", TypeError, "data argument must be bytes"),
+        ("send_ping", u"PING", TypeError, "data argument must be bytes"),
+        ("send_binary", u"BIN", TypeError, "data argument must be bytes"),
+        ("send_text", b"BIN", TypeError, "text argument must not be bytes"),
+        (
+            "send_pong", b'PONG' * 32, ValueError,
+            "pong data should be <= 125 bytes"
+        ),
+        (
+            "send_ping", b'PING' * 32, ValueError,
+            "ping data should be <= 125 bytes"
+        ),
+    ]
+)
+def test_send_methods_parameters_validation(
+        websocket_with_fake_session, method_name, payload,
+        expected_exception_class, expected_exception_string):
+    ws = websocket_with_fake_session
+    method = getattr(ws, method_name)
+
+    with pytest.raises(expected_exception_class) as e:
+        method(payload)
+
+    assert str(e.value) == expected_exception_string
+
+
+def test_send_close_needs_open_socket(websocket):
+    websocket.state.session = WebsocketSession(websocket)
+    websocket._send_close(0, 'bye')
