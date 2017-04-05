@@ -194,17 +194,18 @@ class WebSocket(object):
         request = [
             "GET {} HTTP/1.1".format(self.resource).encode('utf-8')
         ]
-        protocols = ", ".join(self.protocols)
         version = '{}'.format(constants.WS_VERSION)
         headers = [
             (b'Host', self._host_port.encode('utf-8')),
             (b'Upgrade', b'websocket'),
             (b'Connection', b'Upgrade'),
-            (b'Sec-WebSocket-Protocol', protocols.encode('utf-8')),
             (b'Sec-WebSocket-Key', self.key),
             (b'Sec-WebSocket-Version', version.encode('utf-8')),
             (b'User-Agent', self.agent.encode('utf-8')),
         ]
+        if self.protocols:
+            protocols = ", ".join(self.protocols).encode('utf-8')
+            headers[b'Sec-WebSocket-Protocol'] = protocols
         for header, value in headers:
             request.append(header + b': ' + value)
         request.append(b'\r\n')
