@@ -205,7 +205,7 @@ class WebSocket(object):
         ]
         if self.protocols:
             protocols = ", ".join(self.protocols).encode('utf-8')
-            headers[b'Sec-WebSocket-Protocol'] = protocols
+            headers.append((b'Sec-WebSocket-Protocol', protocols))
         for header, value in headers:
             request.append(header + b': ' + value)
         request.append(b'\r\n')
