@@ -1,8 +1,10 @@
-from lomond.frame import Frame
-from lomond.opcode import Opcode
 from struct import unpack
+
 import pytest
 import six
+from lomond.errors import ProtocolError
+from lomond.frame import Frame
+from lomond.opcode import Opcode
 
 
 @pytest.fixture
@@ -173,3 +175,41 @@ def test_binary_output_length_larger_than_127(frame_factory, monkeypatch):
     assert decoded_length[0] == large_length
     assert frame_binary[10:14] == b'\x00\x00\x00\x00'
     assert frame_binary[14:] == frame.payload
+
+
+def test_calling_build_close_payload_requires_status():
+    assert Frame.build_close_payload(None) == b''
+
+
+@pytest.mark.parametrize('init_params, expected_error', [
+    (
+        {'opcode': Opcode.PING, 'payload': b'A' * 126},
+        "control frames must <= 125 bytes in length"
+    ),
+    (
+        {'opcode': Opcode.TEXT, 'payload': b'A', 'rsv1': 1},
+        "reserved bits set"
+    ),
+    (
+        {'opcode': Opcode.TEXT, 'payload': b'A', 'rsv2': 1},
+        "reserved bits set"
+    ),
+    (
+        {'opcode': Opcode.TEXT, 'payload': b'A', 'rsv3': 1},
+        "reserved bits set"
+    ),
+    (
+        {'opcode': Opcode.RESERVED1},
+        "opcode is reserved"
+    ),
+    (
+        {'opcode': Opcode.PING, 'fin': 0},
+        "control frames may not be fragmented"
+    )
+
+])
+def test_validate_frame(init_params, expected_error):
+    with pytest.raises(ProtocolError) as e:
+        Frame(**init_params)
+
+    assert str(e.value) == expected_error

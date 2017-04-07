@@ -1,9 +1,10 @@
 import lomond.message
-from lomond.message import Message
+from lomond.message import Message, Text, Close
 from lomond.opcode import Opcode
 from lomond.frame import Frame
-from lomond.errors import ProtocolError
+from lomond.errors import ProtocolError, CriticalProtocolError
 import pytest
+import six
 
 
 def test_constructor():
@@ -72,3 +73,41 @@ def test_close_long_payload():
     msg = lomond.message.Close.from_payload(b'\x00\x01\x41')
     assert msg.code == 1
     assert msg.reason == 'A'
+
+
+def test_text_payload_with_invalid_utf8_sequence():
+    with pytest.raises(CriticalProtocolError) as e:
+        Text.from_payload(b'\x8f')
+
+    expected_error = (
+        "payload contains invalid utf-8"
+        " ('utf-8' codec can't decode byte 0x8f in position 0: invalid start"
+        " byte)"
+    )
+    # in py2, the codec in exception is named utf8 rather than utf-8, despite
+    # calling .decode('utf-8'). Yay!
+    if six.PY2:
+        expected_error = expected_error.replace("('utf-8", "('utf8")
+    assert str(e.value) == expected_error
+
+
+@pytest.mark.parametrize('payload, expected_error', [
+    (b'\x00\x00\x8f', "close frame contains invalid utf-8"),
+    (
+        b'\x00\x00\xe2\x91',
+        (
+            "invalid utf-8 in close reason ('utf-8' codec can't decode bytes"
+            " in position 0-1: unexpected end of data)"
+        )
+    )
+])
+def test_close_payload_with_invalid_utf8_sequence(payload, expected_error):
+    # in py2, the codec in exception is named utf8 rather than utf-8, despite
+    # calling .decode('utf-8'). Yay!
+    if six.PY2:
+        expected_error = expected_error.replace("('utf-8", "('utf8")
+
+    with pytest.raises(CriticalProtocolError) as e:
+        Close.from_payload(payload)
+
+    assert str(e.value) == expected_error

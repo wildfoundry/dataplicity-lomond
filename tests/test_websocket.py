@@ -1,13 +1,15 @@
-from lomond.websocket import WebSocket
-from lomond.stream import WebsocketStream
-from lomond.session import WebsocketSession
+from base64 import b64decode
+import logging
+
+import pytest
+from lomond.errors import ProtocolError, HandshakeError
+from lomond.events import Binary, Closed, Ping, Pong, Ready, Text
 from lomond.message import Close
 from lomond.opcode import Opcode
-from lomond.events import Ping, Pong, Binary, Text, Ready
-from lomond.errors import ProtocolError
-import pytest
-from base64 import b64decode
-
+from lomond.response import Response
+from lomond.session import WebsocketSession
+from lomond.stream import WebsocketStream
+from lomond.websocket import WebSocket
 
 
 class FakeSession(object):
@@ -106,9 +108,10 @@ def test_connect(websocket):
     assert isinstance(websocket.session, WebsocketSession)
 
 
-# def test_calling_close_sets_is_closing_flag(websocket):
-#     websocket.close()
-#     assert websocket.is_closing is True
+def test_calling_close_sets_is_closing_flag(websocket_with_fake_session):
+    ws = websocket_with_fake_session
+    ws.close()
+    assert ws.is_closing is True
 
 
 def test_feed(websocket):
@@ -206,4 +209,140 @@ def test_send_methods_parameters_validation(
 
 def test_send_close_needs_open_socket(websocket):
     websocket.state.session = WebsocketSession(websocket)
-    websocket._send_close(0, 'bye')
+    assert not websocket._send_close(0, 'bye')
+
+
+def test_calling_close_yields_close_event(websocket_with_fake_session):
+    ws = websocket_with_fake_session
+    ws.close()
+    close_message = Close(1000, b'bye')
+    close_events = list(ws._on_close(close_message))
+    assert len(close_events) == 1
+    assert isinstance(close_events[0], Closed)
+    assert ws.is_closed is True
+    assert ws.is_closing is False
+
+
+def test_calling_on_close_when_websocket_is_closed_results_in_noop(
+        websocket_with_fake_session):
+
+    ws = websocket_with_fake_session
+    ws.close()
+    assert ws.is_closing is True
+    assert ws.is_closed is False
+    close_message = Close(1000, b'bye')
+    list(ws._on_close(close_message))
+    assert ws.is_closed is True
+    assert ws.is_closing is False
+    assert len(list(ws._on_close(close_message))) == 0
+
+
+@pytest.mark.parametrize('payload, expected_error', [
+    (b'', 'Websocket upgrade failed (code=None)'),
+    (b'HTTP/1.1 200 OK', 'Websocket upgrade failed (code=200)'),
+    (b'HTTP/1.1 101 Switching protocols', "Can't upgrade to ?"),
+    (b'HTTP/1.1 101 Switching protocols\r\nUpgrade: 1', "Can't upgrade to 1"),
+    (
+        (
+            b'HTTP/1.1 101 Switching protocols\r\n'
+            b'Upgrade: websocket\r\n'
+        ),
+        "No Sec-WebSocket-Accept header"
+    ),
+    (
+        (
+            b'HTTP/1.1 101 Switching protocols\r\n'
+            b'Upgrade: websocket\r\n'
+            b'Sec-WebSocket-Accept: AA='
+        ),
+        "Sec-WebSocket-Accept challenge failed"
+    )
+])
+def test_calling_on_response_with_invalid_response_headers(
+        websocket, payload, expected_error):
+    response = Response(payload)
+    with pytest.raises(HandshakeError) as e:
+        websocket.on_response(response)
+
+    assert str(e.value) == expected_error
+
+
+def test_calling_feed_on_closed_websocket_results_in_noop(websocket, mocker):
+    websocket.state.closed = True
+    mocker.spy(websocket.stream, 'feed')
+    list(websocket.feed(b''))
+    assert websocket.stream.feed.call_count == 0
+
+
+@pytest.mark.parametrize('input_data, expected_log', [
+    # the way for stream.feed to raise CriticalProtocolError is to push invalid
+    # utf-8 code to parse. I have found an example list of utf-8 bytes here:
+    # http://stackoverflow.com/questions/1301402/example-invalid-utf8-string
+    # which linked to this document:
+    # http://www.cl.cam.ac.uk/~mgk25/ucs/examples/UTF-8-test.txt
+    # which states that a last possible sequence of bytes (for 1-byte utf-8) is
+    # \x7f. Therefore we're passing \x8f to force this utf-8 invalid sequence
+    # error
+    (b'\x81\x01\x8f', 'critical protocol error; invalid UTF-8 in text frame'),
+    # here we're passing an invalid initial frame. 0x80 means that the 4 least
+    # significant bits are set to 0, which means opcode=CONTINUATION, however
+    # because this is an initial frame, there is nothing to continue; thus we
+    # are expecting the stream to throw an error here
+    (
+        b'\x80\x01\x00',
+        'protocol error; continuation frame has nothing to continue'
+    )
+])
+def test_stream_feed_raising_exceptions(
+        websocket_with_fake_session, caplog, input_data, expected_log):
+    ws = websocket_with_fake_session
+    with caplog.at_level(logging.DEBUG):
+        data = generate_data(input_data)
+        list(ws.feed(data))
+        assert caplog.record_tuples[-1] == (
+            'lomond', logging.DEBUG, expected_log
+        )
+
+
+def test_generator_exit(websocket_with_fake_session, caplog):
+    # http://stackoverflow.com/questions/30862196/generatorexit-in-python-generator
+    #
+    # caplog stants for capture-log - we can't change the name of this fixture
+    # as it is pytest plugin for capturing logging library output
+    data = b'\x81\x01\xf7\x81\x01\x7f'
+    ws = websocket_with_fake_session
+    with caplog.at_level(logging.DEBUG):
+        data = generate_data(data)
+        _generator_object = ws.feed(data)
+        next(_generator_object)
+        del _generator_object
+        assert caplog.record_tuples[-1] == (
+            'lomond', logging.WARNING, 'disconnecting websocket'
+        )
+
+
+def test_calling_close_on_closed_websocket_results_in_noop(websocket, caplog):
+    with caplog.at_level(logging.DEBUG):
+        websocket.state.closed = True
+        websocket.close(0, b'bye')
+        assert caplog.record_tuples[-1] == (
+            'lomond', logging.DEBUG,
+            "WebSocket('ws://example.com') already closed"
+        )
+
+
+def test_closing_websocket_between_frames_iterations(websocket):
+    data = generate_data(b'\x81\x01\xf7\x81\x01\x7f')
+    _generator_object = websocket.feed(data)
+    next(_generator_object)
+    websocket.state.closed = True
+    with pytest.raises(StopIteration):
+        next(_generator_object)
+
+
+def test_yielding_events_from_on_close(websocket):
+    data = generate_data(b'\x88\x00')
+    websocket.state.closing = True
+    events = list(websocket.feed(data))
+    assert len(events) == 2
+    assert isinstance(events[1], Closed)
