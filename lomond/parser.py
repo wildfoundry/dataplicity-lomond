@@ -141,7 +141,7 @@ class Parser(object):
         yield
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     class TestParser(Parser):
         def parse(self):
             data = yield self.read_until(b'\r\n\r\n')

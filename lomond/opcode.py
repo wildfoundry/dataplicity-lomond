@@ -58,7 +58,3 @@ reserved_opcodes = {
 def is_reserved(opcode):
     """Check if an opcode is reserved."""
     return opcode in reserved_opcodes
-
-
-if __name__ == "__main__":
-    print(Opcode.to_str(3))
