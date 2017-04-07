@@ -166,8 +166,6 @@ class WebSocket(object):
                         yield events.Binary(message.data)
                     elif message.is_text:
                         yield events.Text(message.text)
-                    else:
-                        yield events.UnknownMessage(message)
                 if self.is_closed:
                     break
 
