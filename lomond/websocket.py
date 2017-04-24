@@ -95,7 +95,7 @@ class WebSocket(object):
                 ping_rate=30):
         """Connect the websocket to a session."""
         self.reset()
-        self.state.session = WebsocketSession(self)
+        self.state.session = session_class(self)
         return self.session.run(poll=poll, ping_rate=ping_rate)
 
     def reset(self):
