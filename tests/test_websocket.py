@@ -15,9 +15,10 @@ from lomond.websocket import WebSocket
 class FakeSession(object):
     def __init__(self, *args, **kwargs):
         self.socket_buffer = []
+        self.run_called = False
 
     def run(self, *args, **kwargs):
-        pass
+        self.run_called = True
 
     def send(self, opcode, bytes):
         self.socket_buffer.append((opcode, bytes))
@@ -113,9 +114,15 @@ def test_protocol_header_is_optional(websocket):
     assert b'Sec-WebSocket-Protocol: proto1, proto2' in request_headers
 
 
-def test_connect(websocket):
-    websocket.connect()
-    assert isinstance(websocket.session, WebsocketSession)
+def test_connect(websocket_with_fake_session):
+    websocket = websocket_with_fake_session
+    websocket.connect(session_class=FakeSession)
+    # this test uses monkey patched run() function call, and the attribute
+    # which simulates that run() was called is only present in this particular
+    # class, so it's worth to make sure that we are not actually using a real
+    # Session object.
+    assert isinstance(websocket.session, FakeSession)
+    assert websocket.session.run_called
 
 
 def test_calling_close_sets_is_closing_flag(websocket_with_fake_session):
