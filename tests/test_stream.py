@@ -1,4 +1,4 @@
-from lomond.stream import WebsocketStream, FrameParser
+from lomond.stream import WebsocketStream
 from lomond.errors import ProtocolError
 import pytest
 
