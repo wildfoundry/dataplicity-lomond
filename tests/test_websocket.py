@@ -93,7 +93,6 @@ def test_get_request(websocket):
         b'Host: example.com:80\r\n'
         b'Upgrade: websocket\r\n'
         b'Connection: Upgrade\r\n'
-        b'Sec-WebSocket-Protocol: \r\n'
         b'Sec-WebSocket-Key: AAAAAAAAAAAAAAAAAAAAAA==\r\n'
         #                    ^^^^^^^^^^^^^^^^^^^^^^^^
         #                     b64encode('\x00' * 16)
@@ -101,6 +100,17 @@ def test_get_request(websocket):
         b'User-Agent: DataplicityLomond/0.1\r\n'
         b'\r\n'
     )
+
+
+def test_protocol_header_is_optional(websocket):
+    request_headers = websocket.get_request()
+    assert b'Sec-WebSocket-Protocol' not in request_headers
+
+    websocket_with_protocols = WebSocket(
+        'ws://example.com/', protocols=('proto1', 'proto2')
+    )
+    request_headers = websocket_with_protocols.get_request()
+    assert b'Sec-WebSocket-Protocol: proto1, proto2' in request_headers
 
 
 def test_connect(websocket):
