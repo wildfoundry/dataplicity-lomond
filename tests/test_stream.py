@@ -8,10 +8,6 @@ def stream():
     return WebsocketStream()
 
 
-def test_constructor(stream):
-    assert isinstance(stream, WebsocketStream)
-
-
 def test_feed(stream):
     data = (
         b'Connection:Keep-Alive\r\nUser-Agent:Test\r\n\r\n'
