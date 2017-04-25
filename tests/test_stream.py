@@ -36,6 +36,32 @@ def test_feed(stream):
     assert feed[1].text == 'A'
 
 
+def test_feed_with_chunked_data():
+    stream = None
+    data = (
+        b'Connection:Keep-Alive\r\nUser-Agent:Test\r\n\r\n'
+        b'\x81\x81\x00\x00\x00\x00A'
+    )
+
+    for chunk_size in range(1, 11):
+        stream = WebsocketStream()
+        frames = []
+
+        i = 0
+        while i < len(data):
+            frames.extend(list(stream.feed(data[i:i + chunk_size])))
+            i += chunk_size
+
+        # regardless of how we chunk up the data, there should be only 2
+        # frames at the end. They are exactly the same like the ones in the
+        # test method above, so please refer to the description there for more
+        # detailed explanation.
+        assert len(frames) == 2
+        assert isinstance(frames[0], Response)
+        assert frames[1].is_text
+        assert frames[1].text == 'A'
+
+
 def test_feed_without_headers_results_in_noop(stream):
     # please refer to test_feed for meaning of these bytes
     data = b'\x81\x81\x00\x00\x00\x00A'
