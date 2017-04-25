@@ -43,13 +43,13 @@ def test_feed_with_chunked_data():
         b'\x81\x81\x00\x00\x00\x00A'
     )
 
-    for chunk_size in range(1, 11):
+    for chunk_size in range(1, len(data)):
         stream = WebsocketStream()
         frames = []
 
         i = 0
         while i < len(data):
-            frames.extend(list(stream.feed(data[i:i + chunk_size])))
+            frames.extend(stream.feed(data[i:i + chunk_size]))
             i += chunk_size
 
         # regardless of how we chunk up the data, there should be only 2
