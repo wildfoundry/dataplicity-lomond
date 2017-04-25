@@ -9,9 +9,10 @@ def stream():
     return WebsocketStream()
 
 
-def test_feed(stream):
+def test_feed_with_chunked_data():
+    stream = None
     data = (
-        b'Connection:Keep-Alive\r\nUser-Agent:Test\r\n\r\n'
+        b'HTTP/1.1 200 OK\r\nConnection:Keep-Alive\r\nUser-Agent:Test\r\n\r\n'
         b'\x81\x81\x00\x00\x00\x00A'
         # the first \x81 designates a type TEXT and some magic masks set
         # the second \x81 stands for XOR masking being used, and a length of 1
@@ -20,27 +21,6 @@ def test_feed(stream):
         #
         # for in-depth explanation what the above bytes mean, please refer to
         # test_frame_parser.py
-    )
-
-    feed = list(stream.feed(data))
-
-    assert len(feed) == 2
-    # the feed method is expected to produce the http response object and the
-    # binary payload. The one used here is very dummy (i.e. it doesn't contain
-    # HTTP protocol version, method used, etc), but since we don't actually
-    # validate it, this will do.
-    assert isinstance(feed[0], Response)
-    # decoded payload
-    # one could also use isinstance(feed[1], Text) here
-    assert feed[1].is_text
-    assert feed[1].text == 'A'
-
-
-def test_feed_with_chunked_data():
-    stream = None
-    data = (
-        b'Connection:Keep-Alive\r\nUser-Agent:Test\r\n\r\n'
-        b'\x81\x81\x00\x00\x00\x00A'
     )
 
     for chunk_size in range(1, len(data)):
@@ -57,7 +37,17 @@ def test_feed_with_chunked_data():
         # test method above, so please refer to the description there for more
         # detailed explanation.
         assert len(frames) == 2
+        # the feed method is expected to produce the http response object and
+        # the binary payload.
         assert isinstance(frames[0], Response)
+        # validate Response
+        assert frames[0].http_ver == 'HTTP/1.1'
+        assert frames[0].status_code == 200
+        assert frames[0].status == 'OK'
+        assert frames[0].get('user-agent') == 'Test'
+        assert frames[0].get('connection') == 'Keep-Alive'
+        # decoded payload
+        # one could also use isinstance(frames[1], Text) here
         assert frames[1].is_text
         assert frames[1].text == 'A'
 
