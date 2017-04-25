@@ -95,7 +95,7 @@ class WebSocket(object):
                 ping_rate=30):
         """Connect the websocket to a session."""
         self.reset()
-        self.state.session = WebsocketSession(self)
+        self.state.session = session_class(self)
         return self.session.run(poll=poll, ping_rate=ping_rate)
 
     def reset(self):
@@ -143,7 +143,6 @@ class WebSocket(object):
         if self.is_closed:
             return
         try:
-            session = self.session
             for message in self.stream.feed(data):
                 if isinstance(message, Response):
                     response = message
@@ -167,8 +166,6 @@ class WebSocket(object):
                         yield events.Binary(message.data)
                     elif message.is_text:
                         yield events.Text(message.text)
-                    else:
-                        yield events.UnknownMessage(message)
                 if self.is_closed:
                     break
 
@@ -260,7 +257,7 @@ class WebSocket(object):
         if not isinstance(data, bytes):
             raise TypeError('data argument must be bytes')
         if len(data) > 125:
-            raise ValueError('ping data should be <= 125 bytes')
+            raise ValueError('pong data should be <= 125 bytes')
         self.session.send(Opcode.PONG, data)
 
     def send_binary(self, data):
@@ -272,7 +269,7 @@ class WebSocket(object):
     def send_text(self, text):
         """Send a text frame."""
         if not isinstance(text, six.text_type):
-            raise TypeError('text argument must be bytes')
+            raise TypeError('text argument must not be bytes')
         self.session.send(Opcode.TEXT, text.encode('utf-8'))
 
     def _send_close(self, code, reason):

@@ -160,10 +160,3 @@ class Pong(Message):
 
     def __repr__(self):
         return "<message PONG {!r}>".format(self.data)
-
-
-if __name__ == "__main__":
-    msg1 = Text("Hello, World")
-    print(msg1)
-    msg2 = Close(100, 'going away')
-    print(msg2)

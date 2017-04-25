@@ -97,3 +97,13 @@ def test_payload_with_headers():
     assert parsed[1].opcode == Opcode.TEXT
     assert len(parsed[1]) == 1
     assert parsed[1].payload == b'A'
+
+
+def test_payload_without_masking_key_set():
+    data = b'\x81\x01A'
+    parser = FrameParser(parse_headers=False)
+    parsed = list(parser.feed(data))
+
+    assert len(parsed) == 1
+    assert parsed[0].opcode == Opcode.TEXT
+    assert parsed[0].payload == b'A'

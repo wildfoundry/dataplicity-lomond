@@ -66,9 +66,3 @@ class FrameParser(Parser):
             if payload_length:
                 frame.payload = yield self.read(payload_length)
             yield frame
-
-
-if __name__ == "__main__":
-    data = b'\x88\x02\x03\xe8'
-    parser = FrameParser(parse_headers=False)
-    print(list(parser.feed(data)))
