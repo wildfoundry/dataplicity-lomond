@@ -245,7 +245,7 @@ class WebsocketSession(object):
             yield events.Disconnected(graceful=True)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
 
     # Test with wstest -m echoserver -w ws://127.0.0.1:9001 -d
     # Get wstest app from http://autobahn.ws/testsuite/
