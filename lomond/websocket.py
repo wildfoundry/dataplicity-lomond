@@ -89,6 +89,13 @@ class WebSocket(object):
     def key(self):
         return self.state.key
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Close the session (and potentially a socket) on exit."""
+        self.session.close()
+
     def connect(self,
                 session_class=WebsocketSession,
                 poll=5,

@@ -39,8 +39,10 @@ class WebsocketSession(object):
     def __repr__(self):
         return "<ws-session '{}'>".format(self.websocket.url)
 
-    def __del__(self):
+    def close(self):
+        """Close the websocket, if it is open."""
         self._close_socket()
+        self._sock = None
 
     def write(self, data):
         """Send raw data."""
