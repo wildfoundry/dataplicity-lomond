@@ -211,7 +211,7 @@ class WebsocketSession(object):
 
         try:
             while not websocket.is_closed:
-                reads, errors = self._select(sock, poll)
+                reads, _errors = self._select(sock, poll)
 
                 # Check for polls / pings
                 for event in self._regular(poll, ping_rate):
@@ -225,7 +225,7 @@ class WebsocketSession(object):
                         if event.name == 'ping' and auto_pong:
                             self._on_ping(event)
                         yield event
-                if errors:
+                if _errors:
                     self._socket_fail('socket error')
                     break
         except self._SocketFail as error:
