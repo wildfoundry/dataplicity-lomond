@@ -1,11 +1,14 @@
+import calendar
+import select
+import socket
+from datetime import datetime
+
+import pytest
+from freezegun import freeze_time
+from lomond import errors, events
 from lomond.session import WebsocketSession
 from lomond.websocket import WebSocket
-from lomond import errors
-import pytest
-import socket
-from mocket import mocketize
-from mocket import Mocket, MocketEntry
-import select
+from mocket import Mocket, MocketEntry, mocketize
 
 
 @pytest.fixture()
@@ -38,6 +41,7 @@ def session_with_socket(monkeypatch):
 class FakeSocket(object):
     def __init__(self, *args, **kwargs):
         self.buffer = b''
+        self._sendall = kwargs.get('sendall', None)
 
     def fileno(self):
         return 999
@@ -53,6 +57,8 @@ class FakeSocket(object):
 
     def sendall(self, data):
         self.buffer += data
+        if callable(self._sendall):
+            self._sendall(data)
 
 
 def test_write_without_sock_fails(session):
@@ -161,3 +167,163 @@ def test_send_request(session):
         b'User-Agent: DataplicityLomond/0.1\r\n'
         b'\r\n'
     )
+
+
+def test_run_with_socket_open_error(session):
+    def connect_which_raises_error():
+        raise socket.error('socket.error during connect')
+
+    session._connect = connect_which_raises_error
+
+    _events = list(session.run())
+
+    assert len(_events) == 2
+
+    assert isinstance(_events[0], events.Connecting)
+    assert _events[0].url == 'wss://example.com/'
+
+    assert isinstance(_events[1], events.ConnectFail)
+    assert str(_events[1]) == "ConnectFail('socket.error during connect')"
+
+
+def test_run_with_regular_exception_on_connect(session):
+    def connect_which_raises_value_error():
+        raise ValueError('socket.error during connect')
+
+    session._connect = connect_which_raises_value_error
+
+    _events = list(session.run())
+
+    assert len(_events) == 2
+
+    assert isinstance(_events[0], events.Connecting)
+    assert _events[0].url == 'wss://example.com/'
+
+    assert isinstance(_events[1], events.ConnectFail)
+    assert str(_events[1]) == (
+        "ConnectFail('error; socket.error during connect')"
+    )
+
+
+def test_run_with_send_request_raising_transport_error(session):
+    # _send_request can raise TransportFail inside write() call
+    # in order to do that, the socket has to be opened and raise
+    # either socket.error or Exception during sendall() call.
+    # let's do just that. First of all, the method in question:
+    def sendall_which_raises_error(data):
+        raise socket.error('error during sendall')
+
+    # here's where the plot thickens. socket connection is established
+    # during self._connect, so we have to substitude this method so that
+    # it returns our FakeSocket object.
+
+    def return_fake_socket():
+        return FakeSocket(sendall=sendall_which_raises_error)
+
+    session._connect = return_fake_socket
+
+    _events = list(session.run())
+
+    assert isinstance(_events[-1], events.ConnectFail)
+    assert str(_events[-1]) == (
+        "ConnectFail('request failed; socket fail; error during sendall')"
+    )
+
+
+def test_run_with_send_request_raising_exception(session, mocker):
+    # exactly like the one above, but a different type of error is raised.
+    # this time, we have to set the state of socket to closed, thus forcing
+    # lomond to throw a non-socket error;
+    def return_fake_socket(self):
+        self.websocket.state.closed = True
+        return FakeSocket()
+
+    mocker.patch(
+        'lomond.session.WebsocketSession._connect', return_fake_socket)
+
+    _events = list(session.run())
+
+    assert isinstance(_events[-1], events.ConnectFail)
+    assert str(_events[-1]) == (
+        "ConnectFail('request error; data not sent')"
+    )
+
+
+def test_that_on_ping_responds_with_pong(session, mocker):
+    # we don't actually care that much for the whole stack underneath,
+    # we only want to check whether a certain method was called..
+    send_pong = mocker.patch(
+        'lomond.websocket.WebSocket.send_pong'
+    )
+
+    session._on_ping(events.Ping(b'\x00'))
+
+    assert send_pong.called_with(b'\x00')
+
+
+def test_error_on_close_socket(caplog, session):
+    def close_which_raises_error():
+        raise ValueError('a problem occurred')
+
+    session._sock = FakeSocket()
+    session._sock.close = close_which_raises_error
+
+    session._close_socket()
+
+    import logging
+
+    assert caplog.record_tuples[-1] == (
+        'lomond',
+        logging.WARNING,
+        'error closing socket (a problem occurred)'
+    )
+
+
+@freeze_time("1994-05-01 18:40:00")
+def test_check_poll(session):
+    session._poll_start = calendar.timegm(
+        datetime(1994, 5, 1, 18, 00, 00).timetuple()
+    )
+    assert session._check_poll(5 * 60)
+    assert not session._check_poll(60 * 60)
+
+
+@freeze_time("1994-05-01 18:40:00")
+def test_check_auto_ping(session, mocker):
+    session._last_ping = calendar.timegm(
+        datetime(1994, 5, 1, 18, 00, 00).timetuple()
+    )
+
+    mocker.patch.object(session.websocket, 'send_ping')
+
+    assert session.websocket.send_ping.call_count == 0
+
+    session._check_auto_ping(15 * 60)
+
+    assert session.websocket.send_ping.call_count == 1
+    session._check_auto_ping(36 * 60)
+    assert session.websocket.send_ping.call_count == 1
+
+
+@mocketize
+def test_simple_run(monkeypatch):
+    monkeypatch.setattr(
+        'os.urandom', lambda len: b'\x00' * len)
+    Mocket.register(
+        MocketEntry(
+            ('example.com', 80),
+            [(
+                b'HTTP/1.1 101 Switching Protocols\r\n'
+                b'Upgrade: websocket\r\n'
+                b'Connection: Upgrade\r\n'
+                b'Sec-WebSocket-Accept: icx+yqv66kxgm0fcwalwlflwtai=\r\n'
+                b'\r\n'
+                b'\x81\x81\x00\x00\x00\x00A'
+            )]
+        )
+    )
+
+    session = WebsocketSession(WebSocket('ws://example.com/'))
+    for event in session.run():
+        print(event)
+        # pass
