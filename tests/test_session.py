@@ -60,6 +60,9 @@ class FakeSocket(object):
         if callable(self._sendall):
             self._sendall(data)
 
+    def pending(self):
+        return 0
+
 
 def test_write_without_sock_fails(session):
     with pytest.raises(errors.WebSocketUnavailable) as e:
@@ -306,7 +309,7 @@ def test_check_auto_ping(session, mocker):
 
 
 @mocketize
-def test_simple_run(monkeypatch):
+def test_simple_run(monkeypatch, mocker):
     monkeypatch.setattr(
         'os.urandom', lambda len: b'\x00' * len)
     Mocket.register(
@@ -323,7 +326,51 @@ def test_simple_run(monkeypatch):
         )
     )
 
+    # mocket doesn't support .pending() call which is used when ssl is used
     session = WebsocketSession(WebSocket('ws://example.com/'))
-    for event in session.run():
-        print(event)
-        # pass
+    session._last_ping = calendar.timegm(
+        datetime(1994, 5, 1, 18, 00, 00).timetuple()
+    )
+    # well, we have to cheat a little. The thing is, inner loop of
+    # run() sets last poll time to time.time and so we would have to
+    # wait for some time to actually hit poll / ping. This is not desirable
+    # so we can do the following:
+    # save original _regular call into _regular_orig
+    # (_regular is a first - well, technically, a second) call inside run
+    # after _poll_start is set which makes it a nice candidate for monkey-patch
+    # location. Here's how we do it:
+    session._regular_orig = session._regular
+
+    def _regular_with_fake_poll_start(self, poll, ping_rate):
+        # trivial substitute:
+        self._poll_start = self._last_ping
+        # print(self._regular_orig)
+        return self._regular_orig(poll, ping_rate)
+
+    mocker.patch(
+        'lomond.session.WebsocketSession._regular',
+        _regular_with_fake_poll_start
+    )
+    mocker.patch(
+        'lomond.websocket.WebSocket._send_close')
+    mocker.patch.object(session.websocket, 'send_ping')
+
+    _events = list(session.run())
+
+    assert len(_events) == 6
+    assert isinstance(_events[0], events.Connecting)
+    assert isinstance(_events[1], events.Connected)
+    assert isinstance(_events[2], events.Poll)
+    assert isinstance(_events[3], events.Ready)
+    assert isinstance(_events[4], events.Text)
+    assert isinstance(_events[5], events.Disconnected)
+
+
+def test_recv_with_secure_websocket(session):
+    def fake_recv(self):
+        return b'\x01'
+
+    session._sock = FakeSocket()
+    session._sock.recv = fake_recv
+
+    assert session._recv(1) == b'\x01'
