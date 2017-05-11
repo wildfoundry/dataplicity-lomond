@@ -137,7 +137,6 @@ class Parser(object):
             yield data.decode()
 
         """
-        return
         yield
 
 

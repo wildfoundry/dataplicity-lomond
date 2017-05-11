@@ -226,7 +226,7 @@ class WebsocketSession(object):
 
         try:
             while not websocket.is_closed:
-                reads, errors = self._select(sock, poll)
+                reads, _errors = self._select(sock, poll)
 
                 # Check for polls / pings
                 for event in self._regular(poll, ping_rate):
@@ -240,7 +240,7 @@ class WebsocketSession(object):
                         if event.name == 'ping' and auto_pong:
                             self._on_ping(event)
                         yield event
-                if errors:
+                if _errors:
                     self._socket_fail('socket error')
                     break
         except self._SocketFail as error:
@@ -260,7 +260,7 @@ class WebsocketSession(object):
             yield events.Disconnected(graceful=True)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
 
     # Test with wstest -m echoserver -w ws://127.0.0.1:9001 -d
     # Get wstest app from http://autobahn.ws/testsuite/
