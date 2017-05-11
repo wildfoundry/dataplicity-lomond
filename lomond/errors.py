@@ -1,18 +1,18 @@
 from __future__ import unicode_literals
 
 
-class Error(Exception):
+class WebSocketError(Exception):
     """Base exception."""
     def __init__(self, msg, *args, **kwargs):
         error_msg = msg.format(*args, **kwargs)
-        super(Error, self).__init__(error_msg)
+        super(WebSocketError, self).__init__(error_msg)
 
 
-class FrameBuildError(Error):
+class FrameBuildError(WebSocketError):
     """Raised when trying to build an invalid websocket frame."""
 
 
-class HandshakeError(Error):
+class HandshakeError(WebSocketError):
     """
     Raised when the server doesn't respond correctly to the websocket
     handshake.
@@ -20,12 +20,12 @@ class HandshakeError(Error):
     """
 
 
-class ProtocolError(Error):
+class ProtocolError(WebSocketError):
     """Raised in response to a protocol violation."""
     # Results in a a graceful disconnect.
 
 
-class CriticalProtocolError(Error):
+class CriticalProtocolError(WebSocketError):
     """Critical protocol error."""
     # An egregious error in the protocol resulting in an immediate
     # disconnect.
@@ -37,12 +37,12 @@ class PayloadTooLarge(ProtocolError):
     # way before we have to raise this.
 
 
-class TransportFail(Error):
+class TransportFail(WebSocketError):
     """The transport (socket) failed when sending."""
     # Likely indicates the socket failed
 
 
-class WebSocketUnavailable(Error):
+class WebSocketUnavailable(WebSocketError):
     """The websocket can not be used."""
 
 

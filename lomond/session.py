@@ -39,6 +39,11 @@ class WebsocketSession(object):
     def __repr__(self):
         return "<ws-session '{}'>".format(self.websocket.url)
 
+    def close(self):
+        """Close the websocket, if it is open."""
+        self._close_socket()
+        self._sock = None
+
     def write(self, data):
         """Send raw data."""
         with self._lock:
@@ -98,6 +103,8 @@ class WebsocketSession(object):
     def _close_socket(self):
         """Close the socket safely."""
         # Is a no-op if the socket is already closed.
+        if self._sock is None:
+            return
         try:
             # Get the write lock, so we can be certain data sending
             # in another thread is sent.
@@ -135,7 +142,11 @@ class WebsocketSession(object):
             if current_time - self._last_ping >= ping_rate:
                 self._last_ping = current_time
                 # TODO: Calculate the round trip time
-                self.websocket.send_ping()
+                try:
+                    self.websocket.send_ping()
+                except errors.WebSocketError:
+                    # Just in case the websocket has gone away
+                    pass
 
     def _recv(self, count):
         """Receive and return pending data from the socket."""
@@ -171,7 +182,11 @@ class WebsocketSession(object):
 
     def _on_ping(self, event):
         """Send a pong message in response to ping event."""
-        self.websocket.send_pong(event.data)
+        try:
+            self.websocket.send_pong(event.data)
+        except errors.WebSocketError:
+            # In case the websocket has gone away
+            pass
 
     def run(self, poll=5, ping_rate=30, auto_pong=True):
         """Run the websocket."""
