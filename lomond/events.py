@@ -2,11 +2,11 @@
 Events emitted from Lomond Websockets.
 
 Events may be distinguished either by their type or by the `name`
-attribute. For example:
+attribute. For example::
 
     if isinstance(event, events.PING)
 
-or
+or::
 
     if event.name == 'ping'
 
@@ -32,7 +32,7 @@ class Event(object):
         return "{}()".format(self.__class__.__name__)
 
     @classmethod
-    def _summarize_bytes(cls, data, max_len=16):
+    def _summarize_bytes(cls, data, max_len=24):
         """Avoid spamming logs by truncating byte strings in repr."""
         if len(data) > max_len:
             return "{!r} + {} bytes".format(
@@ -42,7 +42,7 @@ class Event(object):
         return repr(data)
 
     @classmethod
-    def _summarize_text(cls, text, max_len=16):
+    def _summarize_text(cls, text, max_len=24):
         """Avoid spamming logs by truncating text."""
         if len(text) > max_len:
             return "{!r} + {} chars".format(
@@ -58,11 +58,18 @@ class Poll(Event):
 
 
 class Connecting(Event):
-    """Connection process has started."""
+    """
+    Connecting event. Generated prior to establishing a websocket
+    connection to a server.
+
+    :param url: The websocket URL the websocket is connecting to.
+
+    """
     __slots__ = ['url']
     name = 'connecting'
 
     def __init__(self, url):
+
         self.url = url
         super(Connecting, self).__init__()
 
@@ -71,7 +78,15 @@ class Connecting(Event):
 
 
 class ConnectFail(Event):
-    """Connection failed (connectivity related)."""
+    """
+    Generate when Lomond was unable to connect to a Websocket
+    server.
+
+    :param reason: A short description of the reason for the
+        failure.
+    :type reason: str
+
+    """
     __slots__ = ['reason']
     name = 'connect_fail'
 
@@ -87,7 +102,10 @@ class ConnectFail(Event):
 
 
 class Connected(Connecting):
-    """Connected to the server (but not yet negotiated websockets)."""
+    """Connected event. Generated when Lomond has connected to a server
+    but not yet negotiated the websockets upgrade.
+
+    """
     name = 'connected'
 
 
@@ -97,6 +115,15 @@ class Rejected(Event):
     name = 'rejected'
 
     def __init__(self, response, reason):
+        """
+        Rejected event. Generated when Lomond connected to the server,
+        but the websocket upgrade failed.
+
+        :param response: The response returned by the server.
+        :param str reason: A description of why the connection was
+            rejects.
+
+        """
         self.response = response
         self.reason = reason
         super(Rejected, self).__init__()
@@ -110,7 +137,14 @@ class Rejected(Event):
 
 
 class Ready(Event):
-    """Server accepted WS connection."""
+    """Read event. Generated when Lomond has connected to the server,
+    and successfully negotiated the websockets upgrade.
+
+    :param response: A response object.
+    :param protocol:
+    :param extensions:
+
+    """
     __slots__ = ['response', 'protocol', 'extensions']
     name = 'ready'
 
@@ -130,7 +164,14 @@ class Ready(Event):
 
 
 class Disconnected(Event):
-    """Server disconnected."""
+    """Disconnected event. Generated when a websocket connection has
+    been dropped.
+
+    :param str reason: A description of why the websocket was closed.
+    :param bool graceful: Flag indicating if the connection was dropped
+        gracefully (`True`), or disconnected due to a socket failure
+        (`False`).
+    """
     __slots__ = ['graceful', 'reason']
     name = 'disconnected'
 
@@ -148,7 +189,15 @@ class Disconnected(Event):
 
 
 class Closed(Event):
-    """Websocket connection is closed."""
+    """Closed event. Generated when the websocket was closed. The
+    websocket may no longer send packets after this event has been
+    received.
+
+    :param code: The closed code returned from the server.
+    :param str reason: An optional description why the websocket was
+        closed, as returned from the server.
+
+    """
     __slots__ = ['code', 'reason']
     name = 'closed'
 
@@ -169,6 +218,7 @@ class UnknownMessage(Event):
     """
     An application message was received, with an unknown
     opcode.
+
     """
     __slots__ = ['message']
     name = 'unknown'
@@ -179,7 +229,12 @@ class UnknownMessage(Event):
 
 
 class Ping(Event):
-    """A ping message was received."""
+    """Ping event. Generated when Lomond received a ping packet from the
+    server.
+
+    :param bytes data: Ping payload data.
+
+    """
     __slots__ = ['data']
     name = 'ping'
 
@@ -192,7 +247,12 @@ class Ping(Event):
 
 
 class Pong(Event):
-    """A pong message was received."""
+    """Pong event. Generated when Lomond receives a pong packet from the
+    server.
+
+    :param bytes data: The pong payload data.
+
+    """
     __slots__ = ['data']
     name = 'pong'
 
@@ -205,7 +265,12 @@ class Pong(Event):
 
 
 class Text(Event):
-    """An application text message was received."""
+    """Text event. Generated when Lomond receives a text message from
+    the server.
+
+    :param str text: The text payload.
+
+    """
     __slots__ = ['text']
     name = 'text'
 
@@ -221,7 +286,12 @@ class Text(Event):
 
 
 class Binary(Event):
-    """An binary application message was received."""
+    """Binary event. Generated when Lomond receives a binary message
+    from the server.
+
+    :param bytes data: The binary payload.
+
+    """
     __slots__ = ['data']
     name = 'binary'
 
@@ -237,7 +307,14 @@ class Binary(Event):
 
 
 class BackOff(Event):
-    """Unable to connect, so the client will wait and try again."""
+    """Backoff event. Generated when a persistent connection has to wait
+    before re-attempting a connection.
+
+
+    :param float delay: The delay (in seconds) before Lomond will re-
+        attempt to connect.
+
+    """
     __slots__ = ['delay']
     name = 'back_off'
 
