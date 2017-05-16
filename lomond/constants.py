@@ -1,5 +1,7 @@
 from __future__ import unicode_literals
 
+import platform
+
 from ._version import __version__
 
 # A constant used in websocket handshake
@@ -15,6 +17,13 @@ WS_VERSION = 13
 _version_identifier = '.'.join(__version__.split('.')[:2])
 
 # User agent sent with websocket request
-# Default will be DataplicityLomond/<major>.<minor
-# e.g "DataplicityLomond/0.1"
-USER_AGENT = 'DataplicityLomond/{}'.format(_version_identifier)
+# Default will be DataplicityLomond/<major>.<minor>
+# e.g "Lomond/0.1"
+USER_AGENT = 'Lomond/{} {}/{} {}/{} ({})'.format(
+    _version_identifier,
+    platform.python_implementation(),
+    platform.python_version(),
+    platform.system(),
+    platform.release(),
+    platform.platform()
+)

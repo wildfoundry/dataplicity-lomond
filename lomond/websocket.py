@@ -67,14 +67,24 @@ class WebSocket(object):
 
     @property
     def is_secure(self):
+        """Boolean that indicates if the websocket is over ssl (i.e. the
+        `wss` protocol).
+
+        """
         return self.scheme == 'wss'
 
     @property
     def is_closing(self):
+        """Boolean that indicates if the websocket is in a closing
+        state. No further messages may be sent when a websocket is
+        closing.
+
+        """
         return self.state.closing
 
     @property
     def is_closed(self):
+        """Flag that indicates if the websocket is closed."""
         return self.state.closed
 
     @property
@@ -146,7 +156,11 @@ class WebSocket(object):
         self.state.closed = True
 
     def feed(self, data):
-        """Feed with data from the socket."""
+        """Feed with data from the socket, and yield any events.
+
+        :param bytes data: data recieved over a socket.
+
+        """
         if self.is_closed:
             return
         try:
@@ -194,7 +208,7 @@ class WebSocket(object):
             self.disconnect()
 
     def get_request(self):
-        """Get the request (in bytes)"""
+        """Get the websocket request (in bytes)"""
         request = [
             "GET {} HTTP/1.1".format(self.resource).encode('utf-8')
         ]
