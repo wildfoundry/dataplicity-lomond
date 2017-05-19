@@ -27,7 +27,7 @@ Basic Usage
 -----------
 
 To connect to a websocket server, first construct a
-`~lomond.websocket.Websocket` object, with a `ws://` or `wss://`` URL.
+`~lomond.websocket.Websocket` object, with a `ws://` or `wss://` URL.
 Here is an example::
 
     from lomond.websocket import WebSocket
