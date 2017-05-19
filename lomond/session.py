@@ -123,7 +123,7 @@ class WebsocketSession(object):
 
     def _send_request(self):
         """Send the request over the wire."""
-        request_bytes = self.websocket.get_request()
+        request_bytes = self.websocket.build_request()
         self.write(request_bytes)
 
     def _check_poll(self, poll):

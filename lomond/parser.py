@@ -15,8 +15,7 @@ class Parser(object):
     Coroutine based stream parser.
 
     Splits a steam of arbitrary sequences of bytes in to logical
-    objects. Essentially the `feed` method will yield any results of
-    parsing.
+    objects. The `feed` method will yield any results of parsing.
 
     Here's an example of use::
 
@@ -76,7 +75,7 @@ class Parser(object):
         Called with data (bytes), will yield 0 or more objects parsed
         from the stream.
 
-        :param bytes data:
+        :param bytes data: Data to decode.
 
         """
         pos = 0

@@ -16,7 +16,7 @@ Guide
    :maxdepth: 2
    :caption: Contents:
 
-   introduction.rst
+   guide.rst
 
 
 Code Documentation
@@ -26,6 +26,7 @@ Code Documentation
    :maxdepth: 3
 
    events.rst
+   websocket.rst
 
 
 Indices and tables

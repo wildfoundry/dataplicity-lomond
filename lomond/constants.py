@@ -17,8 +17,6 @@ WS_VERSION = 13
 _version_identifier = '.'.join(__version__.split('.')[:2])
 
 # User agent sent with websocket request
-# Default will be DataplicityLomond/<major>.<minor>
-# e.g "Lomond/0.1"
 USER_AGENT = 'Lomond/{} {}/{} {}/{} ({})'.format(
     _version_identifier,
     platform.python_implementation(),

@@ -14,7 +14,12 @@ from .utf8validator import Utf8Validator
 
 
 class Message(object):
-    """Base class for a websocket message."""
+    """Base class for a websocket message.
+
+    :param opcode: A message opcode defined in
+        :class:`~lomond.opcode.Opcode`.
+
+    """
 
     __slots__ = ['opcode']
     _unpack16 = struct.Struct('!H').unpack
@@ -70,7 +75,11 @@ class Message(object):
 
 
 class Binary(Message):
-    """Binary application data."""
+    """Binary application data.
+
+    :param bytes data: The message data.
+
+    """
     __slots__ = ['data']
     def __init__(self, data):
         self.data = data
@@ -81,7 +90,11 @@ class Binary(Message):
 
 
 class Text(Message):
-    """Text application data."""
+    """Text application data.
+
+    :param str text: The message text.
+
+    """
     __slots__ = ['text']
     def __init__(self, text):
         self.text = text
@@ -103,7 +116,12 @@ class Text(Message):
 
 
 class Close(Message):
-    """Connection close control message."""
+    """Connection close control message.
+
+    :param int code: Close code.
+    :param str reason: Close reason.
+
+    """
     __slots__ = ['code', 'reason']
     def __init__(self, code, reason):
         self.code = code
@@ -141,7 +159,11 @@ class Close(Message):
 
 
 class Ping(Message):
-    """Ping message."""
+    """Ping message.
+
+    :param bytes data: Ping data.
+
+    """
     __slots__ = ['data']
     def __init__(self, data):
         self.data = data
@@ -152,7 +174,11 @@ class Ping(Message):
 
 
 class Pong(Message):
-    """Pong message."""
+    """Pong message.
+
+    :param bytes data: Pong data.
+
+    """
     __slots__ = ['data']
     def __init__(self, data):
         self.data = data

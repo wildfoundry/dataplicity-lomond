@@ -104,7 +104,7 @@ def test_get_request(websocket):
 
 
 def test_protocol_header_is_optional(websocket):
-    request_headers = websocket.get_request()
+    request_headers = websocket.build_request()
     assert b'Sec-WebSocket-Protocol' not in request_headers
 
     websocket_with_protocols = WebSocket(

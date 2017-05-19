@@ -1,20 +1,3 @@
-"""
-Events emitted from Lomond Websockets.
-
-Events may be distinguished either by their type or by the `name`
-attribute. For example::
-
-    if isinstance(event, events.PING)
-
-or::
-
-    if event.name == 'ping'
-
-
-All events have a `received_time` attribute which is the epoch time
-the event was created from the network stream.
-
-"""
 
 from __future__ import unicode_literals
 
@@ -59,8 +42,7 @@ class Poll(Event):
 
 class Connecting(Event):
     """
-    Connecting event. Generated prior to establishing a websocket
-    connection to a server.
+    Generated prior to establishing a websocket connection to a server.
 
     :param url: The websocket URL the websocket is connecting to.
 
@@ -79,8 +61,7 @@ class Connecting(Event):
 
 class ConnectFail(Event):
     """
-    Generate when Lomond was unable to connect to a Websocket
-    server.
+    Generate when Lomond was unable to connect to a Websocket server.
 
     :param reason: A short description of the reason for the
         failure.
@@ -102,8 +83,8 @@ class ConnectFail(Event):
 
 
 class Connected(Connecting):
-    """Connected event. Generated when Lomond has connected to a server
-    but not yet negotiated the websockets upgrade.
+    """Generated when Lomond has connected to a server but not yet
+    negotiated the websocket upgrade.
 
     """
     name = 'connected'
@@ -116,8 +97,8 @@ class Rejected(Event):
 
     def __init__(self, response, reason):
         """
-        Rejected event. Generated when Lomond connected to the server,
-        but the websocket upgrade failed.
+        Generated when Lomond is connected to the server, but the
+        websocket upgrade failed.
 
         :param response: The response returned by the server.
         :param str reason: A description of why the connection was
@@ -137,7 +118,7 @@ class Rejected(Event):
 
 
 class Ready(Event):
-    """Read event. Generated when Lomond has connected to the server,
+    """Generated when Lomond has connected to the server,
     and successfully negotiated the websockets upgrade.
 
     :param response: A response object.
@@ -189,9 +170,8 @@ class Disconnected(Event):
 
 
 class Closed(Event):
-    """Closed event. Generated when the websocket was closed. The
-    websocket may no longer send packets after this event has been
-    received.
+    """Generated when the websocket was closed. The websocket may no
+    longer send packets after this event has been received.
 
     :param code: The closed code returned from the server.
     :param str reason: An optional description why the websocket was
@@ -216,8 +196,7 @@ class Closed(Event):
 
 class UnknownMessage(Event):
     """
-    An application message was received, with an unknown
-    opcode.
+    An application message was received, with an unknown opcode.
 
     """
     __slots__ = ['message']
@@ -229,8 +208,7 @@ class UnknownMessage(Event):
 
 
 class Ping(Event):
-    """Ping event. Generated when Lomond received a ping packet from the
-    server.
+    """Generated when Lomond received a ping packet from the server.
 
     :param bytes data: Ping payload data.
 
@@ -247,8 +225,7 @@ class Ping(Event):
 
 
 class Pong(Event):
-    """Pong event. Generated when Lomond receives a pong packet from the
-    server.
+    """Generated when Lomond receives a pong packet from the server.
 
     :param bytes data: The pong payload data.
 
