@@ -117,7 +117,7 @@ class WebsocketSession(object):
             pass
         except Exception as error:
             # Paranoia
-            log.warn('error closing socket (%s)', error)
+            log.warning('error closing socket (%s)', error)
         finally:
             self._sock = None
 

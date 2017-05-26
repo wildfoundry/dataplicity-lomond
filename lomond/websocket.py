@@ -251,7 +251,7 @@ class WebSocket(object):
             self.on_disconnect()
 
         except GeneratorExit:
-            log.warn('disconnecting websocket')
+            log.warning('disconnecting websocket')
             self.on_disconnect()
 
     def build_request(self):
