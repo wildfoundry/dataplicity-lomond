@@ -168,7 +168,7 @@ def test_send_request(session):
         b'Connection: Upgrade\r\n'
         b'Sec-WebSocket-Key: AAAAAAAAAAAAAAAAAAAAAA==\r\n'
         b'Sec-WebSocket-Version: 13\r\n'
-        b'User-Agent: ' + constants.USER_AGENT + '\r\n'
+        b'User-Agent: ' + constants.USER_AGENT.encode('utf-8') + b'\r\n'
         b'\r\n'
     )
 
