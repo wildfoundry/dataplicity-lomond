@@ -123,13 +123,17 @@ class WebSocket(object):
                 auto_pong=True):
         """Connect the websocket to a session.
 
-        :param session_class: A class to manage the session.
+        :param session_class: An object to manage the *session*. This
+            object is an extension mechanism that will allow the
+            WebSocket to be *driven* by different back-ends. For now,
+            treat it as an implementation detail and leave it as the
+            default.
         :param float poll: Rate (in seconds) that poll events should be
             generated.
         :param float ping_rate: Rate that ping packets should be sent.
             Set to `0` to disable auto pings.
-        :param bool auto_pong: Flag to enable automatic response to
-            pings.
+        :param bool auto_pong: Enable (default) automatic response to
+            ping events.
         :returns: An iterable of :class:`~lomond.event.Event` instances.
 
         """

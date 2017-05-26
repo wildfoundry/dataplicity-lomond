@@ -17,11 +17,11 @@ Or to upgrade to the most recent version::
 
     pip install lomond --upgrade
 
-Alternatively, if you would like to install from source, you can check
+Alternatively, if you would like to install from source, check
 out `the code from Github <https://github.com/wildfoundry/dataplicity-
 lomond>`_.
 
-You may also wish to install `wsaccel`, which is a C module containing
+You may wish to install `wsaccel`, which is a C module containing
 optimizations for some websocket operations. Lomond will use it if
 available::
 
@@ -38,9 +38,9 @@ Here is an example::
     ws = WebSocket('wss://echo.websocket.org')
 
 No socket connection is made by a freshly constructed WebSocket object.
-To connect and interact with a websocket server, you must iterate over
-the instance which will generate a sequence of *events*. Here's an
-example::
+To connect and interact with a websocket server, iterate over the
+WebSocket instance, which will yield a number of
+:class:`~lomond.event.Event` objects. Here's an example::
 
     for event in ws:
         print(event)
@@ -61,11 +61,20 @@ the server.
 When you receive data from the server, a :class:`~lomond.events.Text` or
 :class:`~lomond.events.Binary` event will be generated.
 
+Iterating over the WebSocket instance in this way calls
+:meth:`~lomond.websocket.WebSocket.connect` with default parameters, i.e. it is
+equivalent to the following::
+
+    for event in ws.connect():
+        print(event)
+
+You may want to call `connect` manually to change the default behavior.
+
 Events
 ------
 
-Events inform your application when the websocket state changes and when
-data is received.
+Events inform your application when data is received from the server or
+when the websocket state changes.
 
 All events are derived from :class:`~lomond.events.Event` and will
 contain at least 2 attributes; `received_time` is the epoch time the
@@ -100,9 +109,9 @@ To close a websocket, call the :meth:`~lomond.websocket.Websocket.close`
 method to initiate a *websocket close handshake*. You may call this
 method from within the websocket loop, or from another thread.
 
-When a websocket wishes to close it sends a close packet to the server.
+When a WebSocket wishes to close, it sends a close packet to the server.
 The server will respond by sending a close packet of its own. Only when
-this echoed close packet is received will the Websocket object close the
+this echoed close packet is received will the WebSocket close the
 underlaying socket. This allows both ends of the connection to finish
 what they are doing, without losing data.
 
