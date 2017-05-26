@@ -118,10 +118,21 @@ class WebSocket(object):
 
     def connect(self,
                 session_class=WebsocketSession,
-                poll=5,
-                ping_rate=30,
+                poll=5.0,
+                ping_rate=30.0,
                 auto_pong=True):
-        """Connect the websocket to a session."""
+        """Connect the websocket to a session.
+
+        :param session_class: A class to manage the session.
+        :param float poll: Rate (in seconds) that poll events should be
+            generated.
+        :param float ping_rate: Rate that ping packets should be sent.
+            Set to `0` to disable auto pings.
+        :param bool auto_pong: Flag to enable automatic response to
+            pings.
+        :returns: An iterable of :class:`~lomond.event.Event` instances.
+
+        """
         self.reset()
         self.state.session = session_class(self)
         return self.session.run(
@@ -147,7 +158,7 @@ class WebSocket(object):
             is closing. This value is intended for the remote end to
             help in debugging.
 
-        ..note::
+        .. note::
             Closing the websocket won't exit the main loop immediately;
             it will put the websocket in to a *closing* state while it
             waits for the server to echo back a close packet. No data
@@ -182,8 +193,8 @@ class WebSocket(object):
             self.close(message.code, message.reason)
             self.state.closing = True
 
-    def disconnect(self):
-        """Disconnect the websocket."""
+    def on_disconnect(self):
+        """Called on disconnect."""
         self.state.closing = False
         self.state.closed = True
 
@@ -202,7 +213,7 @@ class WebSocket(object):
                     try:
                         protocol, extensions = self.on_response(response)
                     except errors.HandshakeError as error:
-                        self.disconnect()
+                        self.on_disconnect()
                         yield events.Rejected(response, six.text_type(error))
                         break
                     else:
@@ -226,18 +237,18 @@ class WebSocket(object):
             # An error that warrants an immediate disconnect.
             # Usually invalid unicode.
             log.debug('critical protocol error; %s', error)
-            self.disconnect()
+            self.on_disconnect()
 
         except errors.ProtocolError as error:
             # A violation of the protocol that allows for a graceful
             # disconnect.
             log.debug('protocol error; %s', error)
             self.close(Status.PROTOCOL_ERROR, six.text_type(error))
-            self.disconnect()
+            self.on_disconnect()
 
         except GeneratorExit:
             log.warn('disconnecting websocket')
-            self.disconnect()
+            self.on_disconnect()
 
     def build_request(self):
         """Get the websocket request (in bytes).
@@ -340,6 +351,7 @@ class WebSocket(object):
         """Send a binary frame.
 
         :param bytes data: Binary data to send.
+        :raises TypeError: If data is not bytes.
 
         """
         if not isinstance(data, bytes):
@@ -350,6 +362,7 @@ class WebSocket(object):
         """Send a text frame.
 
         :param str text: Text to send.
+        :raises TypeError: If data is not str (or unicode on Py2).
 
         """
         if not isinstance(text, six.text_type):

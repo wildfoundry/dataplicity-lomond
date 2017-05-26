@@ -13,12 +13,9 @@ WS_KEY = b'258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
 # https://tools.ietf.org/html/rfc6455
 WS_VERSION = 13
 
-# Only report major.minor in version
-_version_identifier = '.'.join(__version__.split('.')[:2])
-
 # User agent sent with websocket request
 USER_AGENT = 'Lomond/{} {}/{} {}/{} ({})'.format(
-    _version_identifier,
+    __version__,
     platform.python_implementation(),
     platform.python_version(),
     platform.system(),

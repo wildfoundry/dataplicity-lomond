@@ -254,7 +254,7 @@ class WebsocketSession(object):
             self._close_socket()
             yield events.Disconnected('error; {}'.format(error))
         else:
-            # websocket instance terminate the loop, which means
+            # The websocket instance terminated the loop, which means
             # it was a graceful exit.
             self._close_socket()
             yield events.Disconnected(graceful=True)

@@ -51,7 +51,6 @@ class Connecting(Event):
     name = 'connecting'
 
     def __init__(self, url):
-
         self.url = url
         super(Connecting, self).__init__()
 
@@ -119,11 +118,14 @@ class Rejected(Event):
 
 class Ready(Event):
     """Generated when Lomond has connected to the server,
-    and successfully negotiated the websockets upgrade.
+    and successfully negotiated the websocket upgrade.
 
-    :param response: A response object.
-    :param protocol:
-    :param extensions:
+    :param response: A :class:`~lomond.response.Response` object.
+    :param str protocol: A websocket protocol or `None` if no protocol
+        was supplied.
+    :param set extensions: A set of negotiated websocket extensions.
+        Currently Lomond does not support any extensions, so this will
+        be an empty set.
 
     """
     __slots__ = ['response', 'protocol', 'extensions']
@@ -145,7 +147,7 @@ class Ready(Event):
 
 
 class Disconnected(Event):
-    """Disconnected event. Generated when a websocket connection has
+    """Generated when a websocket connection has
     been dropped.
 
     :param str reason: A description of why the websocket was closed.
@@ -242,8 +244,7 @@ class Pong(Event):
 
 
 class Text(Event):
-    """Text event. Generated when Lomond receives a text message from
-    the server.
+    """Generated when Lomond receives a text message from the server.
 
     :param str text: The text payload.
 
@@ -263,8 +264,7 @@ class Text(Event):
 
 
 class Binary(Event):
-    """Binary event. Generated when Lomond receives a binary message
-    from the server.
+    """Generated when Lomond receives a binary message from the server.
 
     :param bytes data: The binary payload.
 
@@ -284,9 +284,8 @@ class Binary(Event):
 
 
 class BackOff(Event):
-    """Backoff event. Generated when a persistent connection has to wait
-    before re-attempting a connection.
-
+    """Generated when a persistent connection has to wait before re-
+    attempting a connection.
 
     :param float delay: The delay (in seconds) before Lomond will re-
         attempt to connect.

@@ -1,6 +1,9 @@
 """
 A simple abstraction for an HTTP response.
 
+A response object is supplied in the :class:`~lomond.events.Ready`
+event.
+
 """
 
 
@@ -53,7 +56,7 @@ class Response(object):
 
         :param bytes name: Name of the header to retrieve.
         :param default: Default value if header is not present.
-        :rtype bytes:
+        :rtype: bytes
 
         """
         assert isinstance(name, bytes), "must be bytes"
@@ -64,7 +67,7 @@ class Response(object):
 
         :param bytes name: Name of the header to retrieve.
 
-        :rtype list:
+        :rtype: list
         :returns: A list of strings in the header.
 
         """
