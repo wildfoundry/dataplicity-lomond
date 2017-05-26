@@ -99,7 +99,7 @@ def test_build_request(websocket):
         #                    ^^^^^^^^^^^^^^^^^^^^^^^^
         #                     b64encode('\x00' * 16)
         b'Sec-WebSocket-Version: 13\r\n'
-        b'User-Agent: ' + constants.USER_AGENT.encode('utf-8') + b'DataplicityLomond/0.1\r\n'
+        b'User-Agent: ' + constants.USER_AGENT.encode('utf-8') + b'\r\n'
         b'\r\n'
     )
 
