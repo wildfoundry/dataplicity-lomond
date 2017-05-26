@@ -64,11 +64,11 @@ When you receive data from the server, a :class:`~lomond.events.Text` or
 Events
 ------
 
-Events exist to inform the application of internal state changes, or
-when data is received.
+Events inform your application when the websocket state changes and when
+data is received.
 
 All events are derived from :class:`~lomond.events.Event` and will
-contain at lease 2 attributes; `received_time` is the epoch time the
+contain at least 2 attributes; `received_time` is the epoch time the
 event was received, and `name` is the name of the event. Some events
 have additional attributes with more information. See the :ref:`events`
 for details.
