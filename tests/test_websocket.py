@@ -2,6 +2,7 @@ from base64 import b64decode
 import logging
 
 import pytest
+from lomond import constants
 from lomond.errors import ProtocolError, HandshakeError
 from lomond.events import Binary, Closed, Ping, Pong, Ready, Text
 from lomond.message import Close
@@ -98,7 +99,7 @@ def test_build_request(websocket):
         #                    ^^^^^^^^^^^^^^^^^^^^^^^^
         #                     b64encode('\x00' * 16)
         b'Sec-WebSocket-Version: 13\r\n'
-        b'User-Agent: DataplicityLomond/0.1\r\n'
+        b'User-Agent: ' + constants.USER_AGENT.encode('utf-8') + b'DataplicityLomond/0.1\r\n'
         b'\r\n'
     )
 
