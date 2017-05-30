@@ -153,7 +153,7 @@ class Disconnected(Event):
     :param str reason: A description of why the websocket was closed.
     :param bool graceful: Flag indicating if the connection was dropped
         gracefully (`True`), or disconnected due to a socket failure
-        (`False`).
+        (`False`) or other problem.
     """
     __slots__ = ['graceful', 'reason']
     name = 'disconnected'
@@ -173,7 +173,8 @@ class Disconnected(Event):
 
 class Closed(Event):
     """Generated when the websocket was closed. The websocket may no
-    longer send packets after this event has been received.
+    longer send packets after this event has been received. This event
+    will be followed by :class:`~lomond.events.Disconnected`.
 
     :param code: The closed code returned from the server.
     :param str reason: An optional description why the websocket was
@@ -187,6 +188,35 @@ class Closed(Event):
         self.code = code
         self.reason = reason
         super(Closed, self).__init__()
+
+    def __repr__(self):
+        return '{}({!r}, {!r})'.format(
+            self.__class__.__name__,
+            self.code,
+            self.reason,
+        )
+
+
+class Closing(Event):
+    """Generated when the server is closing the connection.
+
+    No more messages will be received from the server, but you may still
+    send messages while handling this event. A
+    :class:`~lomond.events.Disconnected` event should be generated
+        shortly after this event.
+
+    :param code: The closed code returned from the server.
+    :param str reason: An optional description why the websocket was
+        closed, as returned from the server.
+
+    """
+    __slots__ = ['code', 'reason']
+    name = 'closed'
+
+    def __init__(self, code, reason):
+        self.code = code
+        self.reason = reason
+        super(Closing, self).__init__()
 
     def __repr__(self):
         return '{}({!r}, {!r})'.format(
