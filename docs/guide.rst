@@ -122,21 +122,28 @@ events, such as the following::
 Closing the Websocket
 ---------------------
 
+The websocket protocol specifies how to close the websocket cleanly. The
+procedure for handling closes, depends on whether it is initiated by the
+client or the server.
+
+Client
+++++++
+
 To close a websocket, call the :meth:`~lomond.websocket.Websocket.close`
 method to initiate a *websocket close handshake*. You may call this
 method from within the websocket loop, or from another thread.
 
-When a WebSocket wishes to close, it sends a close packet to the server.
-The server will respond by sending a close packet of its own. Only when
-this echoed close packet is received will the WebSocket close the
-underlaying socket. This allows both ends of the connection to finish
-what they are doing without worrying the remote end has stopped
-responding to messages.
+When you call :meth:`~lomond.websocket.Websocket.close`, Lomond sends a
+close packet to the server. The server will respond by sending a close
+packet of its own. Only when this echoed close packet is received will
+the WebSocket close the underlaying tcp/ip socket. This allows both ends
+of the connection to finish what they are doing without worrying the
+remote end has stopped responding to messages.
 
 .. note::
     When you call the `close()` method, you will no longer be able to
-    send data, but you may still receive packets from the server until
-    the close has completed.
+    *send* data, but you may still *receive* packets from the server
+    until the close has completed.
 
 When the websocket has been closed, you will receive a
 :class:`~lomond.events.Closed` event, followed by a
@@ -149,6 +156,28 @@ precaution, Lomond will force close the socket after 30 seconds, if the
 server doesn't respond to a close packet. You can change or disable this
 timeout with the `close_timeout` parameter, on
 :meth:`~lomond.websocket.Websocket.connect`.
+
+Server
+++++++
+
+The websocket server will send a close packet when it wished to close.
+When Lomond receives that packet, a :class:`~lomond.events.Closing`
+event will be generated. You may send text or binary messages in
+response to the Closing event, but afterwards Lomond echos the close
+packet and no further data may be sent. The server will then close the
+socket, and you will receive a :class:`~lomond.events.Disconnected`
+event, followed by the event loop ending.
+
+Non-graceful Closes
++++++++++++++++++++
+
+A non-graceful close is when a the tcp/ip connection is closed *without*
+completing the closing handshake. This can occur if the server is
+misbehaving or if connectivity has been interrupted.
+
+The :class:`~lomond.events.Disconnected` event contains a boolean
+attribute `graceful`, which will be `False` if the closing handshake was
+not completed.
 
 Pings and Pongs
 ---------------
