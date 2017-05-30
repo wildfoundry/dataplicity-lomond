@@ -13,4 +13,4 @@ def test_ws_version():
 
 
 def test_user_agent():
-    assert USER_AGENT.startswith('DataplicityLomond')
+    assert USER_AGENT.startswith('Lomond')

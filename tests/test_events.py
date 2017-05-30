@@ -5,7 +5,7 @@ import six
 
 test_cases = [
     (events.Event(), 'Event()'),
-    (events.Text('A' * 17), 'Text(%r + 1 chars)' % ('A' * 16)),
+    (events.Text('A' * 25), 'Text(%r + 1 chars)' % ('A' * 24)),
     (events.Text('A'), "Text('A')"),
     (
         events.Connecting('http://example.com'),
@@ -42,16 +42,16 @@ test_cases = [
 if six.PY2:
     test_cases.extend([
         (
-            events.Binary(b'\xef' * 17),
-            "Binary('%s' + 1 bytes)" % ('\\xef' * 16)
+            events.Binary(b'\xef' * 25),
+            "Binary('%s' + 1 bytes)" % ('\\xef' * 24)
         ),
         (events.Binary(b'\x01'), "Binary('\\x01')"),
     ])
 elif six.PY3:
     test_cases.extend([
         (
-            events.Binary(b'\xef' * 17),
-            "Binary(%s + 1 bytes)" % (b'\xef' * 16)
+            events.Binary(b'\xef' * 25),
+            "Binary(%s + 1 bytes)" % (b'\xef' * 24)
         ),
         (events.Binary(b'\x01'), "Binary(b'\\x01')"),
     ])

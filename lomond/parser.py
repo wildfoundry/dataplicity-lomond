@@ -1,5 +1,6 @@
 """
-Coroutine base stream parser.
+Coroutine Parser
+================
 
 This little but of 'magic' makes parsing a stream of bytes from a socket
 a relatively pain-free exercise.
@@ -14,8 +15,9 @@ class Parser(object):
     Coroutine based stream parser.
 
     Splits a steam of arbitrary sequences of bytes in to logical
-    objects. Essentially the `feed` method will yield any results of
-    parsing.
+    objects. The `feed` method will yield any results of parsing.
+
+    Here's an example of use::
 
         while True:
             data = sock.recv(1024)
@@ -72,6 +74,8 @@ class Parser(object):
         """
         Called with data (bytes), will yield 0 or more objects parsed
         from the stream.
+
+        :param bytes data: Data to decode.
 
         """
         pos = 0

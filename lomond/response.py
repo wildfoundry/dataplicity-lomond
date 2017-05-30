@@ -1,6 +1,9 @@
 """
 A simple abstraction for an HTTP response.
 
+A response object is supplied in the :class:`~lomond.events.Ready`
+event.
+
 """
 
 
@@ -10,7 +13,11 @@ from collections import defaultdict
 
 
 class Response(object):
-    """The status line + headers."""
+    """A HTTP response.
+
+    :param bytes header_data: Raw response.
+
+    """
 
     def __init__(self, header_data):
         self.raw = header_data
@@ -45,12 +52,25 @@ class Response(object):
         )
 
     def get(self, name, default=None):
-        """Get a header."""
+        """Get a header.
+
+        :param bytes name: Name of the header to retrieve.
+        :param default: Default value if header is not present.
+        :rtype: bytes
+
+        """
         assert isinstance(name, bytes), "must be bytes"
         return self.headers.get(name.lower(), default)
 
     def get_list(self, name):
-        """Extract a list from a header."""
+        """Extract a list from a header.
+
+        :param bytes name: Name of the header to retrieve.
+
+        :rtype: list
+        :returns: A list of strings in the header.
+
+        """
         value = self.get(name, b'').decode('utf-8', errors='replace')
         if not value.strip():
             return []

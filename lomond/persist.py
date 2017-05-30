@@ -14,7 +14,21 @@ from . import events
 def persist(websocket, poll=5,
             min_wait=5, max_wait=30,
             ping_rate=30, exit_event=None):
-    """Run a websocket, with a retry mechanism and exponential back-off."""
+    """Run a websocket, with a retry mechanism and exponential back-off.
+
+    :param websocket: A :class:`~lomond.websocket.Websocket` instance.
+    :param float poll: The websocket poll rate, in seconds.
+    :param float min_wait: The minimum time to wait between reconnect
+        attempts (seconds).
+    :param float max_wait: The maximum time to wait between reconnect
+        attempts (seconds).
+    :param float ping_rate: Delay between pings (seconds), or `0` for no
+        auto ping.
+    :param exit_event: A threading event object, which can be used to
+        exit the persist loop if it is set. Set to `None` to use an
+        internal event object.
+
+    """
     if exit_event is None:
         exit_event = threading.Event()
     retries = 0

@@ -29,7 +29,17 @@ log = logging.getLogger('lomond')
 
 
 class WebSocket(object):
-    """IO independent websocket functionality."""
+    """IO independent websocket functionality.
+
+    :param str url: A websocket URL, must have a `ws://` or `wss://`
+        protocol.
+    :params list protocols: A list of supported protocols (defaults to
+        no protocols).
+    :params str agent: A user agent string to be sent in the header. The
+        default uses the value `USER_AGENT` defined in
+        :mod:`lomond.constants`.
+
+    """
 
     class State(object):
         def __init__(self):
@@ -67,14 +77,24 @@ class WebSocket(object):
 
     @property
     def is_secure(self):
+        """Boolean that indicates if the websocket is over ssl (i.e. the
+        `wss` protocol).
+
+        """
         return self.scheme == 'wss'
 
     @property
     def is_closing(self):
+        """Boolean that indicates if the websocket is in a closing
+        state. No further messages may be sent when a websocket is
+        closing.
+
+        """
         return self.state.closing
 
     @property
     def is_closed(self):
+        """Flag that indicates if the websocket is closed."""
         return self.state.closed
 
     @property
@@ -98,12 +118,32 @@ class WebSocket(object):
 
     def connect(self,
                 session_class=WebsocketSession,
-                poll=5,
-                ping_rate=30):
-        """Connect the websocket to a session."""
+                poll=5.0,
+                ping_rate=30.0,
+                auto_pong=True):
+        """Connect the websocket to a session.
+
+        :param session_class: An object to manage the *session*. This
+            object is an extension mechanism that will allow the
+            WebSocket to be *driven* by different back-ends. For now,
+            treat it as an implementation detail and leave it as the
+            default.
+        :param float poll: Rate (in seconds) that poll events should be
+            generated.
+        :param float ping_rate: Rate that ping packets should be sent.
+            Set to `0` to disable auto pings.
+        :param bool auto_pong: Enable (default) automatic response to
+            ping events.
+        :returns: An iterable of :class:`~lomond.event.Event` instances.
+
+        """
         self.reset()
         self.state.session = session_class(self)
-        return self.session.run(poll=poll, ping_rate=ping_rate)
+        return self.session.run(
+            poll=poll,
+            ping_rate=ping_rate,
+            auto_pong=auto_pong
+        )
 
     def reset(self):
         """Reset the state."""
@@ -112,7 +152,24 @@ class WebSocket(object):
     __iter__ = connect
 
     def close(self, code=None, reason=None):
-        """Close the websocket."""
+        """Close the websocket.
+
+        :param int code: A closing code, which should probably be one of
+            the enumerations in :class:`lomond.status.Status` or a valid
+            value as specified in
+            https://tools.ietf.org/html/rfc6455#section-7.4
+        :param str reason: A short descriptive reason why the websocket
+            is closing. This value is intended for the remote end to
+            help in debugging.
+
+        .. note::
+            Closing the websocket won't exit the main loop immediately;
+            it will put the websocket in to a *closing* state while it
+            waits for the server to echo back a close packet. No data
+            may be sent by the application when the websocket is
+            closing.
+
+        """
         if self.is_closed:
             log.debug('%r already closed', self)
         else:
@@ -140,13 +197,17 @@ class WebSocket(object):
             self.close(message.code, message.reason)
             self.state.closing = True
 
-    def disconnect(self):
-        """Disconnect the websocket."""
+    def on_disconnect(self):
+        """Called on disconnect."""
         self.state.closing = False
         self.state.closed = True
 
     def feed(self, data):
-        """Feed with data from the socket."""
+        """Feed with data from the socket, and yield any events.
+
+        :param bytes data: data received over a socket.
+
+        """
         if self.is_closed:
             return
         try:
@@ -156,7 +217,7 @@ class WebSocket(object):
                     try:
                         protocol, extensions = self.on_response(response)
                     except errors.HandshakeError as error:
-                        self.disconnect()
+                        self.on_disconnect()
                         yield events.Rejected(response, six.text_type(error))
                         break
                     else:
@@ -180,21 +241,26 @@ class WebSocket(object):
             # An error that warrants an immediate disconnect.
             # Usually invalid unicode.
             log.debug('critical protocol error; %s', error)
-            self.disconnect()
+            self.on_disconnect()
 
         except errors.ProtocolError as error:
             # A violation of the protocol that allows for a graceful
             # disconnect.
             log.debug('protocol error; %s', error)
             self.close(Status.PROTOCOL_ERROR, six.text_type(error))
-            self.disconnect()
+            self.on_disconnect()
 
         except GeneratorExit:
-            log.warn('disconnecting websocket')
-            self.disconnect()
+            log.warning('disconnecting websocket')
+            self.on_disconnect()
 
-    def get_request(self):
-        """Get the request (in bytes)"""
+    def build_request(self):
+        """Get the websocket request (in bytes).
+
+        This method is called from the session, and should not be
+        invoked explicitly.
+
+        """
         request = [
             "GET {} HTTP/1.1".format(self.resource).encode('utf-8')
         ]
@@ -252,7 +318,14 @@ class WebSocket(object):
         return protocol, extensions
 
     def send_ping(self, data=b''):
-        """Send a ping request."""
+        """Send a ping packet.
+
+        :param bytes data: Data to send in the ping message (must be <=
+            125 bytes).
+        :raises TypeError: If `data` is not bytes.
+        :raises ValueError: If `data` is > 125 bytes.
+
+        """
         if not isinstance(data, bytes):
             raise TypeError('data argument must be bytes')
         if len(data) > 125:
@@ -260,7 +333,18 @@ class WebSocket(object):
         self.session.send(Opcode.PING, data)
 
     def send_pong(self, data):
-        """Send a ping request."""
+        """Send a pong packet.
+
+        :param bytes data: Data to send in the ping message (must be <=
+            125 bytes).
+
+        A *pong* may be sent in response to a ping, or unsolicited to
+        keep the connection alive.
+
+        :raises TypeError: If `data` is not bytes.
+        :raises ValueError: If `data` is > 125 bytes.
+
+        """
         if not isinstance(data, bytes):
             raise TypeError('data argument must be bytes')
         if len(data) > 125:
@@ -268,13 +352,23 @@ class WebSocket(object):
         self.session.send(Opcode.PONG, data)
 
     def send_binary(self, data):
-        """Send a binary frame."""
+        """Send a binary frame.
+
+        :param bytes data: Binary data to send.
+        :raises TypeError: If data is not bytes.
+
+        """
         if not isinstance(data, bytes):
             raise TypeError('data argument must be bytes')
         self.session.send(Opcode.BINARY, data)
 
     def send_text(self, text):
-        """Send a text frame."""
+        """Send a text frame.
+
+        :param str text: Text to send.
+        :raises TypeError: If data is not str (or unicode on Py2).
+
+        """
         if not isinstance(text, six.text_type):
             raise TypeError('text argument must not be bytes')
         self.session.send(Opcode.TEXT, text.encode('utf-8'))

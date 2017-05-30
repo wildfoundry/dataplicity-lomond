@@ -2,6 +2,7 @@ from base64 import b64decode
 import logging
 
 import pytest
+from lomond import constants
 from lomond.errors import ProtocolError, HandshakeError
 from lomond.events import Binary, Closed, Ping, Pong, Ready, Text
 from lomond.message import Close
@@ -88,8 +89,8 @@ def test_is_secure(websocket):
     assert WebSocket('wss://example.com').is_secure is True
 
 
-def test_get_request(websocket):
-    assert websocket.get_request() == (
+def test_build_request(websocket):
+    assert websocket.build_request() == (
         b'GET / HTTP/1.1\r\n'
         b'Host: example.com:80\r\n'
         b'Upgrade: websocket\r\n'
@@ -98,19 +99,19 @@ def test_get_request(websocket):
         #                    ^^^^^^^^^^^^^^^^^^^^^^^^
         #                     b64encode('\x00' * 16)
         b'Sec-WebSocket-Version: 13\r\n'
-        b'User-Agent: DataplicityLomond/0.1\r\n'
+        b'User-Agent: ' + constants.USER_AGENT.encode('utf-8') + b'\r\n'
         b'\r\n'
     )
 
 
 def test_protocol_header_is_optional(websocket):
-    request_headers = websocket.get_request()
+    request_headers = websocket.build_request()
     assert b'Sec-WebSocket-Protocol' not in request_headers
 
     websocket_with_protocols = WebSocket(
         'ws://example.com/', protocols=('proto1', 'proto2')
     )
-    request_headers = websocket_with_protocols.get_request()
+    request_headers = websocket_with_protocols.build_request()
     assert b'Sec-WebSocket-Protocol: proto1, proto2' in request_headers
 
 

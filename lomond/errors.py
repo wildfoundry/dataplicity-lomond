@@ -26,20 +26,29 @@ class ProtocolError(WebSocketError):
 
 
 class CriticalProtocolError(WebSocketError):
-    """Critical protocol error."""
-    # An egregious error in the protocol resulting in an immediate
-    # disconnect.
+    """Critical protocol error. An egregious error in the protocol
+    resulting in an immediate disconnect.
+
+    """
 
 
 class PayloadTooLarge(ProtocolError):
-    """The payload length field is too large."""
-    # With a max payload of 2**63 bytes, we would run out of memory
-    # way before we have to raise this.
+    """The payload length field is too large.
+
+    Websocket messages have a maximum payload of 2**63 bytes. In
+    practice it may be impossible to generate such a packet for real,
+    but its feasible a corrupt packet header could make it appear that
+    such a packet was being sent.
+
+    """
 
 
 class TransportFail(WebSocketError):
-    """The transport (socket) failed when sending."""
-    # Likely indicates the socket failed
+    """The transport (socket) failed when sending.
+
+    Likely indicating connectivity issues.
+
+    """
 
 
 class WebSocketUnavailable(WebSocketError):

@@ -117,13 +117,13 @@ class WebsocketSession(object):
             pass
         except Exception as error:
             # Paranoia
-            log.warn('error closing socket (%s)', error)
+            log.warning('error closing socket (%s)', error)
         finally:
             self._sock = None
 
     def _send_request(self):
         """Send the request over the wire."""
-        request_bytes = self.websocket.get_request()
+        request_bytes = self.websocket.build_request()
         self.write(request_bytes)
 
     def _check_poll(self, poll):
@@ -254,7 +254,7 @@ class WebsocketSession(object):
             self._close_socket()
             yield events.Disconnected('error; {}'.format(error))
         else:
-            # websocket instance terminate the loop, which means
+            # The websocket instance terminated the loop, which means
             # it was a graceful exit.
             self._close_socket()
             yield events.Disconnected(graceful=True)

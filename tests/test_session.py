@@ -6,6 +6,7 @@ from datetime import datetime
 import pytest
 from freezegun import freeze_time
 from lomond import errors, events
+from lomond import constants
 from lomond.session import WebsocketSession
 from lomond.websocket import WebSocket
 from mocket import Mocket, MocketEntry, mocketize
@@ -18,7 +19,7 @@ def session(monkeypatch):
     # ^^ the above line will be significant in the test where we want
     # to validate the headers being sent to the socket. Namely, the
     # websocket key which is based on os.urandom. Obviously, we can't
-    # have an actual random call here because the test wuldn't be
+    # have an actual random call here because the test wouldn't be
     # deterministic, hence this sequence of bytes.
 
     return WebsocketSession(WebSocket('wss://example.com/'))
@@ -167,7 +168,7 @@ def test_send_request(session):
         b'Connection: Upgrade\r\n'
         b'Sec-WebSocket-Key: AAAAAAAAAAAAAAAAAAAAAA==\r\n'
         b'Sec-WebSocket-Version: 13\r\n'
-        b'User-Agent: DataplicityLomond/0.1\r\n'
+        b'User-Agent: ' + constants.USER_AGENT.encode('utf-8') + b'\r\n'
         b'\r\n'
     )
 
