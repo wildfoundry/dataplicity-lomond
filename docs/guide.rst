@@ -102,6 +102,23 @@ If an event is generated that you aren't familiar with, then you should
 simply ignore it. This is important for backwards compatibility; future
 versions of Lomond may introduce new event types.
 
+Be careful with code that responds to events. Should there be an
+unhandled exception within the event loop, Lomond will disconnect the
+socket without sending a close packet. It's up to your application to
+ensure that programming errors don't prevent the websocket from
+closing gracefully.
+
+You may wish to adopt an defensive approach to handling WebSocket
+events, such as the following::
+
+    for event in websocket:
+        try:
+            on_event(event)
+        except:
+            log.exception('error handling %r', event)
+            websocket.close()
+
+
 Closing the Websocket
 ---------------------
 
@@ -113,7 +130,8 @@ When a WebSocket wishes to close, it sends a close packet to the server.
 The server will respond by sending a close packet of its own. Only when
 this echoed close packet is received will the WebSocket close the
 underlaying socket. This allows both ends of the connection to finish
-what they are doing, without losing data.
+what they are doing without worrying the remote end has stopped
+responding to messages.
 
 .. note::
     When you call the `close()` method, you will no longer be able to
@@ -124,6 +142,13 @@ When the websocket has been closed, you will receive a
 :class:`~lomond.events.Closed` event, followed by a
 :class:`~lomond.events.Disconnected` event, and the event loop will
 exit.
+
+It's possible a malfunctioning server may not respond to a close packet,
+which would leave a WebSocket in a permanent *closing* state. As a
+precaution, Lomond will force close the socket after 30 seconds, if the
+server doesn't respond to a close packet. You can change or disable this
+timeout with the `close_timeout` parameter, on
+:meth:`~lomond.websocket.Websocket.connect`.
 
 Pings and Pongs
 ---------------
@@ -145,7 +170,7 @@ Here's how you would disable pings::
 Lomond will also automatically respond to ping requests. Since this is a
 requirement of the websocket specification, you probably don't want to
 change this behaviour. But it may be disabled with the `auto_pong` flag
-in :meth:`~lomond.websocket.connect`.
+in :meth:`~lomond.websocket.WebSocket.connect`.
 
 Regardless of whether *auto pong* is enabled, a
 :class:`~lomond.events.Pong` event will be generated when Lomond
@@ -165,7 +190,7 @@ intervals.
 The default poll rate of 5 seconds is granular enough for Lomond's
 polling needs, while having negligible impact on CPU. If your
 application needs to process at a faster rate, you may set the `poll`
-parameter of :meth:`~lomond.websocket.connect`.
+parameter of :meth:`~lomond.websocket.WebSocket.connect`.
 
 .. note::
     If your application needs to be more realtime than polling once a
@@ -184,13 +209,12 @@ to run a websocket in a thread of its own.
 Persistent Connections
 ----------------------
 
-Lomond supports a simple mechanism for persistent connections.
-Essentially, you can tell Lomond to continually retry a websocket
-connection if it is dropped for any reason. This allows an application
-to maintain a websocket connection even if there are any outages in
-connectivity.
+Lomond supports a simple mechanism for persistent connections -- you can
+tell Lomond to continually retry a websocket connection if it is dropped
+for any reason. This allows an application to maintain a websocket
+connection even if there are any outages in connectivity.
 
-To run a persistent connection, wrap a websocket with
+To run a persistent connection, wrap a WebSocket instance with
 :func:`~lomond.persist.persist`. Here is an example::
 
     from lomond.persist import persist

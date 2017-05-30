@@ -75,6 +75,9 @@ class WebsocketSession(object):
     class _SocketFail(Exception):
         """Used internally to respond to socket fails."""
 
+    class _ForceDisconnect(Exception):
+        """Used internally when the close timeout is tripped."""
+
     @classmethod
     def _socket_fail(cls, msg, *args, **kwargs):
         """Raises a socket fail error to exit select loop."""
@@ -148,6 +151,16 @@ class WebsocketSession(object):
                     # Just in case the websocket has gone away
                     pass
 
+    def _check_close_timeout(self, close_timeout):
+        """Check if the close timeout was tripped."""
+        if not close_timeout:
+            return False
+        sent_close_time = self.websocket.sent_close_time
+        return (
+            sent_close_time is not None and
+            time.time() >= sent_close_time + close_timeout
+        )
+
     def _recv(self, count):
         """Receive and return pending data from the socket."""
         try:
@@ -165,19 +178,25 @@ class WebsocketSession(object):
         except socket.error as error:
             self._socket_fail('recv fail; {}', error)
 
-    def _regular(self, poll, ping_rate):
+    def _regular(self, poll, ping_rate, close_timeout):
         """Run regularly to do polling / pings."""
         # Check for regularly running actions.
         if self._check_poll(poll):
             yield events.Poll()
         self._check_auto_ping(ping_rate)
+        if self._check_close_timeout(close_timeout):
+            raise self._ForceDisconnect(
+                "server didn't respond to close packet "
+                "within {}s".format(close_timeout)
+            )
 
-    def _feed(self, data, poll, ping_rate):
+    def _feed(self, data, poll, ping_rate, close_timeout):
         """Feed the websocket, yielding events."""
         # Also emits poll events and sends pings
         for event in self.websocket.feed(data):
             yield event
-            for regular_event in self._regular(poll, ping_rate):
+            for regular_event in self._regular(
+                    poll, ping_rate, close_timeout):
                 yield regular_event
 
     def _on_ping(self, event):
@@ -188,7 +207,11 @@ class WebsocketSession(object):
             # In case the websocket has gone away
             pass
 
-    def run(self, poll=5, ping_rate=30, auto_pong=True):
+    def run(self,
+            poll=5,
+            ping_rate=30,
+            auto_pong=True,
+            close_timeout=None):
         """Run the websocket."""
         websocket = self.websocket
         url = websocket.url
@@ -229,20 +252,30 @@ class WebsocketSession(object):
                 reads, _errors = self._select(sock, poll)
 
                 # Check for polls / pings
-                for event in self._regular(poll, ping_rate):
+                for event in self._regular(poll,
+                                           ping_rate,
+                                           close_timeout):
                     yield event
 
                 if reads:
                     data = self._recv(4096)
                     if not data:
-                        self._socket_fail('connection lost')
-                    for event in self._feed(data, poll, ping_rate):
+                        if websocket.is_closed:
+                            break
+                        else:
+                            self._socket_fail('connection lost')
+                    for event in self._feed(data, poll,
+                                            ping_rate, close_timeout):
                         if event.name == 'ping' and auto_pong:
                             self._on_ping(event)
                         yield event
                 if _errors:
                     self._socket_fail('socket error')
                     break
+        except self._ForceDisconnect as error:
+            self._close_socket()
+            yield events.Disconnected('disconnected; {}'.format(error))
+
         except self._SocketFail as error:
             # Session methods will translate socket errors to this
             # exception. The result is we are disconnected.
