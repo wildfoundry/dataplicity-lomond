@@ -25,8 +25,7 @@ if XorMaskerSimple is not None:
     def mask(masking_key, data):
         return XorMaskerSimple(masking_key).process(data)
 
-elif six.PY2:
-    # Python 2 compatible version
+else:
     # This is about 60 (!) times faster than a simple loop
     # -------------------------------------------------------------------------
     # here's a brief explanation of how this works.
@@ -41,7 +40,10 @@ elif six.PY2:
     # ]
     # there are a total of 256 rows in this table, because there are a total of
     # 256 possible bytes.
-    _XOR_TABLE = [b''.join(chr(a ^ b) for a in range(256)) for b in range(256)]
+    if six.PY2:
+        _XOR_TABLE = [b''.join(chr(a ^ b) for a in range(256)) for b in range(256)]
+    else:
+        _XOR_TABLE = [bytes(a ^ b for a in range(256)) for b in range(256)]
 
     def mask(masking_key, data):
         """XOR mask bytes."""
@@ -83,9 +85,3 @@ elif six.PY2:
         # been replaced in the previous step
         return bytes(data_bytes)
         # and voila!
-
-else:
-    # Can't deny the Py3 version is nicer
-    def mask(masking_key, data):
-        """XOR mask bytes."""
-        return bytes(a ^ b for a, b in zip(cycle(masking_key), data))

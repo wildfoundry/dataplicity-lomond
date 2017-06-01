@@ -1,20 +1,32 @@
 # Dataplicity Lomond
 
-Tranquil WebSockets.
+Tranquil WebSockets for Python. [Docs](https://lomond.readthedocs.io/)
 
 Lomond is a Websocket client which turns a websocket connection in to
-an orderly stream of _events_. Contrast this with the existing websocket
-clients available for Python which follow a more JS-like model of
-threads and callbacks.
-
+an orderly stream of _events_. No threads or callbacks necessary.
 
 ## How to Use
 
-First construct a `WebSocket` object, then call the `connect` method,
-which will return a generator of websocket events.
+First construct a `WebSocket` object, then iterate over it to generate
+an orderly sequence of events.
 
-To run the websocket, simply iterate over the returned generator. You may
-do this an another thread, but it isn't required.
+## Example
+
+The following is a silly example that connects to a websocket server
+(in this case a public echo server), and sends a string of text
+every 5 seconds.
+
+
+```python
+from lomond import WebSocket
+
+websocket = WebSocket('wss://echo.websocket.org')
+for event in websocket:
+    if event.name == 'poll':
+        websocket.send_text('Hello, World')
+    elif event.name == 'text':
+        print(event.text)
+```
 
 
 ## Events
@@ -40,7 +52,7 @@ such as the following:
            │  │           │
            ▼  ▼           │
 ┌──────────────────────┐  │  Send and receive
-│ Binary / Text ─ Poll │──┘  application data
+│ Binary / Text / Poll │──┘  application data
 └──────────────────────┘
            │
            ▼
@@ -53,25 +65,3 @@ such as the following:
 │     Disconnected     │     Disconnected TCP/IP
 └──────────────────────┘     connection to server
 ```
-
-
-## Example
-
-The following is a silly example that connects to a websocket server
-(in this case a public echo server), and sends a string of text
-every 5 seconds.
-
-
-```python
-from lomond import WebSocket
-
-ws = WebSocket('wss://echo.websocket.org')
-for event in ws:
-    if event.name == 'poll':
-        ws.send_text('Hello, World')
-    elif event.name == 'text':
-        print(event.text)
-```
-
-
-

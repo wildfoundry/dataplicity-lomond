@@ -24,6 +24,9 @@ class FakeSession(object):
     def send(self, opcode, bytes):
         self.socket_buffer.append((opcode, bytes))
 
+    def close(self):
+        pass
+
 
 @pytest.fixture
 def websocket(monkeypatch):
@@ -132,15 +135,6 @@ def test_calling_close_sets_is_closing_flag(websocket_with_fake_session):
     assert ws.is_closing is True
 
 
-def test_feed(websocket):
-    data = (
-        b'Connection:Keep-Alive\r\nUser-Agent:Test\r\n\r\n'
-        b'\x81\x81\x00\x00\x00\x00A'
-    )
-
-    list(websocket.feed(data))
-
-
 def test_close(websocket_with_fake_session):
     ws = websocket_with_fake_session
     assert ws.is_closing is False
@@ -226,7 +220,8 @@ def test_send_methods_parameters_validation(
 
 
 def test_send_close_needs_open_socket(websocket):
-    websocket.state.session = WebsocketSession(websocket)
+    session = WebsocketSession(websocket)
+    websocket.state.session = session
     assert not websocket._send_close(0, 'bye')
 
 

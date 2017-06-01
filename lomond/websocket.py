@@ -10,6 +10,7 @@ from base64 import b64encode
 from hashlib import sha1
 import logging
 import os
+import time
 
 import six
 from six.moves.urllib.parse import urlparse
@@ -49,6 +50,7 @@ class WebSocket(object):
             self.sent_request = False
             self.closing = False
             self.closed = False
+            self.sent_close_time = None
 
     def __init__(self, url, protocols=None, agent=None):
         self.url = url
@@ -93,6 +95,14 @@ class WebSocket(object):
         return self.state.closing
 
     @property
+    def sent_close_time(self):
+        """The epoch time a close packet was sent (or None if no close
+        packet has been sent).
+
+        """
+        return self.state.sent_close_time
+
+    @property
     def is_closed(self):
         """Flag that indicates if the websocket is closed."""
         return self.state.closed
@@ -120,7 +130,8 @@ class WebSocket(object):
                 session_class=WebsocketSession,
                 poll=5.0,
                 ping_rate=30.0,
-                auto_pong=True):
+                auto_pong=True,
+                close_timeout=30.0):
         """Connect the websocket to a session.
 
         :param session_class: An object to manage the *session*. This
@@ -134,16 +145,22 @@ class WebSocket(object):
             Set to `0` to disable auto pings.
         :param bool auto_pong: Enable (default) automatic response to
             ping events.
+        :param float close_timeout: Seconds to wait for server to
+            respond to a close packet, before closing the socket. Set to
+            `None` or `0` to disable the timeout.
         :returns: An iterable of :class:`~lomond.event.Event` instances.
 
         """
         self.reset()
-        self.state.session = session_class(self)
-        return self.session.run(
+        self.state.session = session = session_class(self)
+        run_coro = session.run(
             poll=poll,
             ping_rate=ping_rate,
-            auto_pong=auto_pong
+            auto_pong=auto_pong,
+            close_timeout=close_timeout
         )
+        return run_coro
+
 
     def reset(self):
         """Reset the state."""
@@ -179,6 +196,7 @@ class WebSocket(object):
                 reason = b'goodbye'
             self._send_close(code, reason)
             self.state.closing = True
+            self.state.sent_close_time = time.time()
 
     def _on_close(self, message):
         """Close logic generator."""
@@ -194,11 +212,13 @@ class WebSocket(object):
             self.state.closing = False
             self.state.closed = True
         else:
+            yield events.Closing(message.code, message.reason)
             self.close(message.code, message.reason)
             self.state.closing = True
 
     def on_disconnect(self):
         """Called on disconnect."""
+        self.state.session.close()
         self.state.closing = False
         self.state.closed = True
 
@@ -251,6 +271,8 @@ class WebSocket(object):
             self.on_disconnect()
 
         except GeneratorExit:
+            # The generator has exited prematurely, due to an exception
+            # handling the event.
             log.warning('disconnecting websocket')
             self.on_disconnect()
 
