@@ -1,6 +1,6 @@
 # Dataplicity Lomond
 
-Tranquil WebSockets. [Docs](https://lomond.readthedocs.io/)
+Tranquil WebSockets for Python. [Docs](https://lomond.readthedocs.io/)
 
 Lomond is a Websocket client which turns a websocket connection in to
 an orderly stream of _events_. No threads or callbacks necessary.
