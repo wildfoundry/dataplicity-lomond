@@ -11,7 +11,6 @@ from hashlib import sha1
 import logging
 import os
 import time
-import weakref
 
 import six
 from six.moves.urllib.parse import urlparse
@@ -46,20 +45,12 @@ class WebSocket(object):
     class State(object):
         def __init__(self):
             self.stream = WebsocketStream()
-            self._session = None
+            self.session = None
             self.key = b64encode(os.urandom(16))
             self.sent_request = False
             self.closing = False
             self.closed = False
             self.sent_close_time = None
-
-        @property
-        def session(self):
-            return self._session() if callable(self._session) else None
-
-        @session.setter
-        def session(self, session):
-            self._session = weakref.ref(session)
 
     def __init__(self, url, protocols=None, agent=None):
         self.url = url
@@ -280,6 +271,8 @@ class WebSocket(object):
             self.on_disconnect()
 
         except GeneratorExit:
+            # The generator has exited prematurely, due to an exception
+            # handling the event.
             log.warning('disconnecting websocket')
             self.on_disconnect()
 

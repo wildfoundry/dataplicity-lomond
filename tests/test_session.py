@@ -2,6 +2,7 @@ import calendar
 import select
 import socket
 from datetime import datetime
+import sys
 
 import pytest
 from freezegun import freeze_time
@@ -309,6 +310,7 @@ def test_check_auto_ping(session, mocker):
     assert session.websocket.send_ping.call_count == 1
 
 
+@pytest.mark.skipif(sys.platform=='darwin', reason="broken on osx")
 @mocketize
 def test_simple_run(monkeypatch, mocker):
     monkeypatch.setattr(
@@ -342,11 +344,11 @@ def test_simple_run(monkeypatch, mocker):
     # location. Here's how we do it:
     session._regular_orig = session._regular
 
-    def _regular_with_fake_poll_start(self, poll, ping_rate):
+    def _regular_with_fake_poll_start(self, poll, ping_rate, close_timeout):
         # trivial substitute:
         self._poll_start = self._last_ping
         # print(self._regular_orig)
-        return self._regular_orig(poll, ping_rate)
+        return self._regular_orig(poll, ping_rate, close_timeout)
 
     mocker.patch(
         'lomond.session.WebsocketSession._regular',
