@@ -135,15 +135,6 @@ def test_calling_close_sets_is_closing_flag(websocket_with_fake_session):
     assert ws.is_closing is True
 
 
-# def test_feed(websocket):
-#     data = (
-#         b'Connection:Keep-Alive\r\nUser-Agent:Test\r\n\r\n'
-#         b'\x81\x81\x00\x00\x00\x00A'
-#     )
-
-#     list(websocket.feed(data))
-
-
 def test_close(websocket_with_fake_session):
     ws = websocket_with_fake_session
     assert ws.is_closing is False
