@@ -27,7 +27,7 @@ test_cases = [
         "Disconnected('bye', graceful=True)"
     ),
     (events.Closed(1, 'closed'), "Closed(1, 'closed')"),
-    (events.Closing(1, 'closing'), "Closing(1, 'closed')"),
+    (events.Closing(1, 'closed'), "Closing(1, 'closed')"),
     (events.UnknownMessage('?.!'), "UnknownMessage()"),
     (events.Ping('o |'), "Ping('o |')"),
     (events.Pong('  | o'), "Pong('  | o')"),
