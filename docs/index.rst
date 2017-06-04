@@ -15,6 +15,11 @@ Sponsor
 Lomond was sponsored by `Dataplicity <https://www.dataplicity.com/>`_ --
 Control your Raspberry Pi from anywhere!
 
+Support
+=======
+
+For questions or comments about this library, either open an issue or contact support@dataplicity.com.
+
 Guide
 =====
 
