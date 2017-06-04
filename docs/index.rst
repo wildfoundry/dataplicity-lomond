@@ -15,13 +15,6 @@ Sponsor
 Lomond was sponsored by `Dataplicity <https://www.dataplicity.com/>`_ --
 Control your Raspberry Pi from anywhere!
 
-Authors
-=======
-
-- Will McGugan (willmcgugan+lomond@gmail.com)
-- Mateusz Mikołajczyk
-
-
 Guide
 =====
 
