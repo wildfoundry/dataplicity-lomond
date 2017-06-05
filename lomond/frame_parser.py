@@ -3,6 +3,8 @@ Parse a stream of Websocket frames, and optional HTTP headers.
 
 """
 
+from __future__ import unicode_literals
+
 import logging
 import struct
 
@@ -17,8 +19,8 @@ log = logging.getLogger('lomond')
 class FrameParser(Parser):
     """Parses a stream of data in to HTTP headers + WS frames."""
 
-    unpack16 = struct.Struct('!H').unpack
-    unpack64 = struct.Struct('!Q').unpack
+    unpack16 = struct.Struct(b'!H').unpack
+    unpack64 = struct.Struct(b'!Q').unpack
 
     def __init__(self, frame_class=Frame, parse_headers=True):
         self._frame_class = frame_class

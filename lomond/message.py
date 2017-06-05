@@ -22,7 +22,7 @@ class Message(object):
     """
 
     __slots__ = ['opcode']
-    _unpack16 = struct.Struct('!H').unpack
+    _unpack16 = struct.Struct(b'!H').unpack
 
     def __init__(self, opcode):
         self.opcode = opcode
