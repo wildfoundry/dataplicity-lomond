@@ -6,15 +6,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-## Fixed
+## [0.1.9] - 2017 06-06
+
+### Fixed
 - Change struct to use byte strings, to fix a std lib issue
 
 ## [0.1.8] - 2017-06-01
 
-## Added
+### Added
 - connect() now has a close_timeout parameter.
 
-## Changed
+### Changed
 - WebSocket objects will now close the socket automatically if an
     exception occurs in the event loop. Negating the need to use the
     websocket as a context manager.
