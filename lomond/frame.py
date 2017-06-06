@@ -6,6 +6,7 @@ A websocket 'message' may consist of several of these frames.
 """
 
 from __future__ import print_function
+from __future__ import unicode_literals
 
 import struct
 
@@ -44,10 +45,10 @@ class Frame(object):
         return len(self.payload)
 
     # Use struct module to pack ws frame header
-    _pack8 = struct.Struct('!BB4s').pack  # 8 bit length field
-    _pack16 = struct.Struct('!BBH4s').pack  # 16 bit length field
-    _pack64 = struct.Struct('!BBQ4s').pack  # 64 bit length field
-    _pack_close_code = struct.Struct('!H').pack
+    _pack8 = struct.Struct(b'!BB4s').pack  # 8 bit length field
+    _pack16 = struct.Struct(b'!BBH4s').pack  # 16 bit length field
+    _pack64 = struct.Struct(b'!BBQ4s').pack  # 64 bit length field
+    _pack_close_code = struct.Struct(b'!H').pack
 
     @classmethod
     def build(cls, opcode, payload=b'', fin=1, rsv1=0, rsv2=0, rsv3=0):

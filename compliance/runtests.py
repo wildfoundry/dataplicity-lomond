@@ -4,9 +4,11 @@ from __future__ import unicode_literals
 import logging
 import sys
 import json
+from urllib import urlencode
 
 from lomond import WebSocket
 from lomond.constants import USER_AGENT
+
 
 server = 'ws://127.0.0.1:9001'
 
@@ -54,7 +56,8 @@ def run_ws(url):
 
 def run_test(test_no):
     """Run a test from its index."""
-    url = server + '/runCase?case={}&agent={}'.format(test_no, USER_AGENT)
+    qs = urlencode({'case': test_no, 'agent': USER_AGENT})
+    url = server + '/runCase?{}'.format(qs)
     run_ws(url)
 
 
@@ -62,7 +65,8 @@ def run_test_cases(case_tuples):
     """Run a number of test cases from their 'case tuple'"""
     for case_tuple in case_tuples:
         print("\n[{}]".format(case_tuple))
-        url = server + '/runCase?casetuple={}&agent={}'.format(case_tuple, USER_AGENT)
+        qs = urlencode({'agent': USER_AGENT})
+        url = server + '/runCase?{}'.format(qs)
         run_ws(url)
     update_report()
 
@@ -70,7 +74,8 @@ def run_test_cases(case_tuples):
 def update_report():
     """Tell wstest to update reports."""
     print("Updating reports...")
-    url = server + "/updateReports?agent=" + USER_AGENT
+    qs = urlencode({'agent': USER_AGENT})
+    url = server + "/updateReports?{}".format(qs)
     for _ in WebSocket(url):
         pass
 
