@@ -315,7 +315,7 @@ def test_check_auto_ping(session, mocker):
 @mocketize
 def test_simple_run(monkeypatch, mocker):
     monkeypatch.setattr(
-        'os.urandom', b'\xaa'.__mul__
+        'os.urandom', b'\x00'.__mul__
     )
     Mocket.register(
         MocketEntry(
