@@ -16,7 +16,8 @@ from mocket import Mocket, MocketEntry, mocketize
 @pytest.fixture()
 def session(monkeypatch):
     monkeypatch.setattr(
-        'os.urandom', lambda len: b'\x00' * len)
+        'os.urandom', b'\xaa'.__mul__
+    )
     # ^^ the above line will be significant in the test where we want
     # to validate the headers being sent to the socket. Namely, the
     # websocket key which is based on os.urandom. Obviously, we can't
@@ -167,7 +168,7 @@ def test_send_request(session):
         b'Host: example.com:443\r\n'
         b'Upgrade: websocket\r\n'
         b'Connection: Upgrade\r\n'
-        b'Sec-WebSocket-Key: AAAAAAAAAAAAAAAAAAAAAA==\r\n'
+        b'Sec-WebSocket-Key: qqqqqqqqqqqqqqqqqqqqqg==\r\n'
         b'Sec-WebSocket-Version: 13\r\n'
         b'User-Agent: ' + constants.USER_AGENT.encode('utf-8') + b'\r\n'
         b'\r\n'
@@ -314,7 +315,8 @@ def test_check_auto_ping(session, mocker):
 @mocketize
 def test_simple_run(monkeypatch, mocker):
     monkeypatch.setattr(
-        'os.urandom', lambda len: b'\x00' * len)
+        'os.urandom', b'\xaa'.__mul__
+    )
     Mocket.register(
         MocketEntry(
             ('example.com', 80),
