@@ -51,10 +51,16 @@ class Frame(object):
     _pack_close_code = struct.Struct(b'!H').pack
 
     @classmethod
-    def build(cls, opcode, payload=b'', fin=1, rsv1=0, rsv2=0, rsv3=0):
+    def build(cls, opcode, payload=b'',
+              fin=1, rsv1=0, rsv2=0, rsv3=0,
+              masking_key=None):
         """Build a WS frame header."""
         # https://tools.ietf.org/html/rfc6455#section-5.2
-        masking_key = make_masking_key()
+        masking_key = (
+            make_masking_key()
+            if masking_key is None
+            else masking_key
+        )
         mask_bit = 1 << 7
         byte0 = fin << 7 | rsv1 << 6 | rsv2 << 5 | rsv3 << 4 | opcode
         length = len(payload)
