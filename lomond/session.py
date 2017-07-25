@@ -101,6 +101,9 @@ class WebsocketSession(object):
         if self.websocket.is_secure:
             sock = ssl.wrap_socket(sock)
         sock.connect(self._address)
+        # The timeout makes the socket non-blocking
+        # We want to the socket to block after the connection
+        sock.settimeout(None)
         return sock
 
     def _close_socket(self):

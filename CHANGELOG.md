@@ -4,9 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## [0.1.10] - 2017-07-25
 
-## [0.1.9] - 2017 06-06
+### Fixed
+- Fixed disconnect when recv buffer is full
+
+## [0.1.9] - 2017-06-06
 
 ### Fixed
 - Change struct to use byte strings, to fix a std lib issue
