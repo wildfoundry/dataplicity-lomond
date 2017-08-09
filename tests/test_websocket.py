@@ -107,6 +107,27 @@ def test_build_request(websocket):
     )
 
 
+def test_build_request_custom_headers(websocket):
+    with pytest.raises(TypeError):
+        websocket.add_header(1, 2)
+    with pytest.raises(TypeError):
+        websocket.add_header(b'foo', 2)
+    websocket.add_header(b'foo', b'bar')
+    assert websocket.build_request() == (
+        b'GET / HTTP/1.1\r\n'
+        b'foo: bar\r\n'
+        b'Host: example.com:80\r\n'
+        b'Upgrade: websocket\r\n'
+        b'Connection: Upgrade\r\n'
+        b'Sec-WebSocket-Key: AAAAAAAAAAAAAAAAAAAAAA==\r\n'
+        #                    ^^^^^^^^^^^^^^^^^^^^^^^^
+        #                     b64encode('\x00' * 16)
+        b'Sec-WebSocket-Version: 13\r\n'
+        b'User-Agent: ' + constants.USER_AGENT.encode('utf-8') + b'\r\n'
+        b'\r\n'
+    )
+
+
 def test_protocol_header_is_optional(websocket):
     request_headers = websocket.build_request()
     assert b'Sec-WebSocket-Protocol' not in request_headers

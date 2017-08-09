@@ -57,6 +57,8 @@ class WebSocket(object):
         self.protocols = protocols or []
         self.agent = agent or constants.USER_AGENT
 
+        self._headers = []
+
         _url = urlparse(url)
         self.scheme = _url.scheme
         host, _, port = _url.netloc.partition(':')
@@ -125,6 +127,19 @@ class WebSocket(object):
     def __exit__(self, exc_type, exc_value, traceback):
         """Close the session (and potentially a socket) on exit."""
         self.session.close()
+
+    def add_header(self, header, value):
+        """Add a custom header to the websocket request.
+
+        :param bytes header: Name of the header.
+        :param bytes value: Value of the header.
+
+        """
+        if not isinstance(header, bytes):
+            raise TypeError("'header' must be bytes")
+        if not isinstance(value, bytes):
+            raise TypeError("'value' must be bytes")
+        self._headers.append((header, value))
 
     def connect(self,
                 session_class=WebsocketSession,
@@ -287,14 +302,16 @@ class WebSocket(object):
             "GET {} HTTP/1.1".format(self.resource).encode('utf-8')
         ]
         version = '{}'.format(constants.WS_VERSION)
-        headers = [
+        headers = self._headers[:]
+
+        headers.extend([
             (b'Host', self._host_port.encode('utf-8')),
             (b'Upgrade', b'websocket'),
             (b'Connection', b'Upgrade'),
             (b'Sec-WebSocket-Key', self.key),
             (b'Sec-WebSocket-Version', version.encode('utf-8')),
             (b'User-Agent', self.agent.encode('utf-8')),
-        ]
+        ])
         if self.protocols:
             protocols = ", ".join(self.protocols).encode('utf-8')
             headers.append((b'Sec-WebSocket-Protocol', protocols))
