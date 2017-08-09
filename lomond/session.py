@@ -92,7 +92,7 @@ class WebsocketSession(object):
         return reads, errors
 
     def _connect(self):
-        """Creat socket and connect."""
+        """Create socket and connect."""
         sock = socket.socket(
             socket.AF_INET, socket.SOCK_STREAM
         )
