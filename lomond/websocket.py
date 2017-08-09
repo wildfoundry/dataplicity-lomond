@@ -129,7 +129,7 @@ class WebSocket(object):
         self.session.close()
 
     def add_header(self, header, value):
-        """Add a user-defined header to the websocket request.
+        """Add a custom header to the websocket request.
 
         :param bytes header: Name of the header.
         :param bytes value: Value of the header.
