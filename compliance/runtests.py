@@ -1,14 +1,14 @@
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import json
 import logging
 import sys
-import json
-from urllib import urlencode
+
+from six.moves.urllib_parse import urlencode
 
 from lomond import WebSocket
 from lomond.constants import USER_AGENT
-
 
 server = 'ws://127.0.0.1:9001'
 
@@ -92,4 +92,3 @@ if __name__ == "__main__":
         run_test_cases(test_cases)
     else:
         run_tests()
-
