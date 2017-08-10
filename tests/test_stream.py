@@ -69,7 +69,7 @@ def test_continuation_frames_validation(stream):
         # that FIN=0 and therefore this is supposed to be a continuation frame
         # however, the second part of bytes (which starts right after the first
         # letter A has a byte combination which state that this is a TEXT
-        # message. Thefore the parser cannot continue previous frame and should
+        # message. Therefore the parser cannot continue previous frame and should
         # fail with an explicit message)
         #
         # please refer to test_frame_parser for in-depth explanation of all
