@@ -311,7 +311,6 @@ def test_check_auto_ping(session, mocker):
     assert session.websocket.send_ping.call_count == 1
 
 
-@pytest.mark.skipif(sys.platform=='darwin', reason="broken on osx")
 @mocketize
 def test_simple_run(monkeypatch, mocker):
     monkeypatch.setattr(
@@ -359,6 +358,10 @@ def test_simple_run(monkeypatch, mocker):
     mocker.patch(
         'lomond.websocket.WebSocket._send_close')
     mocker.patch.object(session.websocket, 'send_ping')
+    mocker.patch(
+        'lomond.session.WebsocketSession._select',
+        lambda self, sock, poll:[True, False]
+    )
 
     _events = list(session.run())
 
