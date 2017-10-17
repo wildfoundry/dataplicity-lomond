@@ -48,19 +48,24 @@ class WebsocketSession(object):
         """Send raw data."""
         with self._lock:
             if self._sock is None:
+                log.debug('WebSocket unavailable; data not sent')
                 raise errors.WebSocketUnavailable('not connected')
             if self.websocket.is_closed:
+                log.debug('WebSocket closed; data not sent')
                 raise errors.WebSocketClosed('data not sent')
             if self.websocket.is_closing:
+                log.debug('WebSocket closing; data not sent')
                 raise errors.WebSocketClosing('data not sent')
             try:
                 self._sock.sendall(data)
             except socket.error as error:
+                log.debug('WebSocket send error; %s', error)
                 raise errors.TransportFail(
                     'socket fail; {}',
                     error
                 )
             except Exception as error:
+                log.warning('WebSocket send error; %s', error)
                 raise errors.TransportFail(
                     'socket error; {}',
                     error
@@ -69,8 +74,8 @@ class WebsocketSession(object):
     def send(self, opcode, data):
         """Send a WS Frame."""
         frame = Frame(opcode, payload=data)
-        log.debug('CLI -> SRV : %r', frame)
         self.write(frame.to_bytes())
+        log.debug('CLI -> SRV : %r', frame)
 
     class _SocketFail(Exception):
         """Used internally to respond to socket fails."""
@@ -81,7 +86,9 @@ class WebsocketSession(object):
     @classmethod
     def _socket_fail(cls, msg, *args, **kwargs):
         """Raises a socket fail error to exit select loop."""
-        raise cls._SocketFail(msg.format(*args, **kwargs))
+        _msg = msg.format(*args, **kwargs)
+        log.debug(_msg)
+        raise cls._SocketFail(_msg)
 
     def _select(self, sock, poll):
         """Wait on data or errors."""

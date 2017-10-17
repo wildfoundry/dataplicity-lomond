@@ -51,7 +51,7 @@ class WebsocketStream(object):
 
         # Process incoming frames
         for frame in iter_frames:
-            log.debug("CLI <- SRV : %r", frame)
+            log.debug("SRV -> CLI : %r", frame)
             if frame.is_control:
                 # Control messages are never fragmented
                 # And may be sent in the middle of a multi-part message
