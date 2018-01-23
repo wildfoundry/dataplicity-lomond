@@ -146,6 +146,15 @@ class Ready(Event):
         )
 
 
+class Unresponsive(Event):
+    """The server has not responding to pings within `max_ping` seconds.
+
+    Will be followed by a disconnect.
+
+    """
+    name = 'unresponsive'
+
+
 class Disconnected(Event):
     """Generated when a websocket connection has
     been dropped.
