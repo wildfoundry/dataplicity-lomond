@@ -262,7 +262,7 @@ def test_that_on_ping_responds_with_pong(session, mocker):
         'lomond.websocket.WebSocket.send_pong'
     )
 
-    session._on_ping(events.Ping(b'\x00'))
+    session._send_pong(events.Ping(b'\x00'))
 
     assert send_pong.called_with(b'\x00')
 
@@ -287,28 +287,25 @@ def test_error_on_close_socket(caplog, session):
 
 @freeze_time("1994-05-01 18:40:00")
 def test_check_poll(session):
-    session._poll_start = calendar.timegm(
-        datetime(1994, 5, 1, 18, 00, 00).timetuple()
-    )
+    session._on_ready()
     assert session._check_poll(5 * 60)
     assert not session._check_poll(60 * 60)
 
 
 @freeze_time("1994-05-01 18:40:00")
 def test_check_auto_ping(session, mocker):
-    session._last_ping = calendar.timegm(
-        datetime(1994, 5, 1, 18, 00, 00).timetuple()
-    )
+    session._on_ready()
 
     mocker.patch.object(session.websocket, 'send_ping')
 
     assert session.websocket.send_ping.call_count == 0
 
-    session._check_auto_ping(15 * 60)
+    with freeze_time('1994-05-01 18:41:00'):
+        session._check_auto_ping(15 * 60)
 
-    assert session.websocket.send_ping.call_count == 1
-    session._check_auto_ping(36 * 60)
-    assert session.websocket.send_ping.call_count == 1
+        assert session.websocket.send_ping.call_count == 1
+        session._check_auto_ping(36 * 60)
+        assert session.websocket.send_ping.call_count == 1
 
 
 @mocketize
@@ -332,9 +329,7 @@ def test_simple_run(monkeypatch, mocker):
 
     # mocket doesn't support .pending() call which is used when ssl is used
     session = WebsocketSession(WebSocket('ws://example.com/'))
-    session._last_ping = calendar.timegm(
-        datetime(1994, 5, 1, 18, 00, 00).timetuple()
-    )
+    session._on_ready()
     # well, we have to cheat a little. The thing is, inner loop of
     # run() sets last poll time to time.time and so we would have to
     # wait for some time to actually hit poll / ping. This is not desirable
@@ -345,16 +340,16 @@ def test_simple_run(monkeypatch, mocker):
     # location. Here's how we do it:
     session._regular_orig = session._regular
 
-    def _regular_with_fake_poll_start(self, poll, ping_rate, close_timeout):
-        # trivial substitute:
-        self._poll_start = self._last_ping
-        # print(self._regular_orig)
-        return self._regular_orig(poll, ping_rate, close_timeout)
+    # def _regular_with_fake_poll_start(self, poll, ping_rate, ping_timeout, close_timeout):
+    #     # trivial substitute:
+    #     self._poll_start = self._last_ping
+    #     # print(self._regular_orig)
+    #     return self._regular_orig(poll, ping_rate, ping_timeout, close_timeout)
 
-    mocker.patch(
-        'lomond.session.WebsocketSession._regular',
-        _regular_with_fake_poll_start
-    )
+    # mocker.patch(
+    #     'lomond.session.WebsocketSession._regular',
+    #     _regular_with_fake_poll_start
+    # )
     mocker.patch(
         'lomond.websocket.WebSocket._send_close')
     mocker.patch.object(session.websocket, 'send_ping')
@@ -368,8 +363,8 @@ def test_simple_run(monkeypatch, mocker):
     assert len(_events) == 6
     assert isinstance(_events[0], events.Connecting)
     assert isinstance(_events[1], events.Connected)
-    assert isinstance(_events[2], events.Poll)
-    assert isinstance(_events[3], events.Ready)
+    assert isinstance(_events[2], events.Ready)
+    assert isinstance(_events[3], events.Poll)
     assert isinstance(_events[4], events.Text)
     assert isinstance(_events[5], events.Disconnected)
 

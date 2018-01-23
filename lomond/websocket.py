@@ -150,7 +150,7 @@ class WebSocket(object):
                 close_timeout=30.0):
         """Connect the websocket to a session.
 
-       :param session_class: An object to manage the *session*. This
+        :param session_class: An object to manage the *session*. This
             object is an extension mechanism that will allow the
             WebSocket to be *driven* by different back-ends. For now,
             treat it as an implementation detail and leave it as the
@@ -159,10 +159,10 @@ class WebSocket(object):
             generated.
         :param float ping_rate: Rate that ping packets should be sent.
             Set to `0` to disable auto pings.
-        :param float ping_timeout: Maximum time to wait for a pong response
-            before disconnecting. Set to `None` (default) to disable.
-            If set, the value should be greater than the `ping_rate`,
-            double `ping_rate` would be a good starting point.
+        :param float ping_timeout: Maximum time in seconds to wait for a
+            pong response before disconnecting. Set to `None` (default)
+            to disable. If set, double `ping_rate` would be a good
+            starting point.
         :param bool auto_pong: Enable (default) automatic response to
             ping events.
         :param float close_timeout: Seconds to wait for server to

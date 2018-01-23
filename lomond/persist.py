@@ -25,10 +25,10 @@ def persist(websocket, poll=5,
         attempts (seconds).
     :param float ping_rate: Delay between pings (seconds), or `0` for no
         auto ping.
-    :param float ping_timeout: Maximum time to wait for a pong response
-        before disconnecting. Set to `None` (default) to disable.
-        If set, the value should be greater than the `ping_rate`,
-        double `ping_rate` would be a good starting point.
+    :param float ping_timeout: Maximum time in seconds to wait for a
+        pong response before disconnecting. Set to `None` (default) to
+        disable. If set, double `ping_rate` would be a good starting
+        point.
     :param exit_event: A threading event object, which can be used to
         exit the persist loop if it is set. Set to `None` to use an
         internal event object.

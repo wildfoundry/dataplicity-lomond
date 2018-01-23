@@ -151,7 +151,8 @@ class WebsocketSession(object):
     def _check_poll(self, poll):
         """Check if it is time for a poll."""
         current_time = self._time
-        if current_time - self._poll_start >= poll:
+        if (self._poll_start is None or
+            current_time - self._poll_start >= poll):
             self._poll_start = current_time
             return True
         else:
@@ -250,7 +251,6 @@ class WebsocketSession(object):
         """Called when a ready event is received."""
         self._last_pong = 0.0
         self._next_ping = 0.0
-        self._poll_start = 0.0
         self._start_time = time.time()
 
     def run(self,
@@ -313,8 +313,9 @@ class WebsocketSession(object):
                             break
                         else:
                             self._socket_fail('connection lost')
-                    for event in self._feed(data, poll, ping_rate,
-                                            ping_timeout, close_timeout):
+                    for event in self._feed(data, poll,
+                                            ping_rate, ping_timeout,
+                                            close_timeout):
                         if event.name == 'ready':
                             self._on_ready()
                             ready = True
