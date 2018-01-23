@@ -163,6 +163,7 @@ class WebsocketSession(object):
         if ping_rate:
             current_time = self._time
             if current_time > self._next_ping:
+                # Calculate next ping time that is in the future.
                 self._next_ping = (
                     math.ceil(current_time / ping_rate) * ping_rate
                 )

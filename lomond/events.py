@@ -147,9 +147,10 @@ class Ready(Event):
 
 
 class Unresponsive(Event):
-    """The server has not responding to pings within `max_ping` seconds.
+    """The server has not responding to pings within `ping_timeout`
+    seconds.
 
-    Will be followed by a disconnect.
+    Will be followed by a Disconnected event.
 
     """
     name = 'unresponsive'

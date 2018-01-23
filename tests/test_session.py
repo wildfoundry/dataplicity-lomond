@@ -340,16 +340,6 @@ def test_simple_run(monkeypatch, mocker):
     # location. Here's how we do it:
     session._regular_orig = session._regular
 
-    # def _regular_with_fake_poll_start(self, poll, ping_rate, ping_timeout, close_timeout):
-    #     # trivial substitute:
-    #     self._poll_start = self._last_ping
-    #     # print(self._regular_orig)
-    #     return self._regular_orig(poll, ping_rate, ping_timeout, close_timeout)
-
-    # mocker.patch(
-    #     'lomond.session.WebsocketSession._regular',
-    #     _regular_with_fake_poll_start
-    # )
     mocker.patch(
         'lomond.websocket.WebSocket._send_close')
     mocker.patch.object(session.websocket, 'send_ping')
