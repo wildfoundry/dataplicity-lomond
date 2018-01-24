@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unrelease]
 - Added ping_timeout
+- Added SNI support
 
 ## [0.1.12] - 2017-10-17
 
