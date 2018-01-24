@@ -124,14 +124,17 @@ class WebsocketSession(object):
 
     def _wrap_socket(self, sock):
         """Wrap the socket with an SSL proxy."""
-        has_sni = getattr(ssl, 'HAS_SNI', False)
-        if has_sni:  # Supported since 2.7.9
+        # sniff SNI support (added Python 2.7.9)
+        has_sni = (
+            hasattr(ssl, 'SSLContext') and
+            getattr(ssl, 'HAS_SNI', False)
+        )
+        if has_sni:
             _protocol = getattr(
                 ssl,
                 'PROTOCOL_TLS',  # Supported since 2.7.13
                 ssl.PROTOCOL_SSLv23   # Supported since 2.7.9
             )
-            # Supported since 2.7.9
             ssl_context = ssl.SSLContext(_protocol)
             ssl_sock = ssl_context.wrap_socket(
                 sock,
