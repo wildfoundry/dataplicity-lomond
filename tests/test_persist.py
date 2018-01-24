@@ -8,7 +8,7 @@ class FakeEvent(object):
 
 
 class FakeWebSocket(object):
-    def connect(self, poll=None, ping_rate=None):
+    def connect(self, poll=None, ping_rate=None, ping_timeout=None):
         yield events.Connecting('ws://localhost:1234/')
         yield events.ConnectFail('test')
 
@@ -52,7 +52,7 @@ def test_persist_with_nonexisting_server(mocker):
 
 
 def test_emulate_ready_event(mocker):
-    def successful_connect(poll=None, ping_rate=None):
+    def successful_connect(poll=None, ping_rate=None, ping_timeout=None):
         yield events.Connecting('ws://localhost:1234')
         yield events.Ready(None, None, None)
 

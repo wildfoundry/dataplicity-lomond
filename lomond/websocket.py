@@ -145,6 +145,7 @@ class WebSocket(object):
                 session_class=WebsocketSession,
                 poll=5.0,
                 ping_rate=30.0,
+                ping_timeout=None,
                 auto_pong=True,
                 close_timeout=30.0):
         """Connect the websocket to a session.
@@ -158,6 +159,10 @@ class WebSocket(object):
             generated.
         :param float ping_rate: Rate that ping packets should be sent.
             Set to `0` to disable auto pings.
+        :param float ping_timeout: Maximum time in seconds to wait for a
+            pong response before disconnecting. Set to `None` (default)
+            to disable. If set, double `ping_rate` would be a good
+            starting point.
         :param bool auto_pong: Enable (default) automatic response to
             ping events.
         :param float close_timeout: Seconds to wait for server to
@@ -171,6 +176,7 @@ class WebSocket(object):
         run_coro = session.run(
             poll=poll,
             ping_rate=ping_rate,
+            ping_timeout=ping_timeout,
             auto_pong=auto_pong,
             close_timeout=close_timeout
         )

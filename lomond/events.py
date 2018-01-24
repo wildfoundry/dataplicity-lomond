@@ -146,6 +146,16 @@ class Ready(Event):
         )
 
 
+class Unresponsive(Event):
+    """The server has not responding to pings within `ping_timeout`
+    seconds.
+
+    Will be followed by a Disconnected event.
+
+    """
+    name = 'unresponsive'
+
+
 class Disconnected(Event):
     """Generated when a websocket connection has
     been dropped.

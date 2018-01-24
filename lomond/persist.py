@@ -13,7 +13,8 @@ from . import events
 
 def persist(websocket, poll=5,
             min_wait=5, max_wait=30,
-            ping_rate=30, exit_event=None):
+            ping_rate=30, ping_timeout=None,
+            exit_event=None):
     """Run a websocket, with a retry mechanism and exponential back-off.
 
     :param websocket: A :class:`~lomond.websocket.Websocket` instance.
@@ -24,6 +25,10 @@ def persist(websocket, poll=5,
         attempts (seconds).
     :param float ping_rate: Delay between pings (seconds), or `0` for no
         auto ping.
+    :param float ping_timeout: Maximum time in seconds to wait for a
+        pong response before disconnecting. Set to `None` (default) to
+        disable. If set, double `ping_rate` would be a good starting
+        point.
     :param exit_event: A threading event object, which can be used to
         exit the persist loop if it is set. Set to `None` to use an
         internal event object.
@@ -35,7 +40,8 @@ def persist(websocket, poll=5,
     random_wait = max_wait - min_wait
     while True:
         retries += 1
-        for event in websocket.connect(poll=poll, ping_rate=ping_rate):
+        for event in websocket.connect(
+                poll=poll, ping_rate=ping_rate, ping_timeout=ping_timeout):
             if event.name == 'ready':
                 # The server accepted the WS upgrade.
                 retries = 0
