@@ -308,6 +308,15 @@ def test_check_auto_ping(session, mocker):
         assert session.websocket.send_ping.call_count == 1
 
 
+@freeze_time("1994-05-01 18:40:00")
+def test_check_ping_timeout(session, mocker):
+    session._on_ready()
+
+    assert not session._check_ping_timeout(10)
+    with freeze_time('1994-05-01 18:41:00'):
+        assert session._check_ping_timeout(10)
+
+
 @mocketize
 def test_simple_run(monkeypatch, mocker):
     monkeypatch.setattr(
@@ -357,6 +366,71 @@ def test_simple_run(monkeypatch, mocker):
     assert isinstance(_events[3], events.Poll)
     assert isinstance(_events[4], events.Text)
     assert isinstance(_events[5], events.Disconnected)
+
+
+@freeze_time("1994-05-01 18:40:00")
+@mocketize
+def test_unresponsive(monkeypatch, mocker):
+    """Check ping timeout."""
+    monkeypatch.setattr(
+        'os.urandom', b'\x00'.__mul__
+    )
+    Mocket.register(
+        MocketEntry(
+            ('example.com', 80),
+            [(
+                b'HTTP/1.1 101 Switching Protocols\r\n'
+                b'Upgrade: websocket\r\n'
+                b'Connection: Upgrade\r\n'
+                b'Sec-WebSocket-Accept: icx+yqv66kxgm0fcwalwlflwtai=\r\n'
+                b'\r\n'
+                b'\x81\x81\x00\x00\x00\x00A'
+            )]
+        )
+    )
+
+    # mocket doesn't support .pending() call which is used when ssl is used
+    session = WebsocketSession(WebSocket('ws://example.com/'))
+    session._on_ready()
+    # well, we have to cheat a little. The thing is, inner loop of
+    # run() sets last poll time to time.time and so we would have to
+    # wait for some time to actually hit poll / ping. This is not desirable
+    # so we can do the following:
+    # save original _regular call into _regular_orig
+    # (_regular is a first - well, technically, a second) call inside run
+    # after _poll_start is set which makes it a nice candidate for monkey-patch
+    # location. Here's how we do it:
+    session._regular_orig = session._regular
+
+    mocker.patch(
+        'lomond.websocket.WebSocket._send_close')
+    mocker.patch.object(session.websocket, 'send_ping')
+    mocker.patch(
+        'lomond.session.WebsocketSession._select',
+        lambda self, sock, poll:[True, False]
+    )
+
+    _events = []
+    iter_events = iter(session.run(ping_timeout=5))
+
+    for event in iter_events:
+        _events.append(event)
+        if event.name == 'text':
+            break
+
+    with freeze_time("1994-05-01 18:41:00"):
+        for event in iter_events:
+            _events.append(event)
+
+    assert len(_events) == 8
+    assert isinstance(_events[0], events.Connecting)
+    assert isinstance(_events[1], events.Connected)
+    assert isinstance(_events[2], events.Ready)
+    assert isinstance(_events[3], events.Poll)
+    assert isinstance(_events[4], events.Text)
+    assert isinstance(_events[5], events.Poll)
+    assert isinstance(_events[6], events.Unresponsive)
+    assert isinstance(_events[7], events.Disconnected)
 
 
 def test_recv_with_secure_websocket(session):
