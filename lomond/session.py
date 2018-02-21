@@ -31,7 +31,6 @@ class WebsocketSession(object):
     def __init__(self, websocket):
         self.websocket = websocket
 
-        self._address = (websocket.host, websocket.port)
         self._lock = threading.Lock()
 
         self._sock = None
@@ -109,43 +108,11 @@ class WebsocketSession(object):
 
     def _connect(self):
         """Create socket and connect."""
-        sock = socket.socket(
-            socket.AF_INET, socket.SOCK_STREAM
-        )
-        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        sock.settimeout(30)  # TODO: make a parameter for this?
+        host = self.websocket.host
+        sock = connect_socket(host=host, port=self.websocket.port)
         if self.websocket.is_secure:
-            sock = self._wrap_socket(sock)
-        sock.connect(self._address)
-        # The timeout makes the socket non-blocking
-        # We want to the socket to block after the connection
-        sock.settimeout(None)
+            sock = ssl_wrap_socket(sock, server_hostname=host)
         return sock
-
-    def _wrap_socket(self, sock):
-        """Wrap the socket with an SSL proxy."""
-        # sniff SNI support (added Python 2.7.9)
-        has_sni = (
-            hasattr(ssl, 'SSLContext') and
-            getattr(ssl, 'HAS_SNI', False)
-        )
-        if has_sni:
-            _protocol = getattr(
-                ssl,
-                'PROTOCOL_TLS',  # Supported since 2.7.13
-                ssl.PROTOCOL_SSLv23   # Supported since 2.7.9
-            )
-            ssl_context = ssl.SSLContext(_protocol)
-            ssl_sock = ssl_context.wrap_socket(
-                sock,
-                server_hostname=self.websocket.host
-            )
-        else:
-            # Fallback for no SNI
-            log.warning('no SNI support')
-            ssl_sock = ssl.wrap_socket(sock)
-        return ssl_sock
-
 
     def _close_socket(self):
         """Close the socket safely."""
@@ -373,6 +340,47 @@ class WebsocketSession(object):
             # it was a graceful exit.
             self._close_socket()
             yield events.Disconnected(graceful=True)
+
+
+def connect_socket(host, port):
+    """ Creeate a socket and connect """
+    address = (host, port)
+
+    sock = socket.socket(
+        socket.AF_INET, socket.SOCK_STREAM
+    )
+    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    sock.settimeout(30)  # TODO: make a parameter for this?
+    sock.connect(address)
+    # The timeout makes the socket non-blocking
+    # We want to the socket to block after the connection
+    sock.settimeout(None)
+    return sock
+
+
+def ssl_wrap_socket(sock, server_hostname):
+    """Wrap the socket with an SSL proxy."""
+    # sniff SNI support (added Python 2.7.9)
+    has_sni = (
+        hasattr(ssl, 'SSLContext') and
+        getattr(ssl, 'HAS_SNI', False)
+    )
+    if has_sni:
+        _protocol = getattr(
+            ssl,
+            'PROTOCOL_TLS',  # Supported since 2.7.13
+            ssl.PROTOCOL_SSLv23   # Supported since 2.7.9
+        )
+        ssl_context = ssl.SSLContext(_protocol)
+        ssl_sock = ssl_context.wrap_socket(
+            sock,
+            server_hostname=server_hostname
+        )
+    else:
+        # Fallback for no SNI
+        log.warning('no SNI support')
+        ssl_sock = ssl.wrap_socket(sock)
+    return ssl_sock
 
 
 if __name__ == "__main__":  # pragma: no cover
