@@ -20,6 +20,7 @@ from . import errors
 from . import events
 from .frame import Frame
 from .opcode import Opcode
+from .proxy import ProxyInfo
 from .response import Response
 from .stream import WebsocketStream
 from .session import WebsocketSession
@@ -39,7 +40,8 @@ class WebSocket(object):
     :params str agent: A user agent string to be sent in the header. The
         default uses the value `USER_AGENT` defined in
         :mod:`lomond.constants`.
-
+    :params str proxy_url: An optional proxy URL, e.g.
+        `http://user@pwd:proxy.com:8080/`.
     """
 
     class State(object):
@@ -52,7 +54,7 @@ class WebSocket(object):
             self.closed = False
             self.sent_close_time = None
 
-    def __init__(self, url, protocols=None, agent=None):
+    def __init__(self, url, protocols=None, agent=None, proxy_url=None):
         self.url = url
         self.protocols = protocols or []
         self.agent = agent or constants.USER_AGENT
@@ -73,6 +75,7 @@ class WebSocket(object):
         self.resource = _url.path or '/'
         if _url.query:
             self.resource = "{}?{}".format(self.resource, _url.query)
+        self.proxy_info = ProxyInfo.parse(proxy_url)
 
         self.state = self.State()
 

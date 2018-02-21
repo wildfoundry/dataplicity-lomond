@@ -108,6 +108,8 @@ class WebsocketSession(object):
 
     def _connect(self):
         """Create socket and connect."""
+        assert not self.websocket.proxy_info.host, 'Proxy not yet supported'
+
         host = self.websocket.host
         sock = connect_socket(host=host, port=self.websocket.port)
         if self.websocket.is_secure:
