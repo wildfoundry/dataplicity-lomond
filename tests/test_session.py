@@ -142,15 +142,37 @@ def test_close_socket(session, mocker):
 
 
 @mocketize
-def test_connect(session, mocker):
+def test_connect_and_recv():
     Mocket.register(
         MocketEntry(
-            ('example.com', 80),
-            [b'some binary data']
+            ('example.com', 88),
+            [b'some binary data\r\n']
         )
     )
+    ws = WebSocket('ws://example.com:88')
+    session = WebsocketSession(ws)
     _socket = session._connect()
     assert isinstance(_socket, socket.socket)
+
+    # iiuc, one needs to send seomthing to the mocket first
+    # in order for the response to be available....
+    assert _socket.send(b'foo')
+    assert _socket.recv(4) == b'some'
+
+
+@mocketize
+def test_connect_and_recv_with_proxy():
+    Mocket.register(
+        MocketEntry(
+            ('example.proxy.com', 8080),
+            [b'HTTP/1.0 200 Connection established\r\n\r\nsome binary data']
+        )
+    )
+    ws = WebSocket('ws://example.com', proxy_url='http://example.proxy.com:8080')
+    session = WebsocketSession(ws)
+    _socket = session._connect()
+    assert isinstance(_socket, socket.socket)
+    assert _socket.recv(4) == b'some'
 
 
 @mocketize

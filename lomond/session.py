@@ -17,6 +17,7 @@ import threading
 import time
 
 from .frame import Frame
+from .proxy import issue_proxy_connect
 from . import errors
 from . import events
 
@@ -108,12 +109,21 @@ class WebsocketSession(object):
 
     def _connect(self):
         """Create socket and connect."""
-        assert not self.websocket.proxy_info.host, 'Proxy not yet supported'
-
         host = self.websocket.host
-        sock = connect_socket(host=host, port=self.websocket.port)
+        port = self.websocket.port
+        proxy_info = self.websocket.proxy_info
+
+        use_proxy = proxy_info.host is not None
+
+        if use_proxy:
+            sock = connect_socket(host=proxy_info.host, port=proxy_info.port)
+            issue_proxy_connect(sock, host, port, proxy_info.credentials)
+        else:
+            sock = connect_socket(host=host, port=port)
+
         if self.websocket.is_secure:
             sock = ssl_wrap_socket(sock, server_hostname=host)
+
         return sock
 
     def _close_socket(self):
