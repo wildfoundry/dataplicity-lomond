@@ -43,14 +43,24 @@ def session_with_socket(monkeypatch):
 
 class FakeSocket(object):
     def __init__(self, *args, **kwargs):
-        self.buffer = b''
+        self.send_buffer = b''
+        self.recv_buffer = kwargs.get('recv_buffer', None)
         self._sendall = kwargs.get('sendall', None)
 
     def fileno(self):
         return 999
 
-    def recv(self, *args, **kwargs):
-        raise ValueError('this is a test')
+    def recv(self, bufsize, flags=0):
+        recv_buffer = self.recv_buffer
+        if recv_buffer is None:
+            raise ValueError('Attempted to recv more than expected')
+        elif not len(recv_buffer):
+            result = recv_buffer
+            self.recv_buffer = None
+        else:
+            result = recv_buffer[:bufsize]
+            self.recv_buffer = recv_buffer[bufsize:]
+        return result
 
     def shutdown(self, *args, **kwargs):
         pass
@@ -59,7 +69,7 @@ class FakeSocket(object):
         raise socket.error('already closed')
 
     def sendall(self, data):
-        self.buffer += data
+        self.send_buffer += data
         if callable(self._sendall):
             self._sendall(data)
 
@@ -132,15 +142,37 @@ def test_close_socket(session, mocker):
 
 
 @mocketize
-def test_connect(session, mocker):
+def test_connect_and_recv():
     Mocket.register(
         MocketEntry(
-            ('example.com', 80),
-            [b'some binary data']
+            ('example.com', 88),
+            [b'some binary data\r\n']
         )
     )
+    ws = WebSocket('ws://example.com:88')
+    session = WebsocketSession(ws)
     _socket = session._connect()
     assert isinstance(_socket, socket.socket)
+
+    # iiuc, one needs to send seomthing to the mocket first
+    # in order for the response to be available....
+    assert _socket.send(b'foo')
+    assert _socket.recv(4) == b'some'
+
+
+@mocketize
+def test_connect_and_recv_with_proxy():
+    Mocket.register(
+        MocketEntry(
+            ('example.proxy.com', 8080),
+            [b'HTTP/1.0 200 Connection established\r\n\r\nsome binary data']
+        )
+    )
+    ws = WebSocket('ws://example.com', proxy_url='http://example.proxy.com:8080')
+    session = WebsocketSession(ws)
+    _socket = session._connect()
+    assert isinstance(_socket, socket.socket)
+    assert _socket.recv(4) == b'some'
 
 
 @mocketize
@@ -163,7 +195,7 @@ def test_socket_fail(session, mocker):
 def test_send_request(session):
     session._sock = FakeSocket()
     session._send_request()
-    assert session._sock.buffer == (
+    assert session._sock.send_buffer == (
         b'GET / HTTP/1.1\r\n'
         b'Host: example.com:443\r\n'
         b'Upgrade: websocket\r\n'
@@ -434,10 +466,6 @@ def test_unresponsive(monkeypatch, mocker):
 
 
 def test_recv_with_secure_websocket(session):
-    def fake_recv(self):
-        return b'\x01'
-
-    session._sock = FakeSocket()
-    session._sock.recv = fake_recv
-
+    session._sock = FakeSocket(recv_buffer=b'\x01')
     assert session._recv(1) == b'\x01'
+    assert session._sock.recv_buffer == b''
