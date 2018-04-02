@@ -16,3 +16,4 @@ compliance/reports
 .python-version
 reports
 _*
+.pytest_cache
