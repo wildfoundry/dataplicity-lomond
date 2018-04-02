@@ -79,15 +79,18 @@ def test_text_payload_with_invalid_utf8_sequence():
     with pytest.raises(CriticalProtocolError) as e:
         Text.from_payload(b'\x8f')
 
-    expected_error = (
-        "payload contains invalid utf-8"
-        " ('utf-8' codec can't decode byte 0x8f in position 0: invalid start"
-        " byte)"
-    )
-    # in py2, the codec in exception is named utf8 rather than utf-8, despite
-    # calling .decode('utf-8'). Yay!
-    if six.PY2:
-        expected_error = expected_error.replace("('utf-8", "('utf8")
+    if six.PY3:
+        expected_error = (
+            "payload contains invalid utf-8;"
+            " 'utf-8' codec can't decode byte 0x8f in position 0: invalid start"
+            " byte"
+        )
+    else:
+        expected_error = (
+            "payload contains invalid utf-8;"
+            " 'utf8' codec can't decode byte 0x8f in position 0: invalid start"
+            " byte"
+        )
     assert str(e.value) == expected_error
 
 

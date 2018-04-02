@@ -97,6 +97,14 @@ class WebSocket(object):
         return self.state.closing
 
     @property
+    def is_active(self):
+        """Boolean that indicates the socket is 'active' i.e. not in
+        a closing state.
+
+        """
+        return not self.state.closing
+
+    @property
     def sent_close_time(self):
         """The epoch time a close packet was sent (or None if no close
         packet has been sent).
@@ -267,14 +275,15 @@ class WebSocket(object):
                     if message.is_close:
                         for event in self._on_close(message):
                             yield event
-                    elif message.is_ping:
-                        yield events.Ping(message.data)
-                    elif message.is_pong:
-                        yield events.Pong(message.data)
-                    elif message.is_binary:
-                        yield events.Binary(message.data)
-                    elif message.is_text:
-                        yield events.Text(message.text)
+                    if not self.is_closing:
+                        if message.is_ping:
+                            yield events.Ping(message.data)
+                        elif message.is_pong:
+                            yield events.Pong(message.data)
+                        elif message.is_binary:
+                            yield events.Binary(message.data)
+                        elif message.is_text:
+                            yield events.Text(message.text)
                 if self.is_closed:
                     break
 

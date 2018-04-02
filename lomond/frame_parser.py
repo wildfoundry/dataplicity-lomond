@@ -8,9 +8,12 @@ from __future__ import unicode_literals
 import logging
 import struct
 
+from six import text_type
+
 from . import errors
 from .frame import Frame
-from .parser import Parser
+from .parser import ParseError, Parser
+from .utf8validator import Utf8Validator
 
 
 log = logging.getLogger('lomond')
@@ -25,6 +28,8 @@ class FrameParser(Parser):
     def __init__(self, frame_class=Frame, parse_headers=True):
         self._frame_class = frame_class
         self._parse_headers = parse_headers
+        self._is_text = False
+        self._utf8_validator = Utf8Validator()
         super(FrameParser, self).__init__()
 
     def parse(self):
@@ -65,6 +70,31 @@ class FrameParser(Parser):
                 rsv2=rsv2,
                 rsv3=rsv3
             )
+
+            if frame.is_text:
+                self._is_text = True
+
             if payload_length:
-                frame.payload = yield self.read(payload_length)
+                _is_text_continuation = (
+                    frame.is_continuation and self._is_text
+                )
+                if frame.is_text or _is_text_continuation:
+                    frame.payload = yield self.read_utf8(
+                        payload_length,
+                        self._utf8_validator
+                    )
+                else:
+                    frame.payload = yield self.read(payload_length)
+
+            if frame.fin and (frame.is_text or frame.is_continuation):
+                _, ends_on_codepoint, _, _ = (
+                    self._utf8_validator.validate(b'')
+                )
+                self._utf8_validator.reset()
+                self._is_text = False
+                if not ends_on_codepoint:
+                    raise errors.CriticalProtocolError(
+                        'invalid utf-8; does not end on codepoint'
+                    )
+
             yield frame

@@ -24,9 +24,79 @@ from . import events
 log = logging.getLogger('lomond')
 
 
+class SelectorBase(object):
+    """Abstraction for a kernel object that waits for socket data."""
+
+    def __init__(self, socket):
+        """Construct with an open socket."""
+        self._socket = socket
+
+    def wait_readable(self, timeout=0.0):
+        """Block until socket is readable or a timeout occurs, return
+        `True` if the socket is readable, or `False` if the timeout
+        occurred.
+
+        """
+
+    def close(self):
+        """Close the selector (not the socket)."""
+
+
+class KQueueSelector(SelectorBase):
+    """KQueue selector for MacOS & BSD"""
+    def __init__(self, socket):
+        super(KQueueSelector, self).__init__(socket)
+        self._queue = select.kqueue()
+        self._events = [
+            select.kevent(
+                self._socket.fileno(),
+                filter=select.KQ_FILTER_READ
+            )
+        ]
+
+    def __repr__(self):
+        return '<KQueueSelector>'
+
+    def wait_readable(self, timeout=0.0):
+        events = self._queue.control(
+            self._events, 1, timeout
+        )
+        return bool(events)
+
+    def close(self):
+        self._queue.close()
+
+
+class PollSelector(SelectorBase):
+    """Poll selector for *nix"""
+    def __init__(self, socket):
+        super(PollSelector, self).__init__(socket)
+        self._poll = select.poll()
+        events = (
+            select.POLLIN |
+            select.POLLERR |
+            select.POLLHUP |
+            select.POLLRDHUP
+        )
+        self._poll.register(socket.fileno(), events)
+
+    def __repr__(self):
+        return '<PollSelector>'
+
+    def wait_readable(self, timeout):
+        events = self._poll.poll(timeout * 1000.0)
+        return bool(events)
+
 
 class WebsocketSession(object):
     """Manages the mechanics of running the websocket."""
+
+    # Pick the appropriate selector for the given platform
+    _selector_cls = (
+        KQueueSelector
+        if hasattr(select, 'kqueue') else
+        PollSelector
+    )
 
     def __init__(self, websocket):
         self.websocket = websocket
@@ -39,6 +109,7 @@ class WebsocketSession(object):
         self._next_ping = None
         self._last_pong = None
         self._start_time = None
+        self._ready = False
 
     def __repr__(self):
         return "<ws-session '{}'>".format(self.websocket.url)
@@ -99,14 +170,6 @@ class WebsocketSession(object):
         log.debug(_msg)
         raise cls._SocketFail(_msg)
 
-    def _select(self, sock, poll):
-        """Wait on data or errors."""
-        try:
-            reads, _, errors = select.select([sock], [], [sock], poll)
-        except select.error as error:
-            self._socket_fail("select error; {}", error)
-        return reads, errors
-
     def _connect(self):
         """Create socket and connect."""
         sock = socket.socket(
@@ -146,7 +209,6 @@ class WebsocketSession(object):
             ssl_sock = ssl.wrap_socket(sock)
         return ssl_sock
 
-
     def _close_socket(self):
         """Close the socket safely."""
         # Is a no-op if the socket is already closed.
@@ -164,7 +226,7 @@ class WebsocketSession(object):
             pass
         except Exception as error:
             # Paranoia
-            log.warning('error closing socket (%s)', error)
+            log.warning('error closing socket; %s', error)
         finally:
             self._sock = None
 
@@ -252,15 +314,6 @@ class WebsocketSession(object):
                 "within {}s".format(close_timeout)
             )
 
-    def _feed(self, data, poll, ping_rate, ping_timeout, close_timeout):
-        """Feed the websocket, yielding events."""
-        # Also emits poll events and sends pings
-        for event in self.websocket.feed(data):
-            yield event
-            for regular_event in self._regular(
-                    poll, ping_rate, ping_timeout, close_timeout):
-                yield regular_event
-
     def _send_pong(self, event):
         """Send a pong message in response to ping event."""
         try:
@@ -319,41 +372,53 @@ class WebsocketSession(object):
         # Connected to the server, but not yet upgraded to websockets
         yield events.Connected(url)
 
-        ready = False
+        selector = self._selector_cls(sock)
+        log.debug('%r created', selector)
+
+        def _regular():
+            """Run regular events if websocket is ready."""
+            if self._ready:
+                _iter_events = self._regular(
+                    poll,
+                    ping_rate,
+                    ping_timeout,
+                    close_timeout
+                )
+                for event in _iter_events:
+                    yield event
+
+        def _on_event(event):
+            """Handle logic in response to an event."""
+            if event.name == 'ready':
+                self._on_ready()
+                self._ready = True
+            elif event.name == 'ping':
+                if auto_pong:
+                    self._send_pong(event)
+            elif event.name == 'pong':
+                self._on_pong(event)
+
         try:
             while not websocket.is_closed:
-                reads, _errors = self._select(sock, poll)
+                readable = selector.wait_readable(poll)
 
-                if ready:
-                    # Check for polls / pings
-                    for event in self._regular(poll,
-                                               ping_rate,
-                                               ping_timeout,
-                                               close_timeout):
-                        yield event
+                for event in _regular():
+                    yield event
 
-                if reads:
-                    data = self._recv(4096)
-                    if not data:
-                        if websocket.is_closed:
-                            break
-                        else:
+                if readable:
+                    data = self._recv(16 * 1024)
+                    if data:
+                        for event in self.websocket.feed(data):
+                            _on_event(event)
+                            yield event
+                            for event in _regular():
+                                yield event
+                    else:
+                        if websocket.is_active:
                             self._socket_fail('connection lost')
-                    for event in self._feed(data, poll,
-                                            ping_rate, ping_timeout,
-                                            close_timeout):
-                        if event.name == 'ready':
-                            self._on_ready()
-                            ready = True
-                        elif event.name == 'ping':
-                            if auto_pong:
-                                self._send_pong(event)
-                        elif event.name == 'pong':
-                            self._on_pong(event)
-                        yield event
-                if _errors:
-                    self._socket_fail('socket error')
-                    break
+                        else:
+                            break
+
         except self._ForceDisconnect as error:
             self._close_socket()
             yield events.Disconnected('disconnected; {}'.format(error))
@@ -373,6 +438,8 @@ class WebsocketSession(object):
             # it was a graceful exit.
             self._close_socket()
             yield events.Disconnected(graceful=True)
+        finally:
+            selector.close()
 
 
 if __name__ == "__main__":  # pragma: no cover
