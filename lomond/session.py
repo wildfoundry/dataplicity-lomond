@@ -409,7 +409,7 @@ class WebsocketSession(object):
                     yield event
 
                 if readable:
-                    data = self._recv(16 * 1024)
+                    data = self._recv(64 * 1024)
                     if data:
                         for event in self.websocket.feed(data):
                             for event in _on_event(event):
