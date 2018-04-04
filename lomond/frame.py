@@ -13,7 +13,6 @@ import struct
 from . import errors
 from .mask import make_masking_key, mask
 from .opcode import is_reserved, Opcode
-from .utf8validator import Utf8Validator
 
 
 class Frame(object):
