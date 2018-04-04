@@ -74,9 +74,9 @@ class PollSelector(SelectorBase):
         self._poll = select.poll()
         events = (
             select.POLLIN |
+            select.POLLPRI |
             select.POLLERR |
-            select.POLLHUP |
-            select.POLLRDHUP
+            select.POLLHUP
         )
         self._poll.register(socket.fileno(), events)
 
