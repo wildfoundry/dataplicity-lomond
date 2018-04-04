@@ -397,6 +397,9 @@ class WebsocketSession(object):
                     self._send_pong(event)
             elif event.name == 'pong':
                 self._on_pong(event)
+            yield event
+            for event in _regular():
+                yield event
 
         try:
             while not websocket.is_closed:
@@ -409,9 +412,7 @@ class WebsocketSession(object):
                     data = self._recv(16 * 1024)
                     if data:
                         for event in self.websocket.feed(data):
-                            _on_event(event)
-                            yield event
-                            for event in _regular():
+                            for event in _on_event(event):
                                 yield event
                     else:
                         if websocket.is_active:
