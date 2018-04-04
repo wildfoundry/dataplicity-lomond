@@ -79,6 +79,7 @@ def test_text_payload_with_invalid_utf8_sequence():
     with pytest.raises(CriticalProtocolError) as e:
         Text.from_payload(b'\x8f')
 
+    # PY3 error message calls the encoding 'utf-8', PY2 calls it 'utf8'
     if six.PY3:
         expected_error = (
             "payload contains invalid utf-8;"
