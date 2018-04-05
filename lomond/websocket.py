@@ -97,6 +97,14 @@ class WebSocket(object):
         return self.state.closing
 
     @property
+    def is_active(self):
+        """Boolean that indicates the socket is 'active' i.e. not in
+        a closing state.
+
+        """
+        return not self.state.closing
+
+    @property
     def sent_close_time(self):
         """The epoch time a close packet was sent (or None if no close
         packet has been sent).

@@ -10,6 +10,45 @@ a relatively pain-free exercise.
 from __future__ import unicode_literals
 
 
+class ParseError(Exception):
+    """Stream failed to parse."""
+
+
+class _Awaitable(object):
+    """An operation that effectively suspends the coroutine."""
+    # Analogous to Python3 asyncio concept
+
+    def validate(self, chunk):
+        """Raise any ParseErrors"""
+
+
+class _ReadBytes(_Awaitable):
+    """Reads a fixed number of bytes."""
+    __slots__ = ['remaining']
+    def __init__(self, count):
+        self.remaining = count
+
+
+class _ReadUtf8(_ReadBytes):
+    """Reads a fixed number of bytes, validates utf-8."""
+    __slots__ = ['utf8_validator']
+    def __init__(self, count, utf8_validator):
+        self.remaining = count
+        self.utf8_validator = utf8_validator
+
+    def validate(self, data):
+        valid, _, _, _ = self.utf8_validator.validate(data)
+        if not valid:
+            raise ParseError('invalid utf8')
+
+
+class _ReadUntil(_Awaitable):
+    """Read until a separator."""
+    __slots__ = ['sep']
+    def __init__(self, sep):
+        self.sep = sep
+
+
 class Parser(object):
     """
     Coroutine based stream parser.
@@ -37,23 +76,8 @@ class Parser(object):
         self._closed = False
         self.reset()
 
-    class _Awaitable(object):
-        """An operation that effectively suspends the coroutine."""
-        # Analogous to Python3 asyncio concept
-
-    class _ReadBytes(_Awaitable):
-        """Reads a fixed number of bytes."""
-        __slots__ = ['remaining']
-        def __init__(self, count):
-            self.remaining = count
-
-    class _ReadUntil(_Awaitable):
-        """Read until a separator."""
-        __slots__ = ['sep']
-        def __init__(self, sep):
-            self.sep = sep
-
     read = _ReadBytes
+    read_utf8 = _ReadUtf8
     read_until = _ReadUntil
 
     def __del__(self):
@@ -81,27 +105,34 @@ class Parser(object):
         pos = 0
         while pos < len(data):
             # Awaiting a read of a fixed number of bytes
-            if isinstance(self._awaiting, self.read):
+            if isinstance(self._awaiting, _ReadBytes):
                 # This many bytes left to read
                 remaining = self._awaiting.remaining
                 # Bite off remaining bytes
                 chunk = data[pos:pos + remaining]
                 chunk_size = len(chunk)
                 pos += chunk_size
+                try:
+                    # Validate new data
+                    self._awaiting.validate(chunk)
+                except ParseError as error:
+                    # Raises an exception in parse()
+                    self._gen.throw(error)
                 # Add to buffer
                 self._buffer.append(chunk)
                 remaining -= chunk_size
                 if remaining:
                     # Await more bytes
-                    self._awaiting = self.read(remaining)
+                    self._awaiting.remaining = remaining
                 else:
                     # Got all the bytes we need in buffer
                     send_bytes = b''.join(self._buffer)
                     del self._buffer[:]
                     # Send to coroutine, get new 'awaitable'
                     self._awaiting = self._gen.send(send_bytes)
+
             # Awaiting a read until a terminator
-            elif isinstance(self._awaiting, self.read_until):
+            elif isinstance(self._awaiting, _ReadUntil):
                 # Reading to separator
                 chunk = data[pos:]
                 self._until += chunk
@@ -122,10 +153,9 @@ class Parser(object):
                     # Send bytes to coroutine, get new 'awaitable'
                     self._awaiting = self._gen.send(send_bytes)
             # Yield any non-awaitables...
-            while not isinstance(self._awaiting, self._Awaitable):
+            while not isinstance(self._awaiting, _Awaitable):
                 yield self._awaiting
                 self._awaiting = next(self._gen)
-
 
     def parse(self):
         """

@@ -106,7 +106,7 @@ class Text(Message):
             text = payload.decode('utf-8')
         except UnicodeDecodeError as error:
             raise errors.CriticalProtocolError(
-                'payload contains invalid utf-8 ({})',
+                'payload contains invalid utf-8; {}',
                 error
             )
         return cls(text)

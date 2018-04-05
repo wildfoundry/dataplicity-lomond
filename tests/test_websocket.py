@@ -317,7 +317,7 @@ def test_calling_feed_on_closed_websocket_results_in_noop(websocket, mocker):
     # which states that a last possible sequence of bytes (for 1-byte utf-8) is
     # \x7f. Therefore we're passing \x8f to force this utf-8 invalid sequence
     # error
-    (b'\x81\x01\x8f', 'critical protocol error; invalid UTF-8 in text frame'),
+    (b'\x81\x01\x8f', 'critical protocol error; invalid utf8'),
     # here we're passing an invalid initial frame. 0x80 means that the 4 least
     # significant bits are set to 0, which means opcode=CONTINUATION, however
     # because this is an initial frame, there is nothing to continue; thus we

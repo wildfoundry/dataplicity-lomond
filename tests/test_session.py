@@ -67,6 +67,28 @@ class FakeSocket(object):
         return 0
 
 
+class FakeSelector(object):
+    def __init__(self, socket):
+        pass
+
+    def  wait_readable(self, timeout):
+        return True
+
+    def close(self):
+        pass
+
+
+class FakeBrokenSelector(object):
+    def __init__(self, socket):
+        pass
+
+    def wait_readable(self, timeout):
+        raise IOError('broke')
+
+    def close(self):
+        pass
+
+
 def test_write_without_sock_fails(session):
     with pytest.raises(errors.WebSocketUnavailable) as e:
         session.write(b'\x01')
@@ -141,23 +163,6 @@ def test_connect(session, mocker):
     )
     _socket = session._connect()
     assert isinstance(_socket, socket.socket)
-
-
-@mocketize
-def test_socket_fail(session, mocker):
-    def select_that_throws_exception(*args, **kwargs):
-        raise select.error('this is just a test')
-
-    Mocket.register(
-        MocketEntry(
-            ('example.com', 80),
-            [b'some binary data']
-        )
-    )
-
-    mocker.patch('lomond.session.select.select', select_that_throws_exception)
-    with pytest.raises(WebsocketSession._SocketFail):
-        session._select(session._sock, poll=5)
 
 
 def test_send_request(session):
@@ -281,7 +286,7 @@ def test_error_on_close_socket(caplog, session):
     assert caplog.record_tuples[-1] == (
         'lomond',
         logging.WARNING,
-        'error closing socket (a problem occurred)'
+        'error closing socket; a problem occurred'
     )
 
 
@@ -338,6 +343,7 @@ def test_simple_run(monkeypatch, mocker):
 
     # mocket doesn't support .pending() call which is used when ssl is used
     session = WebsocketSession(WebSocket('ws://example.com/'))
+    session._selector_cls = FakeSelector
     session._on_ready()
     # well, we have to cheat a little. The thing is, inner loop of
     # run() sets last poll time to time.time and so we would have to
@@ -352,10 +358,6 @@ def test_simple_run(monkeypatch, mocker):
     mocker.patch(
         'lomond.websocket.WebSocket._send_close')
     mocker.patch.object(session.websocket, 'send_ping')
-    mocker.patch(
-        'lomond.session.WebsocketSession._select',
-        lambda self, sock, poll:[True, False]
-    )
 
     _events = list(session.run())
 
@@ -391,6 +393,7 @@ def test_unresponsive(monkeypatch, mocker):
 
     # mocket doesn't support .pending() call which is used when ssl is used
     session = WebsocketSession(WebSocket('ws://example.com/'))
+    session._selector_cls = FakeSelector
     session._on_ready()
     # well, we have to cheat a little. The thing is, inner loop of
     # run() sets last poll time to time.time and so we would have to
@@ -405,10 +408,6 @@ def test_unresponsive(monkeypatch, mocker):
     mocker.patch(
         'lomond.websocket.WebSocket._send_close')
     mocker.patch.object(session.websocket, 'send_ping')
-    mocker.patch(
-        'lomond.session.WebsocketSession._select',
-        lambda self, sock, poll:[True, False]
-    )
 
     _events = []
     iter_events = iter(session.run(ping_timeout=5))

@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- Lomond now uses Poll or KQueue depending on platform, rather than select
+- Fail fast on invalid utf-8
+
 ## [0.1.13] - 2018-01-29
 
 ### Added

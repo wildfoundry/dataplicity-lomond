@@ -43,7 +43,7 @@ def run_tests():
 def run_ws(url):
     """Run a websocket until close."""
     ws = WebSocket(url)
-    for event in ws:
+    for event in ws.connect(ping_rate=0):
         try:
             if event.name == 'text':
                 ws.send_text(event.text)
@@ -64,8 +64,7 @@ def run_test(test_no):
 def run_test_cases(case_tuples):
     """Run a number of test cases from their 'case tuple'"""
     for case_tuple in case_tuples:
-        print("\n[{}]".format(case_tuple))
-        qs = urlencode({'agent': USER_AGENT})
+        qs = urlencode({'agent': USER_AGENT, 'case': case_tuple})
         url = server + '/runCase?{}'.format(qs)
         run_ws(url)
     update_report()

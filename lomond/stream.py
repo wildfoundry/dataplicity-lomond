@@ -9,11 +9,12 @@ from __future__ import unicode_literals
 
 import logging
 
+from six import text_type
+
 from . import errors
-from .frame_parser import FrameParser
+from .frame_parser import ParseError, FrameParser
 from .message import Message
 from .response import Response
-from .utf8validator import Utf8Validator
 
 
 log = logging.getLogger('lomond')
@@ -30,11 +31,6 @@ class WebsocketStream(object):
         self.frame_parser = FrameParser()
         self._parsed_response = False
         self._frames = []
-        self._utf8_validator = Utf8Validator()
-
-    def _validate_utf8(self, payload):
-        utf8_valid, _, _, _ = self._utf8_validator.validate(payload)
-        return utf8_valid
 
     def feed(self, data):
         """Feed in data from a socket to yield 0 or more frames."""
@@ -50,7 +46,13 @@ class WebsocketStream(object):
             yield Response(header_data)
 
         # Process incoming frames
-        for frame in iter_frames:
+        while True:
+            try:
+                frame = next(iter_frames)
+            except ParseError as error:
+                raise errors.CriticalProtocolError(
+                    text_type(error)
+                )
             log.debug("SRV -> CLI : %r", frame)
             if frame.is_control:
                 # Control messages are never fragmented
@@ -67,12 +69,6 @@ class WebsocketStream(object):
                         'continuation frame expected'
                     )
                 self._frames.append(frame)
-                _is_text = self._frames[0].is_text
-                if _is_text and not self._validate_utf8(frame.payload):
-                    raise errors.CriticalProtocolError(
-                        'invalid UTF-8 in text frame'
-                    )
                 if frame.fin:
                     yield Message.build(self._frames)
                     del self._frames[:]
-                    self._utf8_validator.reset()
