@@ -1,6 +1,7 @@
 [run]
-omit = 
+omit =
     *lomond/utf8validator.py
+    *lomond/examples/*
 
 [report]
 exclude_lines =

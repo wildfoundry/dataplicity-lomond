@@ -25,7 +25,7 @@ Guide
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Contents
 
    guide.rst
 
@@ -35,10 +35,12 @@ Code Documentation
 
 .. toctree::
    :maxdepth: 3
+   :caption: Reference
 
    errors.rst
    events.rst
    persist.rst
+   status.rst
    response.rst
    websocket.rst
 

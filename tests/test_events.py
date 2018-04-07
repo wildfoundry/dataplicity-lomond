@@ -62,3 +62,9 @@ elif six.PY3:
 def test_repr(event_object, expected):
     assert isinstance(event_object, events.Event)
     assert repr(event_object) == expected
+
+
+def test_text_json():
+    event = events.Text("""{"foo": "bar"}""")
+    assert isinstance(event.json, dict)
+    assert event.json == {"foo": "bar"}

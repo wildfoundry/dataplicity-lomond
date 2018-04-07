@@ -8,6 +8,7 @@ from __future__ import unicode_literals
 
 from base64 import b64encode
 from hashlib import sha1
+import json
 import logging
 import os
 import time
@@ -254,6 +255,9 @@ class WebSocket(object):
     def feed(self, data):
         """Feed with data from the socket, and yield any events.
 
+        This method is called by the Session object, and is not needed
+        for normal use.
+
         :param bytes data: data received over a socket.
 
         """
@@ -405,7 +409,7 @@ class WebSocket(object):
         self.session.send(Opcode.PONG, data)
 
     def send_binary(self, data):
-        """Send a binary frame.
+        """Send a binary message.
 
         :param bytes data: Binary data to send.
         :raises TypeError: If data is not bytes.
@@ -415,8 +419,34 @@ class WebSocket(object):
             raise TypeError('data argument must be bytes')
         self.session.send(Opcode.BINARY, data)
 
+    def send_json(self, _obj=Ellipsis, **kwargs):
+        """Encode an object as JSON and send a text message.
+
+        The object to encode may be specified as a single positional
+        argument OR if as keyword arguments which will be encoded as a
+        JSON object. The following two lines will send the
+        same JSON::
+
+            websocket.send_json({'foo': 'bar'})
+            websocket.send_json(foo='bar')
+
+        :param obj: An object to be encoded as JSON.
+        :raises TypeError: If `obj` could not be encoded as JSON.
+
+        """
+        if kwargs and _obj is not Ellipsis:
+            raise ValueError(
+                'send_json requires positional argument OR keyword arguments'
+            )
+        json_obj = json.dumps(_obj if _obj is not Ellipsis else kwargs)
+        self.send_text(
+            json_obj.decode('utf-8')
+            if six.PY2
+            else json_obj
+        )
+
     def send_text(self, text):
-        """Send a text frame.
+        """Send a text message.
 
         :param str text: Text to send.
         :raises TypeError: If data is not str (or unicode on Py2).

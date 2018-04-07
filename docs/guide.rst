@@ -129,11 +129,11 @@ client or the server.
 Client
 ++++++
 
-To close a websocket, call the :meth:`~lomond.websocket.Websocket.close`
+To close a websocket, call the :meth:`~lomond.websocket.WebSocket.close`
 method to initiate a *websocket close handshake*. You may call this
 method from within the websocket loop, or from another thread.
 
-When you call :meth:`~lomond.websocket.Websocket.close`, Lomond sends a
+When you call :meth:`~lomond.websocket.WebSocket.close`, Lomond sends a
 close packet to the server. The server will respond by sending a close
 packet of its own. Only when this echoed close packet is received will
 the WebSocket close the underlaying tcp/ip socket. This allows both ends

@@ -1,6 +1,6 @@
-
 from __future__ import unicode_literals
 
+import json
 import time
 
 
@@ -150,7 +150,7 @@ class Unresponsive(Event):
     """The server has not responding to pings within `ping_timeout`
     seconds.
 
-    Will be followed by a Disconnected event.
+    Will be followed by a :class:`~lomond.events.Disconnected` event.
 
     """
     name = 'unresponsive'
@@ -164,6 +164,7 @@ class Disconnected(Event):
     :param bool graceful: Flag indicating if the connection was dropped
         gracefully (`True`), or disconnected due to a socket failure
         (`False`) or other problem.
+
     """
     __slots__ = ['graceful', 'reason']
     name = 'disconnected'
@@ -213,7 +214,7 @@ class Closing(Event):
     No more messages will be received from the server, but you may still
     send messages while handling this event. A
     :class:`~lomond.events.Disconnected` event should be generated
-        shortly after this event.
+    shortly after this event.
 
     :param code: The closed code returned from the server.
     :param str reason: An optional description why the websocket was
@@ -289,12 +290,25 @@ class Text(Event):
     :param str text: The text payload.
 
     """
-    __slots__ = ['text']
+    __slots__ = ['text', '_json']
     name = 'text'
 
     def __init__(self, text):
         self.text = text
+        self._json = None
         super(Text, self).__init__()
+
+    @property
+    def json(self):
+        """Text decoded as JSON.
+
+        Calls ``json.loads`` to decode the ``text`` attribute, and may
+        throw the same exceptions if the text is not valid json.
+
+        """
+        if self._json is None:
+            self._json = json.loads(self.text)
+        return self._json
 
     def __repr__(self):
         return "{}({})".format(
