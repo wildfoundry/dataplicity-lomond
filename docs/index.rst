@@ -25,17 +25,15 @@ Guide
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents
 
    guide.rst
 
 
-Code Documentation
-==================
+Code Reference
+==============
 
 .. toctree::
    :maxdepth: 3
-   :caption: Reference
 
    errors.rst
    events.rst
