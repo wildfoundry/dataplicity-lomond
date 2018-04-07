@@ -20,20 +20,17 @@ Support
 
 For questions or comments about this library, either open an issue or contact support@dataplicity.com.
 
-Guide
-=====
 
 .. toctree::
    :maxdepth: 2
+   :caption: Guide
 
    guide.rst
 
 
-Code Reference
-==============
-
 .. toctree::
    :maxdepth: 3
+   :caption: Reference
 
    errors.rst
    events.rst
