@@ -20,25 +20,22 @@ Support
 
 For questions or comments about this library, either open an issue or contact support@dataplicity.com.
 
-Guide
-=====
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Guide
 
    guide.rst
 
 
-Code Documentation
-==================
-
 .. toctree::
    :maxdepth: 3
+   :caption: Reference
 
    errors.rst
    events.rst
    persist.rst
+   status.rst
    response.rst
    websocket.rst
 

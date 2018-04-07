@@ -4,7 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Unreleased]
+
+## [0.1.15] - Unreleased
+
+### Added
+- Added helpers `send_json` and `Text.json`
+
+### Fixed
+- Restored 'select' for Windows
+
+## [0.1.14] - 2018-04-05
 
 ### Changed
 - Lomond now uses Poll or KQueue depending on platform, rather than select

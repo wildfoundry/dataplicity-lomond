@@ -198,7 +198,8 @@ def test_close_with_reserved_code(websocket):
     ('send_pong', b'PONG', [(Opcode.PONG, b'PONG')]),
     ('send_ping', b'PING', [(Opcode.PING, b'PING')]),
     ('send_binary', b'BIN', [(Opcode.BINARY, b'BIN')]),
-    ('send_text', u'TEXT', [(Opcode.TEXT, b'TEXT')])
+    ('send_text', u'TEXT', [(Opcode.TEXT, b'TEXT')]),
+    ('send_json', {}, [(Opcode.TEXT, b'{}')])
 ])
 def test_send_methods_functionalities(
         websocket_with_fake_session, method_name, payload, expected_buffer):

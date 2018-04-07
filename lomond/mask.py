@@ -6,7 +6,6 @@ https://tools.ietf.org/html/rfc6455#section-5.3
 
 import os
 from functools import partial
-from itertools import cycle
 
 import six
 

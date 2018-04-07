@@ -42,6 +42,19 @@ class SelectorBase(object):
         """Close the selector (not the socket)."""
 
 
+class SelectSelector(SelectorBase):
+    """Select Selector for use on Windows."""
+
+    def __repr__(self):
+        return '<SelectSelector>'
+
+    def wait_readable(self, timeout=0.0):
+        rlist, _wlist, _xlist = (
+            select.select([self._socket.fileno()], [], [], timeout)
+        )
+        return bool(rlist)
+
+
 class KQueueSelector(SelectorBase):
     """KQueue selector for MacOS & BSD"""
     def __init__(self, socket):
@@ -92,11 +105,12 @@ class WebsocketSession(object):
     """Manages the mechanics of running the websocket."""
 
     # Pick the appropriate selector for the given platform
-    _selector_cls = (
-        KQueueSelector
-        if hasattr(select, 'kqueue') else
-        PollSelector
-    )
+    if hasattr(select, 'kqueue'):
+        _selector_cls = KQueueSelector
+    elif hasattr(select, 'poll'):
+        _selector_cls = PollSelector
+    else:
+        _selector_cls = SelectSelector
 
     def __init__(self, websocket):
         self.websocket = websocket
