@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
-## [0.1.15] - Unreleased
+## [0.1.15] - 2018-04-07
 
 ### Added
 - Added helpers `send_json` and `Text.json`

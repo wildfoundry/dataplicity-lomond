@@ -53,8 +53,9 @@ class WebSocket(object):
             self.closed = False
             self.sent_close_time = None
 
-    def __init__(self, url, protocols=None, agent=None):
+    def __init__(self, url, proxy_url=None, protocols=None, agent=None):
         self.url = url
+        self.proxy_url = proxy_url
         self.protocols = protocols or []
         self.agent = agent or constants.USER_AGENT
 
@@ -182,14 +183,14 @@ class WebSocket(object):
         """
         self.reset()
         self.state.session = session = session_class(self)
-        run_coro = session.run(
+        run_generator = session.run(
             poll=poll,
             ping_rate=ping_rate,
             ping_timeout=ping_timeout,
             auto_pong=auto_pong,
             close_timeout=close_timeout
         )
-        return run_coro
+        return run_generator
 
 
     def reset(self):

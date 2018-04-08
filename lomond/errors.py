@@ -61,3 +61,7 @@ class WebSocketClosed(WebSocketUnavailable):
 
 class WebSocketClosing(WebSocketUnavailable):
     """Raised when attempting to send over a closing websocket."""
+
+
+class ProxyError(WebSocketError):
+    """Fatal issue with proxy server."""

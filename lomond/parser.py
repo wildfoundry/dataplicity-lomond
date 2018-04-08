@@ -44,9 +44,19 @@ class _ReadUtf8(_ReadBytes):
 
 class _ReadUntil(_Awaitable):
     """Read until a separator."""
-    __slots__ = ['sep']
-    def __init__(self, sep):
+    __slots__ = ['sep', 'max_bytes']
+    def __init__(self, sep, max_bytes=None):
         self.sep = sep
+        self.max_bytes = max_bytes
+
+    def check_length(self, pos):
+        """Check the length is within max bytes."""
+        if self.max_bytes is not None and pos > self.max_bytes:
+            raise ParseError(
+                '{!r} expected in {} byte(s)',
+                self.sep,
+                self.max_bytes
+            )
 
 
 class Parser(object):
@@ -141,9 +151,11 @@ class Parser(object):
                 if sep_index == -1:
                     # Separator not found, advance position
                     pos += len(chunk)
+                    self._awaiting.check_length(pos)
                 else:
                     # Found separator
                     # Get data prior to and including separator
+                    self._awaiting.check_length(sep_index + len(sep))
                     split_index = sep_index + len(sep)
                     send_bytes = self._until[:split_index]
                     # Reset data, to continue parsing
