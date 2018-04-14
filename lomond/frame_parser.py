@@ -35,7 +35,9 @@ class FrameParser(Parser):
     def parse(self):
         # Get the HTTP headers
         if self._parse_headers:
-            header_data = yield self.read_until(b'\r\n\r\n')
+            header_data = yield self.read_until(
+                b'\r\n\r\n', max_bytes=16 * 1024
+            )
             yield header_data
 
         # Get any WS frames

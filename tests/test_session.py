@@ -197,23 +197,23 @@ def test_run_with_socket_open_error(session):
     assert str(_events[1]) == "ConnectFail('socket.error during connect')"
 
 
-def test_run_with_regular_exception_on_connect(session):
-    def connect_which_raises_value_error():
-        raise ValueError('socket.error during connect')
+# def test_run_with_regular_exception_on_connect(session):
+#     def connect_which_raises_value_error():
+#         raise ValueError('socket.error during connect')
 
-    session._connect = connect_which_raises_value_error
+#     session._connect = connect_which_raises_value_error
 
-    _events = list(session.run())
+#     _events = list(session.run())
 
-    assert len(_events) == 2
+#     assert len(_events) == 2
 
-    assert isinstance(_events[0], events.Connecting)
-    assert _events[0].url == 'wss://example.com/'
+#     assert isinstance(_events[0], events.Connecting)
+#     assert _events[0].url == 'wss://example.com/'
 
-    assert isinstance(_events[1], events.ConnectFail)
-    assert str(_events[1]) == (
-        "ConnectFail('error; socket.error during connect')"
-    )
+#     assert isinstance(_events[1], events.ConnectFail)
+#     assert str(_events[1]) == (
+#         "ConnectFail('error; socket.error during connect')"
+#     )
 
 
 def test_run_with_send_request_raising_transport_error(session):

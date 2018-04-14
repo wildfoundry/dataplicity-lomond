@@ -14,6 +14,7 @@ import os
 import time
 
 import six
+from six import text_type
 from six.moves.urllib.parse import urlparse
 
 from . import constants
@@ -63,15 +64,13 @@ class WebSocket(object):
 
         _url = urlparse(url)
         self.scheme = _url.scheme
-        host, _, port = _url.netloc.partition(':')
-        if not port:
-            port = '443' if self.scheme == 'wss' else '80'
-        if not port.isdigit():
-            raise ValueError('illegal port value')
-        port = int(port)
-        self.host = host
-        self.port = port
-        self._host_port = "{}:{}".format(host, port)
+        self.host = _url.hostname
+        self.port = (
+            int(_url.port)
+            if _url.port else
+            (443 if self.scheme == 'wss' else 80)
+        )
+        self._host_port = "{}:{}".format(self.host, self.port)
         self.resource = _url.path or '/'
         if _url.query:
             self.resource = "{}?{}".format(self.resource, _url.query)
