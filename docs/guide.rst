@@ -226,6 +226,29 @@ parameter of :meth:`~lomond.websocket.WebSocket.connect`.
     second, you should probably use threads in tandem with the event
     loop.
 
+Proxies
+-------
+
+Lomond can work with WebSockets over HTTP proxy. By default, Lomond
+will autodetect the proxy from ``HTTP_PROXY`` and ``HTTPS_PROXY``
+environment variables. Which will be used for the ``ws`` and ``wss``
+protocols respectively.
+
+You may set the proxy manually by supplying a dictionary with the keys
+``http`` and ``https`` (which may contain the same value).
+
+    ws = Websocket(
+        'wss://echo.example.org',
+        proxies = {
+            'http': 'http://127.0.0.1:8888',
+            'https: 'http://127.0.0.1:8888'
+        }
+    )
+
+.. note::
+    If you want to disable automatic proxy detection, then set the
+    ``proxies`` parameter to an empty dictionary.
+
 WebSockets and Threading
 ------------------------
 
