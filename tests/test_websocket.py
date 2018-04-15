@@ -181,6 +181,12 @@ def test_regular_message(websocket_with_fake_session, payload, expected):
     assert isinstance(events[1], expected)
 
 
+def test_send_json_invalid():
+    ws = WebSocket('ws://example.com/resource?query')
+    with pytest.raises(ValueError):
+        ws.send_json('foo', baz='egg')
+
+
 def test_close_with_reserved_code(websocket):
     reserved_message = Close(code=1005, reason='reserved-close-code')
     with pytest.raises(ProtocolError):

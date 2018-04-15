@@ -34,12 +34,15 @@ log = logging.getLogger('lomond')
 class WebSocket(object):
     """IO independent websocket functionality.
 
-    :param str url: A websocket URL, must have a `ws://` or `wss://`
+    :param str url: A websocket URL, must have a ``ws://`` or ``wss://``
         protocol.
+    :param dict proxies: A dict containing ``'http'`` or ``'https'``
+        urls to a proxy server, or ``None`` to attempt to auto-detect
+        proxies from environment. Pass an empty dict to disable proxy.
     :params list protocols: A list of supported protocols (defaults to
         no protocols).
     :params str agent: A user agent string to be sent in the header. The
-        default uses the value `USER_AGENT` defined in
+        default uses the value ``USER_AGENT`` defined in
         :mod:`lomond.constants`.
 
     """
@@ -54,14 +57,12 @@ class WebSocket(object):
             self.closed = False
             self.sent_close_time = None
 
-    def __init__(self, url, proxy_url=None, protocols=None, agent=None):
+    def __init__(self, url, proxies=None, protocols=None, agent=None):
         self.url = url
-        self.proxy_url = proxy_url
+        self.proxies = self._detect_proxies() if proxies is None else proxies
         self.protocols = protocols or []
         self.agent = agent or constants.USER_AGENT
-
         self._headers = []
-
         _url = urlparse(url)
         self.scheme = _url.scheme
         self.host = _url.hostname
@@ -76,6 +77,15 @@ class WebSocket(object):
             self.resource = "{}?{}".format(self.resource, _url.query)
 
         self.state = self.State()
+
+    @classmethod
+    def _detect_proxies(cls):
+        """Get proxy information form environment."""
+        proxies = {
+            'http': os.environ.get('HTTP_PROXY'),
+            'https': os.environ.get('HTTPS_PROXY')
+        }
+        return proxies
 
     def __repr__(self):
         return "WebSocket('{}')".format(self.url)

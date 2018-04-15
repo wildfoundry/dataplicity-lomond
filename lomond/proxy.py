@@ -14,7 +14,7 @@ class ProxyResponse(Response):
 def build_request(host, port, proxy_username=None, proxy_password=None):
     """Build a request to the proxy."""
     request = [
-        b'CONNECT {}:{} HTTP/1.1'.format(host, port).encode('utf-8')
+        'CONNECT {}:{} HTTP/1.1'.format(host, port).encode('utf-8')
     ]
     headers = [
         (b'Host', host.encode('utf-8')),

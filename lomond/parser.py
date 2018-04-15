@@ -112,6 +112,13 @@ class Parser(object):
         :param bytes data: Data to decode.
 
         """
+
+        def _check_length(pos):
+            try:
+                self._awaiting.check_length(pos)
+            except ParseError as error:
+                self._gen.throw(error)
+
         pos = 0
         while pos < len(data):
             # Awaiting a read of a fixed number of bytes
@@ -148,14 +155,15 @@ class Parser(object):
                 self._until += chunk
                 sep = self._awaiting.sep
                 sep_index = self._until.find(sep)
+
                 if sep_index == -1:
                     # Separator not found, advance position
                     pos += len(chunk)
-                    self._awaiting.check_length(pos)
+                    _check_length(len(self._until))
                 else:
                     # Found separator
                     # Get data prior to and including separator
-                    self._awaiting.check_length(sep_index + len(sep))
+                    _check_length(sep_index + len(sep))
                     split_index = sep_index + len(sep)
                     send_bytes = self._until[:split_index]
                     # Reset data, to continue parsing
