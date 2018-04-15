@@ -129,18 +129,23 @@ class WebsocketSession(object):
             raise errors.ProxyFail(host)
         return sock
 
-    def _connect_proxy(self, proxy):
+    def _connect_proxy(self, proxy_url):
         """Connect to a http proxy, return socket."""
-        _proxy_url = urlparse(proxy)
+        _proxy_url = urlparse(proxy_url)
         _port = (
             int(_proxy_url.port)
             if _proxy_url.port else
-            (443 if _proxy_url.scheme == 'https' else 80)
+            (443 if  _proxy_url.scheme == 'https' else 80)
         )
-        sock = self._connect_sock(
-            _proxy_url.hostname, _port,
-            ssl=_proxy_url.scheme == 'https'
-        )
+        try:
+            sock = self._connect_sock(
+                _proxy_url.hostname, _port,
+                ssl=_proxy_url.scheme == 'https'
+            )
+        except socket.error as error:
+            raise errors.ProxyFail(
+                'unable to connect to proxy; {}'.format(error)
+            )
         proxy_request = proxy.build_request(
             self.websocket.host, self.websocket.port,
             proxy_username=_proxy_url.username,
@@ -164,7 +169,7 @@ class WebsocketSession(object):
             'https' if self.websocket.is_secure else 'http'
         )
         if proxy:
-            sock = self._connect_proxy()
+            sock = self._connect_proxy(proxy)
         else:
             sock = self._connect_sock(
                 self.websocket.host,
@@ -333,7 +338,7 @@ class WebsocketSession(object):
             return
         except Exception as error:
             log.error('error connecting to %s; %s', url, error)
-            yield events.ConnectFail('error; {}'.format(error))
+            yield events.ConnectFail('{}'.format(error))
             return
 
         # We now have a socket.

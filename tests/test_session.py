@@ -71,7 +71,7 @@ class FakeSelector(object):
     def __init__(self, socket):
         pass
 
-    def  wait_readable(self, timeout):
+    def wait_readable(self, timeout):
         return True
 
     def close(self):
@@ -440,3 +440,13 @@ def test_recv_with_secure_websocket(session):
     session._sock.recv = fake_recv
 
     assert session._recv(1) == b'\x01'
+
+
+def test_context_manager(session):
+    ws = WebSocket('ws://example.com/')
+    session = WebsocketSession(ws)
+    session._selector_cls = FakeSelector
+    session._on_ready()
+    with ws:
+        for event in ws:
+            pass

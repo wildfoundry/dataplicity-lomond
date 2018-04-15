@@ -145,7 +145,8 @@ class WebSocket(object):
 
     def __exit__(self, exc_type, exc_value, traceback):
         """Close the session (and potentially a socket) on exit."""
-        self.session.close()
+        if self.session is not None:
+            self.session.close()
 
     def add_header(self, header, value):
         """Add a custom header to the websocket request.

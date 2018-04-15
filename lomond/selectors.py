@@ -21,7 +21,7 @@ class SelectorBase(object):
         """Close the selector (not the socket)."""
 
 
-class SelectSelector(SelectorBase):
+class SelectSelector(SelectorBase):  # pragma: no cover
     """Select Selector for use on Windows."""
 
     def __repr__(self):
@@ -34,7 +34,7 @@ class SelectSelector(SelectorBase):
         return bool(rlist)
 
 
-class KQueueSelector(SelectorBase):
+class KQueueSelector(SelectorBase):  # pragma: no cover
     """KQueue selector for MacOS & BSD"""
     def __init__(self, socket):
         super(KQueueSelector, self).__init__(socket)
