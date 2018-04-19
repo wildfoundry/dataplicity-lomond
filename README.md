@@ -10,11 +10,13 @@ an orderly stream of _events_. No threads or callbacks necessary.
 
 - [Documentation](https://lomond.readthedocs.io/)
 
+- [GitHub Repository](https://github.com/wildfoundry/dataplicity-lomond)
+
 - [Blog](https://www.willmcgugan.com/search/?s=lomond)
 
 ## How to Use
 
-To connect to a "ws:" or "wss:" WebSocket URL, construct a `WebSocket` object then iterate over it. This will yield an _event object_ for each step in the connection process and for any data sent by the server.
+To connect to a "ws:" or "wss:" WebSocket URL, construct a `lomond.WebSocket` object then iterate over it. This will yield an _event object_ for each step in the connection process and for any data sent by the server.
 
 You will receive a ``Binary`` or ``Text`` event when the server sends you a message.
 You may _send_ a message with the ``send_binary`` or ``send_text`` methods.
@@ -38,7 +40,6 @@ for event in websocket:
     elif event.name == 'text':
         print(event.text)
 ```
-
 
 ## Events
 
