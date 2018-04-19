@@ -8,16 +8,16 @@ Tranquil WebSockets for Python.
 Lomond is a Websocket client which turns a websocket connection in to
 an orderly stream of _events_. No threads or callbacks necessary.
 
-[Documentation](https://lomond.readthedocs.io/)
+- [Documentation](https://lomond.readthedocs.io/)
 
-[Blog](https://www.willmcgugan.com/search/?s=lomond)
+- [Blog](https://www.willmcgugan.com/search/?s=lomond)
 
 ## How to Use
 
-To connect to a WebSocket URL construct a `WebSocket` object, then iterate over it to generate an orderly sequence of events.
+To connect to a "ws:" or "wss:" WebSocket URL, construct a `WebSocket` object then iterate over it. This will yield an _event object_ for each step in the connection process and for any data sent by the server.
 
-You will receive a ``Binary`` or ``Text`` event when the server sends you a message,
-you may send a message with the ``send_binary`` or ``send_text`` methods.
+You will receive a ``Binary`` or ``Text`` event when the server sends you a message.
+You may _send_ a message with the ``send_binary`` or ``send_text`` methods.
 
 ## Example
 
