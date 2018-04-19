@@ -3,7 +3,7 @@ from lomond import events
 
 
 def test_echo():
-    """Text against public echo server."""
+    """Test against public echo server."""
     # TODO: host our own echo server
     ws = lomond.WebSocket('wss://echo.websocket.org')
     events = []
@@ -28,15 +28,9 @@ def test_echo():
     assert events[7].name == 'disconnected'
     assert events[7].graceful
 
-"""
-
-Connecting(url='wss://www.willmcgugan.com'),
-Connected(url='wss://www.willmcgugan.com'),
-Rejected(<response HTTP/1.1 200 OK>, 'Websocket upgrade failed (code=200)'),
-Disconnected('closed', graceful=True)]"""
 
 def test_not_ws():
-
+    """Test against a URL that doesn't serve websockets."""
     ws = lomond.WebSocket('wss://www.willmcgugan.com')
     events = list(ws.connect())
     assert events[0].name == 'connecting'
