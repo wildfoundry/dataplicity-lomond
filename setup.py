@@ -27,7 +27,7 @@ setup(
     version=__version__,
     description="Websocket Client Library",
     long_description=long_desc,
-    long_description_content_type=”text/markdown”,
+    long_description_content_type="text/markdown",
     author='WildFoundry',
     author_email='willmcgugan@gmail.com',
     url='https://github.com/wildfoundry/dataplicity-lomond',
