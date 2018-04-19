@@ -14,7 +14,7 @@ an orderly stream of _events_. No threads or callbacks necessary.
 
 ## How to Use
 
-To connect to a `ws:` or `wss:` WebSocket URL, construct a `WebSocket` object then iterate over it (in a for loop). This will yield _event objects_ for each step in the connection process and for and data sent by the server.
+To connect to a "ws:" or "wss:" WebSocket URL, construct a `WebSocket` object then iterate over it. This will yield an _event object_ for each step in the connection process and for any data sent by the server.
 
 You will receive a ``Binary`` or ``Text`` event when the server sends you a message.
 You may _send_ a message with the ``send_binary`` or ``send_text`` methods.
