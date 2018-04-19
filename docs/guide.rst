@@ -159,7 +159,7 @@ which would leave a WebSocket in a permanent *closing* state. As a
 precaution, Lomond will force close the socket after 30 seconds, if the
 server doesn't respond to a close packet. You can change or disable this
 timeout with the `close_timeout` parameter, on
-:meth:`~lomond.websocket.Websocket.connect`.
+:meth:`~lomond.websocket.WebSocket.connect`.
 
 Server
 ++++++
@@ -192,7 +192,7 @@ connection to know if the other end is really listening.
 
 By default, Lomond will send pings packets every 30 seconds. If you wish
 to change this rate or disable ping packets entirely, you may use the
-:meth:`~lomond.websocket.connect` method.
+:meth:`~lomond.websocket.WebSocket.connect` method.
 
 Here's how you would disable pings::
 
@@ -208,7 +208,7 @@ in :meth:`~lomond.websocket.WebSocket.connect`.
 Regardless of whether *auto pong* is enabled, a
 :class:`~lomond.events.Pong` event will be generated when Lomond
 receives a ping packet. If auto pong *is* disabled, you should manually
-call :meth:`~lomond.websocket.send_pong` in response to a ping, or the
+call :meth:`~lomond.websocket.WebSocket.send_pong` in response to a ping, or the
 server may disconnect you.
 
 Polling
