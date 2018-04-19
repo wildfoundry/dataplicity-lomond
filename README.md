@@ -11,8 +11,10 @@ an orderly stream of _events_. No threads or callbacks necessary.
 
 ## How to Use
 
-First construct a `WebSocket` object, then iterate over it to generate
-an orderly sequence of events.
+To connect to a WebSocket URL construct a `WebSocket` object, then iterate over it to generate an orderly sequence of events.
+
+You will receive a ``Binary`` or ``Text`` event when the server sends you a message,
+you may send a message with the ``send_binary`` or ``send_text`` methods.
 
 ## Example
 
@@ -24,7 +26,9 @@ every 5 seconds.
 ```python
 from lomond import WebSocket
 
+
 websocket = WebSocket('wss://echo.websocket.org')
+
 for event in websocket:
     if event.name == 'poll':
         websocket.send_text('Hello, World')
