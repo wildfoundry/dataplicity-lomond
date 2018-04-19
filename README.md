@@ -9,6 +9,7 @@ Lomond is a Websocket client which turns a websocket connection in to
 an orderly stream of _events_. No threads or callbacks necessary.
 
 [Documentation](https://lomond.readthedocs.io/)
+
 [Blog](https://www.willmcgugan.com/search/?s=lomond)
 
 ## How to Use
