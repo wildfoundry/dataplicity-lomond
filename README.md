@@ -1,5 +1,9 @@
 # Dataplicity Lomond
 
+
+[![PyPI version](https://badge.fury.io/py/fs.svg)](https://pypi.org/project/lomond/)
+[![PyPI](https://img.shields.io/pypi/pyversions/lomond.svg)](https://pypi.org/project/lomond/)
+
 Tranquil WebSockets for Python. [Docs](https://lomond.readthedocs.io/)
 
 Lomond is a Websocket client which turns a websocket connection in to

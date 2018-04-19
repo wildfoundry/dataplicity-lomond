@@ -61,14 +61,18 @@ the server.
 When you receive data from the server, a :class:`~lomond.events.Text` or
 :class:`~lomond.events.Binary` event will be generated.
 
-Iterating over the WebSocket instance in this way calls
-:meth:`~lomond.websocket.WebSocket.connect` with default parameters, i.e. it is
-equivalent to the following::
+Connect Method
+++++++++++++++
+
+Iterating over the WebSocket instance calls the
+:meth:`~lomond.websocket.WebSocket.connect` method with default
+parameters, i.e. it is equivalent to the following::
 
     for event in ws.connect():
         print(event)
 
-You may want to call `connect` manually to change the default behavior.
+You may want to call :meth:`~lomond.websocket.WebSocket.connect`
+explicitly to customize the WebSocket behaviour.
 
 Events
 ------
