@@ -17,4 +17,4 @@ compliance/reports
 reports
 _*
 .pytest_cache
-test_*
+./test_*
