@@ -162,7 +162,7 @@ def test_connect(session, mocker):
             [b'some binary data']
         )
     )
-    _socket = session._connect()
+    _socket, _proxy = session._connect()
     assert isinstance(_socket, socket.socket)
 
 
@@ -211,7 +211,7 @@ def test_run_with_send_request_raising_transport_error(session):
     # it returns our FakeSocket object.
 
     def return_fake_socket():
-        return FakeSocket(sendall=sendall_which_raises_error)
+        return FakeSocket(sendall=sendall_which_raises_error), None
 
     session._connect = return_fake_socket
 

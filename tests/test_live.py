@@ -29,7 +29,7 @@ def test_echo():
     assert events[7].name == 'disconnected'
     assert events[7].graceful
 
-def test_echo_no_sny():
+def test_echo_no_sni():
     """Test against public echo server."""
     # TODO: host our own echo server
     try:
