@@ -43,6 +43,10 @@ class PayloadTooLarge(ProtocolError):
     """
 
 
+class ConnectFail(WebSocketError):
+    """An error connecting to a socket."""
+
+
 class TransportFail(WebSocketError):
     """The transport (socket) failed when sending.
 
@@ -61,7 +65,3 @@ class WebSocketClosed(WebSocketUnavailable):
 
 class WebSocketClosing(WebSocketUnavailable):
     """Raised when attempting to send over a closing websocket."""
-
-
-class ProxyFail(WebSocketError):
-    """Fatal issue with proxy server."""

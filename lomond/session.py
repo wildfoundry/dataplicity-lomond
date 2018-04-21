@@ -33,6 +33,13 @@ HAS_SNI = (
 log = logging.getLogger('lomond')
 
 
+class _SocketFail(Exception):
+    """Used internally to respond to socket fails."""
+
+class _ForceDisconnect(Exception):
+    """Used internally when the close timeout is tripped."""
+
+
 class WebsocketSession(object):
     """Manages the mechanics of running the websocket."""
     _selector_cls = selectors.PlatformSelector
@@ -92,26 +99,26 @@ class WebsocketSession(object):
         self.write(frame.to_bytes())
         log.debug('CLI -> SRV : %r', frame)
 
-    class _SocketFail(Exception):
-        """Used internally to respond to socket fails."""
-
-    class _ForceDisconnect(Exception):
-        """Used internally when the close timeout is tripped."""
-
     @classmethod
     def _socket_fail(cls, msg, *args, **kwargs):
         """Raises a socket fail error to exit select loop."""
         _msg = msg.format(*args, **kwargs)
         log.debug(_msg)
-        raise cls._SocketFail(_msg)
+        raise _SocketFail(_msg)
 
     def _connect_sock(self, host, port, ssl=False):
         sock = None
-        for res in socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_STREAM):
+        try:
+            addr_info = socket.getaddrinfo(
+                host, port, socket.AF_UNSPEC, socket.SOCK_STREAM
+            )
+        except socket.error as error:
+            self._socket_fail('unable to connect; {}', error)
+        for res in addr_info:
             af, socktype, proto, canonname, sa = res
             try:
                 sock = socket.socket(af, socktype, proto)
-            except OSError as msg:
+            except socket.error:
                 sock = None
                 continue
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
@@ -120,13 +127,13 @@ class WebsocketSession(object):
                 sock = self._wrap_socket(sock, host)
             try:
                 sock.connect(sa)
-            except OSError as msg:
+            except socket.error:
                 sock.close()
                 sock = None
                 continue
             break
         if socket is None:
-            raise errors.ProxyFail(host)
+            self._socket_fail('unable to connect')
         return sock
 
     def _connect_proxy(self, proxy_url):
@@ -135,15 +142,15 @@ class WebsocketSession(object):
         _port = (
             int(_proxy_url.port)
             if _proxy_url.port else
-            (443 if  _proxy_url.scheme == 'https' else 80)
+            (443 if _proxy_url.scheme == 'https' else 80)
         )
         try:
             sock = self._connect_sock(
                 _proxy_url.hostname, _port,
                 ssl=_proxy_url.scheme == 'https'
             )
-        except socket.error as error:
-            raise errors.ProxyFail(
+        except _SocketFail as error:
+            raise proxy.ProxyFail(
                 'unable to connect to proxy; {}'.format(error)
             )
         proxy_request = proxy.build_request(
@@ -156,12 +163,13 @@ class WebsocketSession(object):
         response = None
         while response is None:
             data = sock.recv(1024)
-            if not data:
+            for response in proxy_parser.feed(data):
                 break
-            response = next(proxy_parser.feed(data), None)
-        if self.websocket.is_secure:
-            sock = self._wrap_socket(sock, self.websocket.host)
-        return sock
+        return (
+            self._wrap_socket(sock, self.websocket.host)
+            if self.websocket.is_secure else
+            sock
+        )
 
     def _connect(self):
         """Create socket and connect."""
@@ -291,11 +299,11 @@ class WebsocketSession(object):
         self._check_auto_ping(ping_rate)
         if self._check_ping_timeout(ping_timeout):
             yield events.Unresponsive()
-            raise self._ForceDisconnect(
+            raise _ForceDisconnect(
                 'exceeded {:.0f}s ping timeout'.format(ping_timeout)
             )
         if self._check_close_timeout(close_timeout):
-            raise self._ForceDisconnect(
+            raise _ForceDisconnect(
                 "server didn't respond to close packet "
                 "within {}s".format(close_timeout)
             )
@@ -333,7 +341,7 @@ class WebsocketSession(object):
         # Create socket and connect to remote server
         try:
             sock = self._sock = self._connect()
-        except socket.error as error:
+        except _SocketFail as error:
             yield events.ConnectFail('{}'.format(error))
             return
         except Exception as error:
@@ -348,11 +356,6 @@ class WebsocketSession(object):
         except errors.TransportFail as error:
             self._close_socket()
             yield events.ConnectFail('request failed; {}'.format(error))
-            return
-        except Exception as error:
-            self._close_socket()
-            log.error('error sending request; %s', error)
-            yield events.ConnectFail('request error; {}'.format(error))
             return
 
         # Connected to the server, but not yet upgraded to websockets
@@ -406,10 +409,10 @@ class WebsocketSession(object):
                         else:
                             break
 
-        except self._ForceDisconnect as error:
+        except _ForceDisconnect as error:
             self._close_socket()
             yield events.Disconnected('disconnected; {}'.format(error))
-        except self._SocketFail as error:
+        except _SocketFail as error:
             # Session methods will translate socket errors to this
             # exception. The result is we are disconnected.
             self._close_socket()

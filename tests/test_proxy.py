@@ -3,7 +3,6 @@ from __future__ import unicode_literals
 import pytest
 
 from lomond import proxy
-from lomond.errors import ProxyFail
 
 
 def test_build_request():
@@ -37,12 +36,21 @@ def test_parser():
 
 
 def test_parser_fail():
+    """Test non-success response from proxy."""
     response = [
         b'HTTP/1.1 407 auth required\r\n',
         b'foo: bar\r\n\r\n'
     ]
     proxy_parser = proxy.ProxyParser()
-    with pytest.raises(ProxyFail):
+    with pytest.raises(proxy.ProxyFail):
         for line in response:
             for response in proxy_parser.feed(line):
                 break
+
+def test_parser_fail_nodata():
+    """Test no response from proxy."""
+    proxy_parser = proxy.ProxyParser()
+    with pytest.raises(proxy.ProxyFail):
+        for response in proxy_parser.feed(b''):
+            break
+            

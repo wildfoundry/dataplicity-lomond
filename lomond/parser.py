@@ -14,6 +14,10 @@ class ParseError(Exception):
     """Stream failed to parse."""
 
 
+class ParseEOF(ParseError):
+    """End of Stream."""
+
+
 class _Awaitable(object):
     """An operation that effectively suspends the coroutine."""
     # Analogous to Python3 asyncio concept
@@ -118,6 +122,9 @@ class Parser(object):
                 self._awaiting.check_length(pos)
             except ParseError as error:
                 self._gen.throw(error)
+
+        if not data:
+            self._gen.throw(ParseEOF('no more data to parse'))
 
         pos = 0
         while pos < len(data):

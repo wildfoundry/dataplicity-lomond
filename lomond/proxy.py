@@ -2,9 +2,13 @@ from __future__ import unicode_literals
 
 import base64
 
-from .errors import ProxyFail
-from .parser import Parser
+from .parser import Parser, ParseError
 from .response import Response
+
+
+class ProxyFail(Exception):
+    """An error with the proxy."""
+    # An internal exception
 
 
 class ProxyResponse(Response):
@@ -45,7 +49,10 @@ class ProxyParser(Parser):
     """Parser for communication with a SOCKS proxy."""
 
     def parse(self):
-        headers_data = yield self.read_until(b'\r\n\r\n', max_bytes=16 * 1024)
+        try:
+            headers_data = yield self.read_until(b'\r\n\r\n', max_bytes=16 * 1024)
+        except ParseError as error:
+            raise ProxyFail('proxy parse fail; {}', error)
         response = ProxyResponse(headers_data)
         if response.status_code != 200:
             raise ProxyFail(

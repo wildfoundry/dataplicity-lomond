@@ -1,6 +1,7 @@
 import calendar
 import select
 import socket
+import time
 from datetime import datetime
 import sys
 
@@ -221,26 +222,6 @@ def test_run_with_send_request_raising_transport_error(session):
         "ConnectFail('request failed; socket fail; error during sendall')"
     )
 
-
-def test_run_with_send_request_raising_exception(session, mocker):
-    # exactly like the one above, but a different type of error is raised.
-    # this time, we have to set the state of socket to closed, thus forcing
-    # lomond to throw a non-socket error;
-    def return_fake_socket(self):
-        self.websocket.state.closed = True
-        return FakeSocket()
-
-    mocker.patch(
-        'lomond.session.WebsocketSession._connect', return_fake_socket)
-
-    _events = list(session.run())
-
-    assert isinstance(_events[-1], events.ConnectFail)
-    assert str(_events[-1]) == (
-        "ConnectFail('request error; data not sent')"
-    )
-
-
 def test_that_on_ping_responds_with_pong(session, mocker):
     # we don't actually care that much for the whole stack underneath,
     # we only want to check whether a certain method was called..
@@ -416,11 +397,15 @@ def test_unresponsive(monkeypatch, mocker):
 def test_recv_with_secure_websocket(session):
     def fake_recv(self):
         return b'\x01'
-
     session._sock = FakeSocket()
     session._sock.recv = fake_recv
-
     assert session._recv(1) == b'\x01'
+
+
+def test_on_pong(session):
+    session._on_ready()
+    session._on_pong(events.Pong(b'foo'))
+    assert session._time - session._last_pong < 0.01
 
 
 def test_context_manager(session):
