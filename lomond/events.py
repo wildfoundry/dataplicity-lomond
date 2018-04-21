@@ -81,12 +81,28 @@ class ConnectFail(Event):
         )
 
 
-class Connected(Connecting):
+class Connected(Event):
     """Generated when Lomond has connected to a server but not yet
     negotiated the websocket upgrade.
 
     """
+    __slots__ = ['url', 'proxy']
     name = 'connected'
+
+    def __init__(self, url, proxy=None):
+        self.url = url
+        self.proxy = proxy
+        super(Connected, self).__init__()
+
+    def __repr__(self):
+        _class = self.__class__.__name__
+        return (
+            "{}(url='{}')".format(_class, self.url)
+            if self.proxy is None else
+            "{}(url='{}', proxy='{}')".format(
+                _class, self.url, self.proxy
+            )
+        )
 
 
 class Rejected(Event):

@@ -178,16 +178,18 @@ class WebsocketSession(object):
         )
         if proxy:
             sock = self._connect_proxy(proxy)
+            proxy_url = proxy
         else:
             sock = self._connect_sock(
                 self.websocket.host,
                 self.websocket.port,
                 ssl=self.websocket.is_secure
             )
+            proxy_url = None
         # The timeout makes the socket non-blocking
         # We want to the socket to block after the connection
         sock.settimeout(None)
-        return sock
+        return sock, proxy_url
 
     def _wrap_socket(self, sock, host):
         """Wrap the socket with an SSL proxy."""
@@ -340,7 +342,8 @@ class WebsocketSession(object):
 
         # Create socket and connect to remote server
         try:
-            sock = self._sock = self._connect()
+            sock, proxy = self._connect()
+            self._sock = sock 
         except _SocketFail as error:
             yield events.ConnectFail('{}'.format(error))
             return
@@ -359,7 +362,7 @@ class WebsocketSession(object):
             return
 
         # Connected to the server, but not yet upgraded to websockets
-        yield events.Connected(url)
+        yield events.Connected(url, proxy=proxy)
 
         selector = self._selector_cls(sock)
         log.debug('%r created', selector)
