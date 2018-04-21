@@ -1,8 +1,11 @@
 from __future__ import unicode_literals
 
+import os
+import subprocess
 import pytest
+import time
 
-from lomond import proxy
+from lomond import WebSocket, proxy
 
 
 def test_build_request():
@@ -53,4 +56,50 @@ def test_parser_fail_nodata():
     with pytest.raises(proxy.ProxyFail):
         for response in proxy_parser.feed(b''):
             break
-            
+
+def test_proxy():
+    proc = subprocess.Popen(['proxy.py', '--port', '8888'])
+    try:
+        time.sleep(1)
+        ws = WebSocket(
+            'wss://echo.websocket.org',
+            proxies = {'https': 'http://127.0.0.1:8888'}
+        )
+        events = []
+        for event in ws:
+            events.append(event)
+            if event.name == 'ready':
+                ws.close()
+        
+        assert len(events) == 6
+        assert events[0].name == 'connecting'
+        assert events[1].name == 'connected'
+        assert events[1].proxy == 'http://127.0.0.1:8888'
+        assert events[2].name == 'ready'
+        assert events[3].name == 'poll'
+        assert events[4].name == 'closed'
+        assert events[5].name == 'disconnected'
+    finally:
+        os.kill(proc.pid, 3)
+
+
+
+def test_bad_proxy():
+    proc = subprocess.Popen(['proxy.py', '--port', '8888'])
+    try:
+        time.sleep(0.1)
+        ws = WebSocket(
+            'wss://echo.websocket.org',
+            proxies = {'https': 'http://bad.test:8888'}
+        )
+        events = []
+        for event in ws:
+            events.append(event)
+            if event.name == 'ready':
+                ws.close()
+        
+        assert len(events) == 2
+        assert events[0].name == 'connecting'
+        assert events[1].name == 'connect_fail'
+    finally:
+        os.kill(proc.pid, 3)

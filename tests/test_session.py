@@ -183,7 +183,7 @@ def test_send_request(session):
 
 def test_run_with_socket_open_error(session):
     def connect_which_raises_error():
-        raise socket.error('socket.error during connect')
+        raise ValueError('fail')
 
     session._connect = connect_which_raises_error
 
@@ -195,7 +195,7 @@ def test_run_with_socket_open_error(session):
     assert _events[0].url == 'wss://example.com/'
 
     assert isinstance(_events[1], events.ConnectFail)
-    assert str(_events[1]) == "ConnectFail('socket.error during connect')"
+    assert str(_events[1]) == "ConnectFail('fail')"
 
 
 def test_run_with_send_request_raising_transport_error(session):

@@ -132,7 +132,7 @@ class WebsocketSession(object):
                 sock = None
                 continue
             break
-        if socket is None:
+        if sock is None:
             self._socket_fail('unable to connect')
         return sock
 
@@ -150,9 +150,7 @@ class WebsocketSession(object):
                 ssl=_proxy_url.scheme == 'https'
             )
         except _SocketFail as error:
-            raise proxy.ProxyFail(
-                'unable to connect to proxy; {}'.format(error)
-            )
+            self._socket_fail('unable to connect to proxy; {}', error)
         proxy_request = proxy.build_request(
             self.websocket.host, self.websocket.port,
             proxy_username=_proxy_url.username,
