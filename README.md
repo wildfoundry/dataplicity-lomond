@@ -4,7 +4,7 @@ Tranquil WebSockets for Python.
 
 [![PyPI version](https://badge.fury.io/py/lomond.svg)](https://pypi.org/project/lomond/)
 [![PyPI](https://img.shields.io/pypi/pyversions/lomond.svg)](https://pypi.org/project/lomond/)
-[![Coverage Status](https://coveralls.io/repos/github/wildfoundry/dataplicity-lomond/badge.svg?branch=proxy)](https://coveralls.io/github/wildfoundry/dataplicity-lomond?branch=proxy)
+[![Coverage Status](https://coveralls.io/repos/github/wildfoundry/dataplicity-lomond/badge.svg?branch=master)](https://coveralls.io/github/wildfoundry/dataplicity-lomond?branch=master)
 [![CircleCI](https://circleci.com/gh/wildfoundry/dataplicity-lomond/tree/master.svg?style=svg)](https://circleci.com/gh/wildfoundry/dataplicity-lomond/tree/master)
 
 Lomond is a Websocket client which turns a websocket connection in to
