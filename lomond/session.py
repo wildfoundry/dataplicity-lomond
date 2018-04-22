@@ -269,10 +269,12 @@ class WebsocketSession(object):
         if not close_timeout:
             return False
         sent_close_time = self.websocket.sent_close_time
-        return (
-            sent_close_time is not None and
-            self._time >= sent_close_time + close_timeout
-        )
+        if (sent_close_time is not None and 
+            self._time >= sent_close_time + close_timeout):
+            raise _ForceDisconnect(
+                "server didn't respond to close packet "
+                "within {}s".format(close_timeout)
+            )
 
     def _recv(self, count):
         """Receive and return pending data from the socket."""
@@ -302,11 +304,7 @@ class WebsocketSession(object):
             raise _ForceDisconnect(
                 'exceeded {:.0f}s ping timeout'.format(ping_timeout)
             )
-        if self._check_close_timeout(close_timeout):
-            raise _ForceDisconnect(
-                "server didn't respond to close packet "
-                "within {}s".format(close_timeout)
-            )
+        self._check_close_timeout(close_timeout)    
 
     def _send_pong(self, event):
         """Send a pong message in response to ping event."""
@@ -325,6 +323,17 @@ class WebsocketSession(object):
         self._last_pong = 0.0
         self._next_ping = 0.0
         self._start_time = time.time()
+
+    def _on_event(self, event, auto_pong=True):
+        """Handle logic in response to an event."""
+        if event.name == 'ready':
+            self._on_ready()
+            self._ready = True
+        elif event.name == 'ping':
+            if auto_pong:
+                self._send_pong(event)
+        elif event.name == 'pong':
+            self._on_pong(event)
 
     def run(self,
             poll=5,
@@ -368,47 +377,29 @@ class WebsocketSession(object):
         def _regular():
             """Run regular events if websocket is ready."""
             if self._ready:
-                _iter_events = self._regular(
-                    poll,
-                    ping_rate,
-                    ping_timeout,
-                    close_timeout
+                return self._regular(
+                    poll, ping_rate, ping_timeout, close_timeout
                 )
-                for event in _iter_events:
-                    yield event
-
-        def _on_event(event):
-            """Handle logic in response to an event."""
-            if event.name == 'ready':
-                self._on_ready()
-                self._ready = True
-            elif event.name == 'ping':
-                if auto_pong:
-                    self._send_pong(event)
-            elif event.name == 'pong':
-                self._on_pong(event)
-            yield event
-            for event in _regular():
-                yield event
+            return ()
 
         try:
-            while not websocket.is_closed:
+            while True:
                 readable = selector.wait_readable(poll)
-
                 for event in _regular():
                     yield event
-
-                if readable:
-                    data = self._recv(64 * 1024)
-                    if data:
-                        for event in self.websocket.feed(data):
-                            for event in _on_event(event):
-                                yield event
-                    else:
-                        if websocket.is_active:
-                            self._socket_fail('connection lost')
-                        else:
-                            break
+                if not readable:
+                    continue
+                data = self._recv(64 * 1024)
+                if data:
+                    for event in self.websocket.feed(data):
+                        self._on_event(event, auto_pong)
+                        yield event
+                        for event in _regular():
+                            yield event
+                else:
+                    if websocket.is_active:
+                        self._socket_fail('connection lost')
+                    break
 
         except _ForceDisconnect as error:
             self._close_socket()
@@ -418,7 +409,7 @@ class WebsocketSession(object):
             # exception. The result is we are disconnected.
             self._close_socket()
             yield events.Disconnected('socket fail; {}'.format(error))
-        except Exception as error:
+        except Exception as error:  # pragma: no cover
             # It pays to be paranoid.
             log.exception('error in websocket loop')
             self._close_socket()

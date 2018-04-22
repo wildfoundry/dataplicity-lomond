@@ -7,13 +7,11 @@ def test_echo():
     # TODO: host our own echo server
     ws = lomond.WebSocket('wss://echo.websocket.org')
     events = []
-    polls = 0
     for event in ws.connect(poll=60, ping_rate=0, auto_pong=False):
         events.append(event)
         if event.name == 'ready':
             ws.send_text(u'foo')
             ws.send_binary(b'bar')
-            polls += 1
             ws.close()
 
     assert len(events) == 8
@@ -29,22 +27,20 @@ def test_echo():
     assert events[7].name == 'disconnected'
     assert events[7].graceful
 
+
 def test_echo_no_sni():
     """Test against public echo server."""
-    # TODO: host our own echo server
     try:
         from lomond import session
         has_sni = session.HAS_SNI
         session.HAS_SNI = False
         ws = lomond.WebSocket('wss://echo.websocket.org')
         events = []
-        polls = 0
         for event in ws.connect(poll=60, ping_rate=0, auto_pong=False):
             events.append(event)
             if event.name == 'ready':
                 ws.send_text(u'foo')
                 ws.send_binary(b'bar')
-                polls += 1
                 ws.close()
 
         assert len(events) == 8
@@ -63,9 +59,27 @@ def test_echo_no_sni():
         session.HAS_SNI = has_sni
 
 
+def test_echo_poll():
+    """Test against public echo server."""
+    # TODO: host our own echo server
+    ws = lomond.WebSocket('wss://echo.websocket.org')
+    _events = []
+    polls = 0
+    for event in ws.connect(poll=1.0, ping_rate=1.0, auto_pong=True):
+        _events.append(event)
+        if event.name == 'poll':
+            polls += 1
+            if polls == 1:
+                ws.session._on_event(events.Ping(b'foo'))
+            elif polls == 2:
+                # Covers some lesser used code paths
+                ws.state.closed = True
+                ws.session._sock.close()    
+
+
 def test_not_ws():
     """Test against a URL that doesn't serve websockets."""
-    ws = lomond.WebSocket('wss://www.willmcgugan.com')
+    ws = lomond.WebSocket('wss://www.google.com')
     events = list(ws.connect())
     assert len(events) == 4
     assert events[0].name == 'connecting'
@@ -81,6 +95,7 @@ def test_no_url_wss():
     assert len(events) == 2
     assert events[0].name == 'connecting'
     assert events[1].name == 'connect_fail'
+
 
 def test_no_url_ws():
     """Test against a URL that doesn't serve websockets."""

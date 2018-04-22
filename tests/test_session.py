@@ -9,7 +9,7 @@ import pytest
 from freezegun import freeze_time
 from lomond import errors, events
 from lomond import constants
-from lomond.session import WebsocketSession
+from lomond.session import WebsocketSession, _ForceDisconnect, _SocketFail
 from lomond.websocket import WebSocket
 from mocket import Mocket, MocketEntry, mocketize
 
@@ -47,17 +47,26 @@ class FakeSocket(object):
         self.buffer = b''
         self._sendall = kwargs.get('sendall', None)
 
+    def setsockopt(self, *args):
+        pass
+
+    def settimeout(self, *args):
+        pass
+
+    def connect(self, *args):
+        raise socket.error('fail')
+
     def fileno(self):
         return 999
 
     def recv(self, *args, **kwargs):
-        raise ValueError('this is a test')
+        raise socket.error('fail')
 
     def shutdown(self, *args, **kwargs):
         pass
 
     def close(self):
-        raise socket.error('already closed')
+        return
 
     def sendall(self, data):
         self.buffer += data
@@ -66,6 +75,14 @@ class FakeSocket(object):
 
     def pending(self):
         return 0
+
+
+class FakeWebSocket(object):
+    
+    sent_close_time = -100
+
+    def send_pong(self, data):
+        raise errors.WebSocketClosed('sorry')
 
 
 class FakeSelector(object):
@@ -408,7 +425,7 @@ def test_on_pong(session):
     assert session._time - session._last_pong < 0.01
 
 
-def test_context_manager(session):
+def test_context_manager():
     ws = WebSocket('ws://example.com/')
     session = WebsocketSession(ws)
     session._selector_cls = FakeSelector
@@ -416,3 +433,37 @@ def test_context_manager(session):
     with ws:
         for event in ws:
             pass
+
+
+def test_connect_sock_fail_socket(monkeypatch, session):
+    def fail_socket(*args):
+        raise socket.error('foo')
+    monkeypatch.setattr('socket.socket', fail_socket)
+
+    with pytest.raises(_SocketFail):
+        session._connect_sock('google.com', 80)
+
+
+def test_connect_sock_fail_connect(monkeypatch, session):
+    monkeypatch.setattr('socket.socket', lambda *args: FakeSocket())
+
+    with pytest.raises(_SocketFail):
+        session._connect_sock('google.com', 80)
+
+
+def test_sock_recv(session):
+    session._sock = FakeSocket()
+    with pytest.raises(_SocketFail):
+        session._recv(128)
+
+
+def test_send_pong(session):
+    session.websocket = FakeWebSocket()
+    session._send_pong(events.Ping(b'foo'))
+
+
+def test_check_close_timeout(session):
+    session._on_ready()
+    session.websocket = FakeWebSocket()
+    with pytest.raises(_ForceDisconnect):
+        session._check_close_timeout(10)

@@ -113,7 +113,7 @@ class WebSocket(object):
         a closing state.
 
         """
-        return not self.state.closing
+        return not self.state.closing and not self.state.closed
 
     @property
     def sent_close_time(self):

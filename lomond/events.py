@@ -85,6 +85,9 @@ class Connected(Event):
     """Generated when Lomond has connected to a server but not yet
     negotiated the websocket upgrade.
 
+    :param str url: The websocket URL connected to.
+    :param str proxy: The proxy URL connected to (or None).
+
     """
     __slots__ = ['url', 'proxy']
     name = 'connected'

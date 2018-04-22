@@ -18,3 +18,5 @@ reports
 _*
 .pytest_cache
 ./test_*
+.mypy_cache
+.vscode
