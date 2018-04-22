@@ -1,4 +1,8 @@
+# -*- coding: utf-8 -*-
+
 import pytest
+
+from lomond.frame import Frame
 from lomond.frame_parser import FrameParser
 from lomond.opcode import Opcode
 from lomond.errors import PayloadTooLarge

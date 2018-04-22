@@ -43,6 +43,10 @@ class PayloadTooLarge(ProtocolError):
     """
 
 
+class ConnectFail(WebSocketError):
+    """An error connecting to a socket."""
+
+
 class TransportFail(WebSocketError):
     """The transport (socket) failed when sending.
 

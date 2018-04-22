@@ -2,6 +2,7 @@
 omit =
     *lomond/utf8validator.py
     *lomond/examples/*
+    *lomond/selectors.py
 
 [report]
 exclude_lines =

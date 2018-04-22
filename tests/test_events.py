@@ -11,6 +11,10 @@ test_cases = [
         events.Connecting('http://example.com'),
         "Connecting(url='http://example.com')"
     ),
+    (
+        events.Connected('http://example.org', proxy='foo'),
+        "Connected(url='http://example.org', proxy='foo')"
+    ),
     (events.ConnectFail('404'), "ConnectFail('404')"),
     (
         events.Rejected('401', 'Insufficient permissions'),

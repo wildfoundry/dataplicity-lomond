@@ -14,6 +14,7 @@ import os
 import time
 
 import six
+from six import text_type
 from six.moves.urllib.parse import urlparse
 
 from . import constants
@@ -33,12 +34,15 @@ log = logging.getLogger('lomond')
 class WebSocket(object):
     """IO independent websocket functionality.
 
-    :param str url: A websocket URL, must have a `ws://` or `wss://`
+    :param str url: A websocket URL, must have a ``ws://`` or ``wss://``
         protocol.
+    :param dict proxies: A dict containing ``'http'`` or ``'https'``
+        urls to a proxy server, or ``None`` to attempt to auto-detect
+        proxies from environment. Pass an empty dict to disable proxy.
     :params list protocols: A list of supported protocols (defaults to
         no protocols).
     :params str agent: A user agent string to be sent in the header. The
-        default uses the value `USER_AGENT` defined in
+        default uses the value ``USER_AGENT`` defined in
         :mod:`lomond.constants`.
 
     """
@@ -53,29 +57,35 @@ class WebSocket(object):
             self.closed = False
             self.sent_close_time = None
 
-    def __init__(self, url, protocols=None, agent=None):
+    def __init__(self, url, proxies=None, protocols=None, agent=None):
         self.url = url
+        self.proxies = self._detect_proxies() if proxies is None else proxies
         self.protocols = protocols or []
         self.agent = agent or constants.USER_AGENT
-
         self._headers = []
-
         _url = urlparse(url)
         self.scheme = _url.scheme
-        host, _, port = _url.netloc.partition(':')
-        if not port:
-            port = '443' if self.scheme == 'wss' else '80'
-        if not port.isdigit():
-            raise ValueError('illegal port value')
-        port = int(port)
-        self.host = host
-        self.port = port
-        self._host_port = "{}:{}".format(host, port)
+        self.host = _url.hostname
+        self.port = (
+            int(_url.port)
+            if _url.port else
+            (443 if self.scheme == 'wss' else 80)
+        )
+        self._host_port = "{}:{}".format(self.host, self.port)
         self.resource = _url.path or '/'
         if _url.query:
             self.resource = "{}?{}".format(self.resource, _url.query)
 
         self.state = self.State()
+
+    @classmethod
+    def _detect_proxies(cls):
+        """Get proxy information form environment."""
+        proxies = {
+            'http': os.environ.get('HTTP_PROXY'),
+            'https': os.environ.get('HTTPS_PROXY')
+        }
+        return proxies
 
     def __repr__(self):
         return "WebSocket('{}')".format(self.url)
@@ -103,7 +113,7 @@ class WebSocket(object):
         a closing state.
 
         """
-        return not self.state.closing
+        return not self.state.closing and not self.state.closed
 
     @property
     def sent_close_time(self):
@@ -135,7 +145,8 @@ class WebSocket(object):
 
     def __exit__(self, exc_type, exc_value, traceback):
         """Close the session (and potentially a socket) on exit."""
-        self.session.close()
+        if self.session is not None:
+            self.session.close()
 
     def add_header(self, header, value):
         """Add a custom header to the websocket request.
@@ -182,14 +193,14 @@ class WebSocket(object):
         """
         self.reset()
         self.state.session = session = session_class(self)
-        run_coro = session.run(
+        run_generator = session.run(
             poll=poll,
             ping_rate=ping_rate,
             ping_timeout=ping_timeout,
             auto_pong=auto_pong,
             close_timeout=close_timeout
         )
-        return run_coro
+        return run_generator
 
 
     def reset(self):

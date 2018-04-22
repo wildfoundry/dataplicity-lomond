@@ -35,7 +35,9 @@ class FrameParser(Parser):
     def parse(self):
         # Get the HTTP headers
         if self._parse_headers:
-            header_data = yield self.read_until(b'\r\n\r\n')
+            header_data = yield self.read_until(
+                b'\r\n\r\n', max_bytes=16 * 1024
+            )
             yield header_data
 
         # Get any WS frames
@@ -87,14 +89,7 @@ class FrameParser(Parser):
                     frame.payload = yield self.read(payload_length)
 
             if frame.fin and (frame.is_text or frame.is_continuation):
-                _, ends_on_codepoint, _, _ = (
-                    self._utf8_validator.validate(b'')
-                )
                 self._utf8_validator.reset()
                 self._is_text = False
-                if not ends_on_codepoint:
-                    raise errors.CriticalProtocolError(
-                        'invalid utf-8; does not end on codepoint'
-                    )
 
             yield frame

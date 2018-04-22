@@ -14,6 +14,10 @@ class ParseError(Exception):
     """Stream failed to parse."""
 
 
+class ParseEOF(ParseError):
+    """End of Stream."""
+
+
 class _Awaitable(object):
     """An operation that effectively suspends the coroutine."""
     # Analogous to Python3 asyncio concept
@@ -44,9 +48,19 @@ class _ReadUtf8(_ReadBytes):
 
 class _ReadUntil(_Awaitable):
     """Read until a separator."""
-    __slots__ = ['sep']
-    def __init__(self, sep):
+    __slots__ = ['sep', 'max_bytes']
+    def __init__(self, sep, max_bytes=None):
         self.sep = sep
+        self.max_bytes = max_bytes
+
+    def check_length(self, pos):
+        """Check the length is within max bytes."""
+        if self.max_bytes is not None and pos > self.max_bytes:
+            raise ParseError(
+                '{!r} expected in {} byte(s)',
+                self.sep,
+                self.max_bytes
+            )
 
 
 class Parser(object):
@@ -102,6 +116,16 @@ class Parser(object):
         :param bytes data: Data to decode.
 
         """
+
+        def _check_length(pos):
+            try:
+                self._awaiting.check_length(pos)
+            except ParseError as error:
+                self._gen.throw(error)
+
+        if not data:
+            self._gen.throw(ParseEOF('no more data to parse'))
+
         pos = 0
         while pos < len(data):
             # Awaiting a read of a fixed number of bytes
@@ -138,12 +162,15 @@ class Parser(object):
                 self._until += chunk
                 sep = self._awaiting.sep
                 sep_index = self._until.find(sep)
+
                 if sep_index == -1:
                     # Separator not found, advance position
                     pos += len(chunk)
+                    _check_length(len(self._until))
                 else:
                     # Found separator
                     # Get data prior to and including separator
+                    _check_length(sep_index + len(sep))
                     split_index = sep_index + len(sep)
                     send_bytes = self._until[:split_index]
                     # Reset data, to continue parsing

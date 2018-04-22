@@ -1,6 +1,7 @@
 import calendar
 import select
 import socket
+import time
 from datetime import datetime
 import sys
 
@@ -8,7 +9,7 @@ import pytest
 from freezegun import freeze_time
 from lomond import errors, events
 from lomond import constants
-from lomond.session import WebsocketSession
+from lomond.session import WebsocketSession, _ForceDisconnect, _SocketFail
 from lomond.websocket import WebSocket
 from mocket import Mocket, MocketEntry, mocketize
 
@@ -46,17 +47,26 @@ class FakeSocket(object):
         self.buffer = b''
         self._sendall = kwargs.get('sendall', None)
 
+    def setsockopt(self, *args):
+        pass
+
+    def settimeout(self, *args):
+        pass
+
+    def connect(self, *args):
+        raise socket.error('fail')
+
     def fileno(self):
         return 999
 
     def recv(self, *args, **kwargs):
-        raise ValueError('this is a test')
+        raise socket.error('fail')
 
     def shutdown(self, *args, **kwargs):
         pass
 
     def close(self):
-        raise socket.error('already closed')
+        return
 
     def sendall(self, data):
         self.buffer += data
@@ -67,11 +77,19 @@ class FakeSocket(object):
         return 0
 
 
+class FakeWebSocket(object):
+    
+    sent_close_time = -100
+
+    def send_pong(self, data):
+        raise errors.WebSocketClosed('sorry')
+
+
 class FakeSelector(object):
     def __init__(self, socket):
         pass
 
-    def  wait_readable(self, timeout):
+    def wait_readable(self, timeout):
         return True
 
     def close(self):
@@ -161,7 +179,7 @@ def test_connect(session, mocker):
             [b'some binary data']
         )
     )
-    _socket = session._connect()
+    _socket, _proxy = session._connect()
     assert isinstance(_socket, socket.socket)
 
 
@@ -182,7 +200,7 @@ def test_send_request(session):
 
 def test_run_with_socket_open_error(session):
     def connect_which_raises_error():
-        raise socket.error('socket.error during connect')
+        raise ValueError('fail')
 
     session._connect = connect_which_raises_error
 
@@ -194,26 +212,7 @@ def test_run_with_socket_open_error(session):
     assert _events[0].url == 'wss://example.com/'
 
     assert isinstance(_events[1], events.ConnectFail)
-    assert str(_events[1]) == "ConnectFail('socket.error during connect')"
-
-
-def test_run_with_regular_exception_on_connect(session):
-    def connect_which_raises_value_error():
-        raise ValueError('socket.error during connect')
-
-    session._connect = connect_which_raises_value_error
-
-    _events = list(session.run())
-
-    assert len(_events) == 2
-
-    assert isinstance(_events[0], events.Connecting)
-    assert _events[0].url == 'wss://example.com/'
-
-    assert isinstance(_events[1], events.ConnectFail)
-    assert str(_events[1]) == (
-        "ConnectFail('error; socket.error during connect')"
-    )
+    assert str(_events[1]) == "ConnectFail('fail')"
 
 
 def test_run_with_send_request_raising_transport_error(session):
@@ -229,7 +228,7 @@ def test_run_with_send_request_raising_transport_error(session):
     # it returns our FakeSocket object.
 
     def return_fake_socket():
-        return FakeSocket(sendall=sendall_which_raises_error)
+        return FakeSocket(sendall=sendall_which_raises_error), None
 
     session._connect = return_fake_socket
 
@@ -239,26 +238,6 @@ def test_run_with_send_request_raising_transport_error(session):
     assert str(_events[-1]) == (
         "ConnectFail('request failed; socket fail; error during sendall')"
     )
-
-
-def test_run_with_send_request_raising_exception(session, mocker):
-    # exactly like the one above, but a different type of error is raised.
-    # this time, we have to set the state of socket to closed, thus forcing
-    # lomond to throw a non-socket error;
-    def return_fake_socket(self):
-        self.websocket.state.closed = True
-        return FakeSocket()
-
-    mocker.patch(
-        'lomond.session.WebsocketSession._connect', return_fake_socket)
-
-    _events = list(session.run())
-
-    assert isinstance(_events[-1], events.ConnectFail)
-    assert str(_events[-1]) == (
-        "ConnectFail('request error; data not sent')"
-    )
-
 
 def test_that_on_ping_responds_with_pong(session, mocker):
     # we don't actually care that much for the whole stack underneath,
@@ -435,8 +414,56 @@ def test_unresponsive(monkeypatch, mocker):
 def test_recv_with_secure_websocket(session):
     def fake_recv(self):
         return b'\x01'
-
     session._sock = FakeSocket()
     session._sock.recv = fake_recv
-
     assert session._recv(1) == b'\x01'
+
+
+def test_on_pong(session):
+    session._on_ready()
+    session._on_pong(events.Pong(b'foo'))
+    assert session._time - session._last_pong < 0.01
+
+
+def test_context_manager():
+    ws = WebSocket('ws://example.com/')
+    session = WebsocketSession(ws)
+    session._selector_cls = FakeSelector
+    session._on_ready()
+    with ws:
+        for event in ws:
+            pass
+
+
+def test_connect_sock_fail_socket(monkeypatch, session):
+    def fail_socket(*args):
+        raise socket.error('foo')
+    monkeypatch.setattr('socket.socket', fail_socket)
+
+    with pytest.raises(_SocketFail):
+        session._connect_sock('google.com', 80)
+
+
+def test_connect_sock_fail_connect(monkeypatch, session):
+    monkeypatch.setattr('socket.socket', lambda *args: FakeSocket())
+
+    with pytest.raises(_SocketFail):
+        session._connect_sock('google.com', 80)
+
+
+def test_sock_recv(session):
+    session._sock = FakeSocket()
+    with pytest.raises(_SocketFail):
+        session._recv(128)
+
+
+def test_send_pong(session):
+    session.websocket = FakeWebSocket()
+    session._send_pong(events.Ping(b'foo'))
+
+
+def test_check_close_timeout(session):
+    session._on_ready()
+    session.websocket = FakeWebSocket()
+    with pytest.raises(_ForceDisconnect):
+        session._check_close_timeout(10)

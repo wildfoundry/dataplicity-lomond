@@ -1,2 +1,2 @@
-coverage run --source lomond runtests.py
-coverage report -m
+python -m coverage run --source lomond runtests.py
+python -m coverage report -m

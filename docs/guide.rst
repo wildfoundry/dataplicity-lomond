@@ -61,14 +61,18 @@ the server.
 When you receive data from the server, a :class:`~lomond.events.Text` or
 :class:`~lomond.events.Binary` event will be generated.
 
-Iterating over the WebSocket instance in this way calls
-:meth:`~lomond.websocket.WebSocket.connect` with default parameters, i.e. it is
-equivalent to the following::
+Connect Method
+++++++++++++++
+
+Iterating over the WebSocket instance calls the
+:meth:`~lomond.websocket.WebSocket.connect` method with default
+parameters, i.e. it is equivalent to the following::
 
     for event in ws.connect():
         print(event)
 
-You may want to call `connect` manually to change the default behavior.
+You may want to call :meth:`~lomond.websocket.WebSocket.connect`
+explicitly to customize the WebSocket behaviour.
 
 Events
 ------
@@ -155,7 +159,7 @@ which would leave a WebSocket in a permanent *closing* state. As a
 precaution, Lomond will force close the socket after 30 seconds, if the
 server doesn't respond to a close packet. You can change or disable this
 timeout with the `close_timeout` parameter, on
-:meth:`~lomond.websocket.Websocket.connect`.
+:meth:`~lomond.websocket.WebSocket.connect`.
 
 Server
 ++++++
@@ -188,7 +192,7 @@ connection to know if the other end is really listening.
 
 By default, Lomond will send pings packets every 30 seconds. If you wish
 to change this rate or disable ping packets entirely, you may use the
-:meth:`~lomond.websocket.connect` method.
+:meth:`~lomond.websocket.WebSocket.connect` method.
 
 Here's how you would disable pings::
 
@@ -204,7 +208,7 @@ in :meth:`~lomond.websocket.WebSocket.connect`.
 Regardless of whether *auto pong* is enabled, a
 :class:`~lomond.events.Pong` event will be generated when Lomond
 receives a ping packet. If auto pong *is* disabled, you should manually
-call :meth:`~lomond.websocket.send_pong` in response to a ping, or the
+call :meth:`~lomond.websocket.WebSocket.send_pong` in response to a ping, or the
 server may disconnect you.
 
 Polling
@@ -225,6 +229,29 @@ parameter of :meth:`~lomond.websocket.WebSocket.connect`.
     If your application needs to be more realtime than polling once a
     second, you should probably use threads in tandem with the event
     loop.
+
+Proxies
+-------
+
+Lomond can work with WebSockets over HTTP proxy. By default, Lomond will
+autodetect the proxy from ``HTTP_PROXY`` and ``HTTPS_PROXY`` environment
+variables. Which will be used for the ``ws`` and ``wss`` protocols
+respectively.
+
+You may set the proxy manually by supplying a dictionary with the keys
+``http`` and ``https`` (which may contain the same value).
+
+    ws = Websocket(
+        'wss://echo.example.org',
+        proxies = {
+            'http': 'http://127.0.0.1:8888',
+            'https: 'http://127.0.0.1:8888'
+        }
+    )
+
+.. note::
+    If you want to disable automatic proxy detection, then set the
+    ``proxies`` parameter to an empty dictionary.
 
 WebSockets and Threading
 ------------------------
