@@ -411,6 +411,10 @@ def test_unresponsive(monkeypatch, mocker):
     assert isinstance(_events[7], events.Disconnected)
 
 
+def test_recv_no_sock(session):
+    session._sock = None
+    assert session._recv(1) == b''
+
 def test_recv_with_secure_websocket(session):
     def fake_recv(self):
         return b'\x01'

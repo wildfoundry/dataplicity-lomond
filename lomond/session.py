@@ -24,12 +24,7 @@ from . import proxy
 from . import selectors
 
 
-HAS_SNI = (
-    hasattr(ssl, 'SSLContext') and
-    getattr(ssl, 'HAS_SNI', False)
-)
-
-
+HAS_SNI = hasattr(ssl, 'SSLContext') and getattr(ssl, 'HAS_SNI', False)
 log = logging.getLogger('lomond')
 
 
@@ -278,6 +273,8 @@ class WebsocketSession(object):
 
     def _recv(self, count):
         """Receive and return pending data from the socket."""
+        if self._sock is None:
+            return b''
         try:
             if hasattr(self._sock, 'pending'):
                 # exhaust ssl buffer
@@ -363,7 +360,7 @@ class WebsocketSession(object):
         # Send the request.
         try:
             self._send_request()
-        except errors.TransportFail as error:
+        except errors.WebSocketError as error:
             self._close_socket()
             yield events.ConnectFail('request failed; {}'.format(error))
             return
