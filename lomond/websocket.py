@@ -39,9 +39,9 @@ class WebSocket(object):
     :param dict proxies: A dict containing ``'http'`` or ``'https'``
         urls to a proxy server, or ``None`` to attempt to auto-detect
         proxies from environment. Pass an empty dict to disable proxy.
-    :params list protocols: A list of supported protocols (defaults to
+    :param list protocols: A list of supported protocols (defaults to
         no protocols).
-    :params str agent: A user agent string to be sent in the header. The
+    :param str agent: A user agent string to be sent in the header. The
         default uses the value ``USER_AGENT`` defined in
         :mod:`lomond.constants`.
 
