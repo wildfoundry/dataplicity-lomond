@@ -1,1 +1,3 @@
 theme: jekyll-theme-cayman
+title: Dataplicity Lomond
+description: A Websocket client for Python which turns a websocket connection in to an orderly stream of events.
