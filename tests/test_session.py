@@ -78,7 +78,7 @@ class FakeSocket(object):
 
 
 class FakeWebSocket(object):
-    
+
     sent_close_time = -100
 
     def send_pong(self, data):
@@ -426,7 +426,7 @@ def test_recv_with_secure_websocket(session):
 def test_on_pong(session):
     session._on_ready()
     session._on_pong(events.Pong(b'foo'))
-    assert session._time - session._last_pong < 0.01
+    assert session.session_time - session._last_pong < 0.01
 
 
 def test_context_manager():

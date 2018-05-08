@@ -54,7 +54,7 @@ class WebsocketSession(object):
         return "<ws-session '{}'>".format(self.websocket.url)
 
     @property
-    def _time(self):
+    def session_time(self):
         """Get the time since the socket started."""
         return time.time() - self._start_time
 
@@ -228,7 +228,7 @@ class WebsocketSession(object):
 
     def _check_poll(self, poll):
         """Check if it is time for a poll."""
-        _time = self._time
+        _time = self.session_time
         if self._poll_start is None or _time - self._poll_start >= poll:
             self._poll_start = _time
             return True
@@ -239,7 +239,7 @@ class WebsocketSession(object):
         """Check if a ping is required."""
         if not ping_rate:
             return
-        current_time = self._time
+        current_time = self.session_time
         if current_time > self._next_ping:
             # Calculate next ping time that is in the future.
             self._next_ping = (
@@ -253,7 +253,7 @@ class WebsocketSession(object):
     def _check_ping_timeout(self, ping_timeout):
         """Check if the server is not responding to pings."""
         if ping_timeout:
-            time_since_last_pong = self._time - self._last_pong
+            time_since_last_pong = self.session_time - self._last_pong
             if time_since_last_pong > ping_timeout:
                 log.debug('ping_timeout time exceeded')
                 return True
@@ -262,10 +262,11 @@ class WebsocketSession(object):
     def _check_close_timeout(self, close_timeout):
         """Check if the close timeout was tripped."""
         if not close_timeout:
-            return False
+            return
         sent_close_time = self.websocket.sent_close_time
-        if (sent_close_time is not None and 
-            self._time >= sent_close_time + close_timeout):
+        if sent_close_time is None:
+            return
+        if self.session_time >= sent_close_time + close_timeout:
             raise _ForceDisconnect(
                 "server didn't respond to close packet "
                 "within {}s".format(close_timeout)
@@ -301,7 +302,7 @@ class WebsocketSession(object):
             raise _ForceDisconnect(
                 'exceeded {:.0f}s ping timeout'.format(ping_timeout)
             )
-        self._check_close_timeout(close_timeout)    
+        self._check_close_timeout(close_timeout)
 
     def _send_pong(self, event):
         """Send a pong message in response to ping event."""
@@ -313,7 +314,7 @@ class WebsocketSession(object):
 
     def _on_pong(self, event):
         """Record last pong time."""
-        self._last_pong = self._time
+        self._last_pong = self.session_time
 
     def _on_ready(self):
         """Called when a ready event is received."""
@@ -347,7 +348,7 @@ class WebsocketSession(object):
         # Create socket and connect to remote server
         try:
             sock, proxy = self._connect()
-            self._sock = sock 
+            self._sock = sock
         except _SocketFail as error:
             yield events.ConnectFail('{}'.format(error))
             return
@@ -380,7 +381,7 @@ class WebsocketSession(object):
             return ()
 
         try:
-            while True:
+            while not websocket.is_closed:
                 readable = selector.wait_readable(poll)
                 for event in _regular():
                     yield event

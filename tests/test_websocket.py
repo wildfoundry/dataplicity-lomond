@@ -17,12 +17,19 @@ class FakeSession(object):
     def __init__(self, *args, **kwargs):
         self.socket_buffer = []
         self.run_called = False
+        self._t = 0.0
 
     def run(self, *args, **kwargs):
         self.run_called = True
 
     def send(self, opcode, bytes):
         self.socket_buffer.append((opcode, bytes))
+
+    @property
+    def session_time(self):
+        _t = self._t
+        self._t += 1.0
+        return _t
 
     def close(self):
         pass

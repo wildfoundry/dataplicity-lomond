@@ -202,7 +202,6 @@ class WebSocket(object):
         )
         return run_generator
 
-
     def reset(self):
         """Reset the state."""
         self.state = self.State()
@@ -231,13 +230,10 @@ class WebSocket(object):
         if self.is_closed:
             log.debug('%r already closed', self)
         else:
-            if code is None:
-                code = Status.NORMAL
-            if reason is None:
-                reason = b'goodbye'
-            self._send_close(code, reason)
-            self.state.closing = True
-            self.state.sent_close_time = time.time()
+            if not self.is_closing:
+                self._send_close(code, reason)
+                self.state.closing = True
+                self.state.sent_close_time = self.session.session_time
 
     def _on_close(self, message):
         """Close logic generator."""
@@ -469,7 +465,9 @@ class WebSocket(object):
 
     def _send_close(self, code, reason):
         """Send a close frame."""
-        frame_bytes = Frame.build_close_payload(code, reason)
+        _code = code if code is not None else Status.NORMAL
+        _reason = reason if reason is not None else b'goodbye'
+        frame_bytes = Frame.build_close_payload(_code, _reason)
         try:
             self.session.send(Opcode.CLOSE, frame_bytes)
         except (errors.WebSocketUnavailable, errors.TransportFail):
