@@ -15,10 +15,6 @@ def frame_factory():
     return inner
 
 
-def test_frame_constructor(frame_factory):
-    assert isinstance(frame_factory(), object)
-
-
 def test_length_of_frame(frame_factory):
     frame = frame_factory(Opcode.TEXT, b'\x00' * 137)
     assert len(frame) == 137
