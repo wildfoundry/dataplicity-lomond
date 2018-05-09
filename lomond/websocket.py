@@ -11,10 +11,8 @@ from hashlib import sha1
 import json
 import logging
 import os
-import time
 
 import six
-from six import text_type
 from six.moves.urllib.parse import urlparse
 
 from . import constants
@@ -117,8 +115,8 @@ class WebSocket(object):
 
     @property
     def sent_close_time(self):
-        """The epoch time a close packet was sent (or None if no close
-        packet has been sent).
+        """The time (seconds since session start) when a close packet
+        was sent (or None if no close packet has been sent).
 
         """
         return self.state.sent_close_time
@@ -202,14 +200,13 @@ class WebSocket(object):
         )
         return run_generator
 
-
     def reset(self):
         """Reset the state."""
         self.state = self.State()
 
     __iter__ = connect
 
-    def close(self, code=None, reason=None):
+    def close(self, code=Status.NORMAL, reason=b'goodbye'):
         """Close the websocket.
 
         :param int code: A closing code, which should probably be one of
@@ -231,13 +228,10 @@ class WebSocket(object):
         if self.is_closed:
             log.debug('%r already closed', self)
         else:
-            if code is None:
-                code = Status.NORMAL
-            if reason is None:
-                reason = b'goodbye'
-            self._send_close(code, reason)
-            self.state.closing = True
-            self.state.sent_close_time = time.time()
+            if not self.is_closing:
+                self._send_close(code, reason)
+                self.state.closing = True
+                self.state.sent_close_time = self.session.session_time
 
     def _on_close(self, message):
         """Close logic generator."""

@@ -17,12 +17,19 @@ class FakeSession(object):
     def __init__(self, *args, **kwargs):
         self.socket_buffer = []
         self.run_called = False
+        self._t = 0.0
 
     def run(self, *args, **kwargs):
         self.run_called = True
 
     def send(self, opcode, bytes):
         self.socket_buffer.append((opcode, bytes))
+
+    @property
+    def session_time(self):
+        _t = self._t
+        self._t += 1.0
+        return _t
 
     def close(self):
         pass
@@ -248,6 +255,7 @@ def test_send_close_needs_open_socket(websocket):
 
 def test_calling_close_yields_close_event(websocket_with_fake_session):
     ws = websocket_with_fake_session
+    assert ws.is_active is True
     ws.close()
     close_message = Close(1000, b'bye')
     close_events = list(ws._on_close(close_message))
@@ -255,6 +263,7 @@ def test_calling_close_yields_close_event(websocket_with_fake_session):
     assert isinstance(close_events[0], Closed)
     assert ws.is_closed is True
     assert ws.is_closing is False
+    assert ws.is_active is False
 
 
 def test_calling_on_close_when_websocket_is_closed_results_in_noop(

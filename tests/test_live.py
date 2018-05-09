@@ -1,5 +1,7 @@
 import lomond
 from lomond import events
+from lomond.session import WebsocketSession
+from lomond import selectors
 
 
 def test_echo():
@@ -74,7 +76,7 @@ def test_echo_poll():
             elif polls == 2:
                 # Covers some lesser used code paths
                 ws.state.closed = True
-                ws.session._sock.close()    
+                ws.session._sock.close()
 
 
 def test_not_ws():
@@ -86,6 +88,23 @@ def test_not_ws():
     assert events[1].name == 'connected'
     assert events[2].name == 'rejected'
     assert events[3].name == 'disconnected'
+    assert events[3].graceful
+
+
+class SelectSession(WebsocketSession):
+    _selector_cls = selectors.SelectSelector
+
+
+def test_not_ws_select():
+    """Test against a URL that doesn't serve websockets."""
+    ws = lomond.WebSocket('wss://www.google.com')
+    events = list(ws.connect(session_class=SelectSession))
+    assert len(events) == 4
+    assert events[0].name == 'connecting'
+    assert events[1].name == 'connected'
+    assert events[2].name == 'rejected'
+    assert events[3].name == 'disconnected'
+    assert events[3].graceful
 
 
 def test_no_url_wss():

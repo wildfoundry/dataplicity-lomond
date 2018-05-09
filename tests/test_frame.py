@@ -15,10 +15,6 @@ def frame_factory():
     return inner
 
 
-def test_frame_constructor(frame_factory):
-    assert isinstance(frame_factory(), object)
-
-
 def test_length_of_frame(frame_factory):
     frame = frame_factory(Opcode.TEXT, b'\x00' * 137)
     assert len(frame) == 137
@@ -32,6 +28,7 @@ def test_masking_key():
     )
     expected = b'\x81\x8c\xaa\xf7\x7f\x00\xe2\x92\x13l\xc5\xdb_W\xc5\x85\x13d'
     assert frame_bytes == expected
+
 
 def test_repr_of_frame(frame_factory):
     assert repr(frame_factory()) == '<frame TEXT (0 bytes) fin=1>'
@@ -193,7 +190,7 @@ def test_calling_build_close_payload_requires_status():
 @pytest.mark.parametrize('init_params, expected_error', [
     (
         {'opcode': Opcode.PING, 'payload': b'A' * 126},
-        "control frames must <= 125 bytes in length"
+        "control frames must be <= 125 bytes in length"
     ),
     (
         {'opcode': Opcode.TEXT, 'payload': b'A', 'rsv1': 1},

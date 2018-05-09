@@ -106,7 +106,7 @@ class Frame(object):
         """Check the frame and raise any errors."""
         if self.is_control and len(self.payload) > 125:
             raise errors.ProtocolError(
-                "control frames must <= 125 bytes in length"
+                "control frames must be <= 125 bytes in length"
             )
         if self.rsv1 or self.rsv2 or self.rsv3:
             raise errors.ProtocolError(
