@@ -81,6 +81,7 @@ class Binary(Message):
 
     """
     __slots__ = ['data']
+
     def __init__(self, data):
         self.data = data
         super(Binary, self).__init__(Opcode.BINARY)
@@ -96,6 +97,7 @@ class Text(Message):
 
     """
     __slots__ = ['text']
+
     def __init__(self, text):
         self.text = text
         super(Text, self).__init__(Opcode.TEXT)
@@ -123,6 +125,7 @@ class Close(Message):
 
     """
     __slots__ = ['code', 'reason']
+
     def __init__(self, code, reason):
         self.code = code
         self.reason = reason
@@ -165,6 +168,7 @@ class Ping(Message):
 
     """
     __slots__ = ['data']
+
     def __init__(self, data):
         self.data = data
         super(Ping, self).__init__(Opcode.PING)
@@ -180,6 +184,7 @@ class Pong(Message):
 
     """
     __slots__ = ['data']
+
     def __init__(self, data):
         self.data = data
         super(Pong, self).__init__(Opcode.PONG)
