@@ -334,6 +334,7 @@ def test_simple_run(monkeypatch, mocker):
     assert isinstance(_events[3], events.Poll)
     assert isinstance(_events[4], events.Text)
     assert isinstance(_events[5], events.Disconnected)
+    assert not _events[5].graceful
 
 
 @freeze_time("1994-05-01 18:40:00")
@@ -396,6 +397,7 @@ def test_unresponsive(monkeypatch, mocker):
     assert isinstance(_events[5], events.Poll)
     assert isinstance(_events[6], events.Unresponsive)
     assert isinstance(_events[7], events.Disconnected)
+    assert not _events[7].graceful
 
 
 def test_recv_no_sock(session):

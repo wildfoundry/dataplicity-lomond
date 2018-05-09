@@ -194,7 +194,7 @@ def test_calling_build_close_payload_requires_status():
 @pytest.mark.parametrize('init_params, expected_error', [
     (
         {'opcode': Opcode.PING, 'payload': b'A' * 126},
-        "control frames must <= 125 bytes in length"
+        "control frames must be <= 125 bytes in length"
     ),
     (
         {'opcode': Opcode.TEXT, 'payload': b'A', 'rsv1': 1},
