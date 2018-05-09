@@ -29,6 +29,7 @@ class _Awaitable(object):
 class _ReadBytes(_Awaitable):
     """Reads a fixed number of bytes."""
     __slots__ = ['remaining']
+
     def __init__(self, count):
         self.remaining = count
 
@@ -36,6 +37,7 @@ class _ReadBytes(_Awaitable):
 class _ReadUtf8(_ReadBytes):
     """Reads a fixed number of bytes, validates utf-8."""
     __slots__ = ['utf8_validator']
+
     def __init__(self, count, utf8_validator):
         self.remaining = count
         self.utf8_validator = utf8_validator
@@ -49,6 +51,7 @@ class _ReadUtf8(_ReadBytes):
 class _ReadUntil(_Awaitable):
     """Read until a separator."""
     __slots__ = ['sep', 'max_bytes']
+
     def __init__(self, sep, max_bytes=None):
         self.sep = sep
         self.max_bytes = max_bytes
