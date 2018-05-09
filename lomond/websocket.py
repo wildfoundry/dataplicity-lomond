@@ -115,8 +115,8 @@ class WebSocket(object):
 
     @property
     def sent_close_time(self):
-        """The epoch time a close packet was sent (or None if no close
-        packet has been sent).
+        """The time (seconds since session start) when a close packet
+        was sent (or None if no close packet has been sent).
 
         """
         return self.state.sent_close_time

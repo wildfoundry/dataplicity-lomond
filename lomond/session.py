@@ -56,7 +56,7 @@ class WebsocketSession(object):
 
     @property
     def session_time(self):
-        """Get the time since the socket started."""
+        """Get the time since the WebSocket session started."""
         return time.time() - self._start_time
 
     def close(self):
