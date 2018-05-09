@@ -33,6 +33,7 @@ def test_masking_key():
     expected = b'\x81\x8c\xaa\xf7\x7f\x00\xe2\x92\x13l\xc5\xdb_W\xc5\x85\x13d'
     assert frame_bytes == expected
 
+
 def test_repr_of_frame(frame_factory):
     assert repr(frame_factory()) == '<frame TEXT (0 bytes) fin=1>'
     assert repr(

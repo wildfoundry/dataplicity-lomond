@@ -31,6 +31,7 @@ log = logging.getLogger('lomond')
 class _SocketFail(Exception):
     """Used internally to respond to socket fails."""
 
+
 class _ForceDisconnect(Exception):
     """Used internally when the close timeout is tripped."""
 
@@ -226,51 +227,47 @@ class WebsocketSession(object):
         """Send the request over the wire."""
         self.write(self.websocket.build_request())
 
-    def _check_poll(self, poll):
+    def _check_poll(self, poll, session_time):
         """Check if it is time for a poll."""
-        _time = self.session_time
+        _time = session_time
         if self._poll_start is None or _time - self._poll_start >= poll:
             self._poll_start = _time
             return True
         else:
             return False
 
-    def _check_auto_ping(self, ping_rate):
+    def _check_auto_ping(self, ping_rate, session_time):
         """Check if a ping is required."""
-        if not ping_rate:
-            return
-        current_time = self.session_time
-        if current_time > self._next_ping:
+        if ping_rate and session_time > self._next_ping:
             # Calculate next ping time that is in the future.
             self._next_ping = (
-                math.ceil(current_time / ping_rate) * ping_rate
+                math.ceil(session_time / ping_rate) * ping_rate
             )
             try:
                 self.websocket.send_ping()
             except errors.WebSocketError:
                 pass  # If the websocket has gone away
 
-    def _check_ping_timeout(self, ping_timeout):
+    def _check_ping_timeout(self, ping_timeout, session_time):
         """Check if the server is not responding to pings."""
         if ping_timeout:
-            time_since_last_pong = self.session_time - self._last_pong
+            time_since_last_pong = session_time - self._last_pong
             if time_since_last_pong > ping_timeout:
                 log.debug('ping_timeout time exceeded')
                 return True
         return False
 
-    def _check_close_timeout(self, close_timeout):
+    def _check_close_timeout(self, close_timeout, session_time):
         """Check if the close timeout was tripped."""
-        if not close_timeout:
-            return
-        sent_close_time = self.websocket.sent_close_time
-        if sent_close_time is None:
-            return
-        if self.session_time >= sent_close_time + close_timeout:
-            raise _ForceDisconnect(
-                "server didn't respond to close packet "
-                "within {}s".format(close_timeout)
-            )
+        if close_timeout:
+            sent_close_time = self.websocket.sent_close_time
+            if sent_close_time is None:
+                return
+            if session_time >= sent_close_time + close_timeout:
+                raise _ForceDisconnect(
+                    "server didn't respond to close packet "
+                    "within {}s".format(close_timeout)
+                )
 
     def _recv(self, count):
         """Receive and return pending data from the socket."""
@@ -294,15 +291,15 @@ class WebsocketSession(object):
     def _regular(self, poll, ping_rate, ping_timeout, close_timeout):
         """Run regularly to do polling / pings."""
         # Check for regularly running actions.
-        if self._check_poll(poll):
+        if self._check_poll(poll, self.session_time):
             yield events.Poll()
-        self._check_auto_ping(ping_rate)
-        if self._check_ping_timeout(ping_timeout):
+        self._check_auto_ping(ping_rate, self.session_time)
+        if self._check_ping_timeout(ping_timeout, self.session_time):
             yield events.Unresponsive()
             raise _ForceDisconnect(
                 'exceeded {:.0f}s ping timeout'.format(ping_timeout)
             )
-        self._check_close_timeout(close_timeout)
+        self._check_close_timeout(close_timeout, self.session_time)
 
     def _send_pong(self, event):
         """Send a pong message in response to ping event."""
@@ -385,20 +382,16 @@ class WebsocketSession(object):
                 readable = selector.wait_readable(poll)
                 for event in _regular():
                     yield event
-                if not readable:
-                    continue
-                data = self._recv(64 * 1024)
-                if data:
-                    for event in self.websocket.feed(data):
-                        self._on_event(event, auto_pong)
-                        yield event
-                        for event in _regular():
+                if readable:
+                    data = self._recv(64 * 1024)
+                    if data:
+                        for event in self.websocket.feed(data):
+                            self._on_event(event, auto_pong)
                             yield event
-                else:
-                    if websocket.is_active:
+                            for event in _regular():
+                                yield event
+                    else:
                         self._socket_fail('connection lost')
-                    break
-
         except _ForceDisconnect as error:
             self._close_socket()
             yield events.Disconnected('disconnected; {}'.format(error))
@@ -419,19 +412,3 @@ class WebsocketSession(object):
             yield events.Disconnected(graceful=True)
         finally:
             selector.close()
-
-
-if __name__ == "__main__":  # pragma: no cover
-
-    # Test with wstest -m echoserver -w ws://127.0.0.1:9001 -d
-    # Get wstest app from http://autobahn.ws/testsuite/
-
-    from .websocket import WebSocket
-
-    #ws = WebSocket('wss://echo.websocket.org')
-    ws = WebSocket('ws://127.0.0.1:9001/')
-    for event in ws.connect(poll=5):
-        print(event)
-        if isinstance(event, events.Poll):
-            ws.send_text('Hello, World')
-            ws.send_binary(b'hello world in binary')

@@ -255,6 +255,7 @@ def test_send_close_needs_open_socket(websocket):
 
 def test_calling_close_yields_close_event(websocket_with_fake_session):
     ws = websocket_with_fake_session
+    assert ws.is_active is True
     ws.close()
     close_message = Close(1000, b'bye')
     close_events = list(ws._on_close(close_message))
@@ -262,6 +263,7 @@ def test_calling_close_yields_close_event(websocket_with_fake_session):
     assert isinstance(close_events[0], Closed)
     assert ws.is_closed is True
     assert ws.is_closing is False
+    assert ws.is_active is False
 
 
 def test_calling_on_close_when_websocket_is_closed_results_in_noop(

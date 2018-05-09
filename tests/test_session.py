@@ -1,9 +1,4 @@
-import calendar
-import select
 import socket
-import time
-from datetime import datetime
-import sys
 
 import pytest
 from freezegun import freeze_time
@@ -239,6 +234,7 @@ def test_run_with_send_request_raising_transport_error(session):
         "ConnectFail('request failed; socket fail; error during sendall')"
     )
 
+
 def test_that_on_ping_responds_with_pong(session, mocker):
     # we don't actually care that much for the whole stack underneath,
     # we only want to check whether a certain method was called..
@@ -269,36 +265,27 @@ def test_error_on_close_socket(caplog, session):
     )
 
 
-@freeze_time("1994-05-01 18:40:00")
 def test_check_poll(session):
     session._on_ready()
-    assert session._check_poll(5 * 60)
-    assert not session._check_poll(60 * 60)
+    assert session._check_poll(60, 61)
+    assert not session._check_poll(60, 59)
 
 
-@freeze_time("1994-05-01 18:40:00")
 def test_check_auto_ping(session, mocker):
     session._on_ready()
 
     mocker.patch.object(session.websocket, 'send_ping')
-
     assert session.websocket.send_ping.call_count == 0
-
-    with freeze_time('1994-05-01 18:41:00'):
-        session._check_auto_ping(15 * 60)
-
-        assert session.websocket.send_ping.call_count == 1
-        session._check_auto_ping(36 * 60)
-        assert session.websocket.send_ping.call_count == 1
+    session._check_auto_ping(10, 12)
+    assert session.websocket.send_ping.call_count == 1
+    session._check_auto_ping(10, 15)
+    assert session.websocket.send_ping.call_count == 1
 
 
-@freeze_time("1994-05-01 18:40:00")
 def test_check_ping_timeout(session, mocker):
     session._on_ready()
-
-    assert not session._check_ping_timeout(10)
-    with freeze_time('1994-05-01 18:41:00'):
-        assert session._check_ping_timeout(10)
+    assert not session._check_ping_timeout(10, 5)
+    assert session._check_ping_timeout(10, 11)
 
 
 @mocketize
@@ -415,6 +402,7 @@ def test_recv_no_sock(session):
     session._sock = None
     assert session._recv(1) == b''
 
+
 def test_recv_with_secure_websocket(session):
     def fake_recv(self):
         return b'\x01'
@@ -469,5 +457,7 @@ def test_send_pong(session):
 def test_check_close_timeout(session):
     session._on_ready()
     session.websocket = FakeWebSocket()
+    session.websocket.sent_close_time = 10
+    session._check_close_timeout(10, 19)
     with pytest.raises(_ForceDisconnect):
-        session._check_close_timeout(10)
+        session._check_close_timeout(10, 21)

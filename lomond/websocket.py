@@ -11,10 +11,8 @@ from hashlib import sha1
 import json
 import logging
 import os
-import time
 
 import six
-from six import text_type
 from six.moves.urllib.parse import urlparse
 
 from . import constants
@@ -208,7 +206,7 @@ class WebSocket(object):
 
     __iter__ = connect
 
-    def close(self, code=None, reason=None):
+    def close(self, code=Status.NORMAL, reason=b'goodbye'):
         """Close the websocket.
 
         :param int code: A closing code, which should probably be one of
@@ -465,9 +463,7 @@ class WebSocket(object):
 
     def _send_close(self, code, reason):
         """Send a close frame."""
-        _code = code if code is not None else Status.NORMAL
-        _reason = reason if reason is not None else b'goodbye'
-        frame_bytes = Frame.build_close_payload(_code, _reason)
+        frame_bytes = Frame.build_close_payload(code, reason)
         try:
             self.session.send(Opcode.CLOSE, frame_bytes)
         except (errors.WebSocketUnavailable, errors.TransportFail):
