@@ -110,12 +110,15 @@ class WebsocketSession(object):
             )
         except socket.error as error:
             self._socket_fail('unable to connect; {}', error)
+
+        sock_err = None
         for res in addr_info:
             af, socktype, proto, canonname, sa = res
             try:
                 sock = socket.socket(af, socktype, proto)
-            except socket.error:
+            except socket.error as error:
                 sock = None
+                sock_err = error
                 continue
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             sock.settimeout(30)  # TODO: make a parameter for this?
@@ -123,13 +126,14 @@ class WebsocketSession(object):
                 sock = self._wrap_socket(sock, host)
             try:
                 sock.connect(sa)
-            except socket.error:
+            except socket.error as error:
                 sock.close()
                 sock = None
+                sock_err = error
                 continue
             break
         if sock is None:
-            self._socket_fail('unable to connect')
+            self._socket_fail('unable to connect; {}', sock_err)
         return sock
 
     def _connect_proxy(self, proxy_url):
