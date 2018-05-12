@@ -40,7 +40,7 @@ Here is an example::
 No socket connection is made by a freshly constructed WebSocket object.
 To connect and interact with a websocket server, iterate over the
 WebSocket instance, which will yield a number of
-:class:`~lomond.event.Event` objects. Here's an example::
+:class:`~lomond.events.Event` objects. Here's an example::
 
     for event in ws:
         print(event)
@@ -186,9 +186,9 @@ not completed.
 Pings and Pongs
 ---------------
 
-Both the server and client may send 'ping' packets, which should be
-responded to with a 'pong' packet. This allows both ends of the
-connection to know if the other end is really listening.
+Both the websocket server and client may send 'ping' packets, which
+should be responded to with a 'pong' packet. This allows both ends of
+the connection to know if the other end is really listening.
 
 By default, Lomond will send pings packets every 30 seconds. If you wish
 to change this rate or disable ping packets entirely, you may use the
@@ -205,11 +205,19 @@ requirement of the websocket specification, you probably don't want to
 change this behaviour. But it may be disabled with the `auto_pong` flag
 in :meth:`~lomond.websocket.WebSocket.connect`.
 
-Regardless of whether *auto pong* is enabled, a
-:class:`~lomond.events.Pong` event will be generated when Lomond
-receives a ping packet. If auto pong *is* disabled, you should manually
-call :meth:`~lomond.websocket.WebSocket.send_pong` in response to a ping, or the
-server may disconnect you.
+When Lomond recieves a ping packet from the server, a
+:class:`~lomond.events.Ping` event will be generated. When the server
+sends you a pong packet, a :class:`~lomond.events.Pong` event will be
+generated.
+
+You can send a ping / pong packet at any time with
+:meth:`~lomond.websocket.WebSocket.send_ping` and
+:meth:`~lomond.websocket.WebSocket.send_pong`.
+
+.. note::
+    The server may send an pong packets *not* in response to a ping
+    packet (see https://tools.ietf.org/html/rfc6455#section-5.5.3
+    for details).
 
 Polling
 -------
@@ -222,7 +230,7 @@ intervals.
 
 The default poll rate of 5 seconds is granular enough for Lomond's
 polling needs, while having negligible impact on CPU. If your
-application needs to process at a faster rate, you may set the `poll`
+application needs to process at a faster rate, you may set the ``poll``
 parameter of :meth:`~lomond.websocket.WebSocket.connect`.
 
 .. note::
@@ -235,11 +243,12 @@ Proxies
 
 Lomond can work with WebSockets over HTTP proxy. By default, Lomond will
 autodetect the proxy from ``HTTP_PROXY`` and ``HTTPS_PROXY`` environment
-variables. Which will be used for the ``ws`` and ``wss`` protocols
+variables, used for the ``ws`` and ``wss`` protocols
 respectively.
 
 You may set the proxy manually by supplying a dictionary with the keys
-``http`` and ``https`` (which may contain the same value).
+``http`` and ``https`` (which may contain the same value). Here's an
+example::
 
     ws = Websocket(
         'wss://echo.example.org',

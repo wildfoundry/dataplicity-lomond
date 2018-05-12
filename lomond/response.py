@@ -76,4 +76,3 @@ class Response(object):
             return []
         parts = [part.strip() for part in value.split(',')]
         return parts
-
