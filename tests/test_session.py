@@ -337,6 +337,50 @@ def test_simple_run(monkeypatch, mocker):
     assert not _events[5].graceful
 
 
+@mocketize
+def test_simple_run_with_close(monkeypatch, mocker):
+    """Test graceful close."""
+    monkeypatch.setattr(
+        'os.urandom', b'\x00'.__mul__
+    )
+    Mocket.register(
+        MocketEntry(
+            ('example.com', 80),
+            [(
+                b'HTTP/1.1 101 Switching Protocols\r\n'
+                b'Upgrade: websocket\r\n'
+                b'Connection: Upgrade\r\n'
+                b'Sec-WebSocket-Accept: icx+yqv66kxgm0fcwalwlflwtai=\r\n'
+                b'\r\n'
+                b'\x81\x81\x00\x00\x00\x00A\x88\x80\xba51e'
+            )]
+        )
+    )
+
+    session = WebsocketSession(WebSocket('ws://example.com/'))
+    session._selector_cls = FakeSelector
+    session._on_ready()
+
+    session._regular_orig = session._regular
+
+    mocker.patch(
+        'lomond.websocket.WebSocket._send_close')
+    mocker.patch.object(session.websocket, 'send_ping')
+    session.websocket.state.session = session
+
+    _events = list(session.run())
+
+    assert len(_events) == 7
+    assert isinstance(_events[0], events.Connecting)
+    assert isinstance(_events[1], events.Connected)
+    assert isinstance(_events[2], events.Ready)
+    assert isinstance(_events[3], events.Poll)
+    assert isinstance(_events[4], events.Text)
+    assert isinstance(_events[5], events.Closing)
+    assert isinstance(_events[6], events.Disconnected)
+    assert _events[6].graceful
+
+
 @freeze_time("1994-05-01 18:40:00")
 @mocketize
 def test_unresponsive(monkeypatch, mocker):

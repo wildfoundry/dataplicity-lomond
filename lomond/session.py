@@ -391,7 +391,9 @@ class WebsocketSession(object):
                             for event in _regular():
                                 yield event
                     else:
-                        self._socket_fail('connection lost')
+                        if websocket.is_active:
+                            self._socket_fail('connection lost')
+                        break
         except _ForceDisconnect as error:
             self._close_socket()
             yield events.Disconnected('disconnected; {}'.format(error))
