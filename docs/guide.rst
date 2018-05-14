@@ -215,7 +215,7 @@ You can send a ping / pong packet at any time with
 :meth:`~lomond.websocket.WebSocket.send_pong`.
 
 .. note::
-    The server may send an pong packets *not* in response to a ping
+    The server may send pong packets *not* in response to a ping
     packet (see https://tools.ietf.org/html/rfc6455#section-5.5.3
     for details).
 

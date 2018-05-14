@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.2.3] - 2018-05-14
+
+### Fixed non-graceful close https://github.com/wildfoundry/dataplicity-lomond/issues/54
+
 ## [0.2.2] - 2018-05-09
 
 ### Fixed
