@@ -12,9 +12,9 @@ import logging
 from six import text_type
 
 from . import errors
-from .parser import ParseError
 from .frame_parser import FrameParser
 from .message import Message
+from .parser import ParseError
 from .response import Response
 
 
