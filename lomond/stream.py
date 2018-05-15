@@ -12,7 +12,8 @@ import logging
 from six import text_type
 
 from . import errors
-from .frame_parser import ParseError, FrameParser
+from .parser import ParseError
+from .frame_parser import FrameParser
 from .message import Message
 from .response import Response
 

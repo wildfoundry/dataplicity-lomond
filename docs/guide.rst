@@ -27,11 +27,40 @@ available::
 
     pip install wsaccel
 
+Example
+-------
+
+To whet your appetite, the following is an example of how to connect
+to a WebSocket endpoint and interact with the server::
+
+    from lomond import WebSocket
+    websocket = WebSocket('wss://ws-feed.gdax.com')
+
+    for event in websocket:
+        if event.name == "ready":
+            websocket.send_json(
+                type='subscribe',
+                product_ids=['BTC-USD'],
+                channels=['ticker']
+            )
+        elif event.name == "text":
+            print(event.json)
+
+This code connects to a Gdax, a Bitcoin exchange, and subscribes to
+realtime notifications about the price of Bitcoin--which it writes to
+the terminal.
+
+This example is in the Lomond library. You can run it with the
+following::
+
+    python -m lomond.examples.btcticker
+
 Basic Usage
 -----------
 
 To connect to a websocket server, first construct a
-:class:`~lomond.websocket.WebSocket` object, with a `ws://` or `wss://` URL.
+:class:`~lomond.websocket.WebSocket` object, with a ``ws://`` or
+``wss://`` URL.
 Here is an example::
 
     from lomond.websocket import WebSocket
@@ -81,8 +110,8 @@ Events inform your application when data is received from the server or
 when the websocket state changes.
 
 All events are derived from :class:`~lomond.events.Event` and will
-contain at least 2 attributes; `received_time` is the epoch time the
-event was received, and `name` is the name of the event. Some events
+contain at least 2 attributes; ``received_time`` is the epoch time the
+event was received, and ``name`` is the name of the event. Some events
 have additional attributes with more information. See the :ref:`events`
 for details.
 
@@ -98,7 +127,7 @@ or::
     if event.name == "ready":
 
 .. note::
-    The `isinstance` method is possibly uglier, but has the advantage
+    The ``isinstance`` method is possibly uglier, but has the advantage
     that you are less likely to introduce a bug with a typo in the event
     name.
 
@@ -123,11 +152,11 @@ events, such as the following::
             websocket.close()
 
 
-Closing the Websocket
+Closing the WebSocket
 ---------------------
 
 The websocket protocol specifies how to close the websocket cleanly. The
-procedure for handling closes, depends on whether it is initiated by the
+procedure for closing depends on whether the close is initiated by the
 client or the server.
 
 Client
@@ -145,7 +174,7 @@ of the connection to finish what they are doing without worrying the
 remote end has stopped responding to messages.
 
 .. note::
-    When you call the `close()` method, you will no longer be able to
+    When you call the ``close()`` method, you will no longer be able to
     *send* data, but you may still *receive* packets from the server
     until the close has completed.
 
@@ -180,8 +209,8 @@ completing the closing handshake. This can occur if the server is
 misbehaving or if connectivity has been interrupted.
 
 The :class:`~lomond.events.Disconnected` event contains a boolean
-attribute `graceful`, which will be `False` if the closing handshake was
-not completed.
+attribute ``graceful``, which will be ``False`` if the closing handshake
+was not completed.
 
 Pings and Pongs
 ---------------
@@ -205,7 +234,7 @@ requirement of the websocket specification, you probably don't want to
 change this behaviour. But it may be disabled with the `auto_pong` flag
 in :meth:`~lomond.websocket.WebSocket.connect`.
 
-When Lomond recieves a ping packet from the server, a
+When Lomond receives a ping packet from the server, a
 :class:`~lomond.events.Ping` event will be generated. When the server
 sends you a pong packet, a :class:`~lomond.events.Pong` event will be
 generated.
@@ -254,7 +283,7 @@ example::
         'wss://echo.example.org',
         proxies = {
             'http': 'http://127.0.0.1:8888',
-            'https: 'http://127.0.0.1:8888'
+            'https': 'http://127.0.0.1:8888'
         }
     )
 
@@ -304,4 +333,3 @@ maximum delay is reached.
 The exponential backoff prevents a client from hammering a server that
 may already be overloaded. It also prevents the client from being stuck
 in a cpu intensive spin loop.
-

@@ -8,11 +8,9 @@ from __future__ import unicode_literals
 import logging
 import struct
 
-from six import text_type
-
 from . import errors
 from .frame import Frame
-from .parser import ParseError, Parser
+from .parser import Parser
 from .utf8validator import Utf8Validator
 
 
@@ -90,6 +88,7 @@ class FrameParser(Parser):
 
             if frame.fin and (frame.is_text or frame.is_continuation):
                 self._utf8_validator.reset()
+            if frame.fin:
                 self._is_text = False
 
             yield frame
