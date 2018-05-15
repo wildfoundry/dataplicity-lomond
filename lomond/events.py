@@ -241,7 +241,7 @@ class Closing(Event):
 
     """
     __slots__ = ['code', 'reason']
-    name = 'closed'
+    name = 'closing'
 
     def __init__(self, code, reason):
         self.code = code
