@@ -6,7 +6,7 @@
 Welcome to Dataplicity Lomond's documentation!
 ==============================================
 
-Lomond is a Pythonic Websockets client library designed for reliability
+Lomond is a Pythonic WebSockets client library designed for reliability
 and ease of use.
 
 Sponsor

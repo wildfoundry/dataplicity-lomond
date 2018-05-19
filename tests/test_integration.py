@@ -139,3 +139,17 @@ class TestIntegration(object):
         assert events[6].name == 'closed'
         assert events[7].name == 'disconnected'
         assert events[7].graceful
+
+    def test_premature_close_connecting(self):
+        """Test close after connecting event."""
+        ws = WebSocket('ws://NEVERCONNECTS')
+        for event in ws:
+            if event.name == 'connecting':
+                ws.close()
+
+    def test_premature_close_connected(self):
+        """Test close after connected event."""
+        ws = WebSocket(self.WS_URL + 'graceful')
+        for event in ws:
+            if event.name == 'connected':
+                ws.close()

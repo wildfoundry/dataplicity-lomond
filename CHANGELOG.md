@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
+## [0.2.5] - 2018-05-19
+
+### Fixed
+
+- Traceback if close is called prior to WebSocket ready
+
 ## [0.2.4] - 2018-05-15
 
 ### Fixed
