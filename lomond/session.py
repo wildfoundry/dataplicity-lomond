@@ -57,7 +57,11 @@ class WebsocketSession(object):
     @property
     def session_time(self):
         """Get the time (in seconds) since the WebSocket session started."""
-        return time.time() - self._start_time
+        return (
+            0.0
+            if self._start_time is None else
+            time.time() - self._start_time
+        )
 
     def close(self):
         """Close the websocket, if it is open."""
@@ -341,6 +345,8 @@ class WebsocketSession(object):
         url = websocket.url
         # Connecting event
         yield events.Connecting(url)
+        if websocket.is_closed:
+            return
 
         # Create socket and connect to remote server
         try:
