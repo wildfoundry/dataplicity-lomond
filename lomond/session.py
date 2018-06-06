@@ -17,9 +17,9 @@ import threading
 from six.moves.urllib.parse import urlparse
 
 try:
-    from monotonic import monotonic as monotonic_time
+    from monotonic import monotonic as get_time
 except ImportError:
-    from time import time as monotonic_time
+    from time import time as get_time
 
 from .frame import Frame
 from . import errors
@@ -64,7 +64,7 @@ class WebsocketSession(object):
         return (
             0.0
             if self._start_time is None else
-            monotonic_time() - self._start_time
+            get_time() - self._start_time
         )
 
     def close(self):
@@ -325,7 +325,7 @@ class WebsocketSession(object):
         """Called when a ready event is received."""
         self._last_pong = 0.0
         self._next_ping = 0.0
-        self._start_time = monotonic_time()
+        self._start_time = get_time()
 
     def _on_event(self, event, auto_pong=True):
         """Handle logic in response to an event."""
