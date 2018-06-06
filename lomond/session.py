@@ -18,7 +18,7 @@ from six.moves.urllib.parse import urlparse
 
 try:
     from monotonic import monotonic as monotonic_time
-except:
+except ImportError:
     from time import time as monotonic_time
 
 from .frame import Frame
