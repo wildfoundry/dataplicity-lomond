@@ -12,7 +12,7 @@ import logging
 from six import text_type
 
 from . import errors
-from .frame import CompressFrame, Frame
+from .frame import CompressedFrame, Frame
 from .frame_parser import CompressedFrameParser, FrameParser
 from .header_parser import HeaderParser
 from .message import Message

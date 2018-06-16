@@ -43,10 +43,9 @@ class _ReadUtf8(_ReadBytes):
         self.utf8_validator = utf8_validator
 
     def validate(self, data):
-        if self.utf8_validator:
-            valid, _, _, _ = self.utf8_validator.validate(data)
-            if not valid:
-                raise ParseError('invalid utf8')
+        valid, _, _, _ = self.utf8_validator.validate(data)
+        if not valid:
+            raise ParseError('invalid utf8')
 
 
 class _ReadUntil(_Awaitable):
