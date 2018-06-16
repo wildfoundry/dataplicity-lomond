@@ -43,9 +43,10 @@ class _ReadUtf8(_ReadBytes):
         self.utf8_validator = utf8_validator
 
     def validate(self, data):
-        valid, _, _, _ = self.utf8_validator.validate(data)
-        if not valid:
-            raise ParseError('invalid utf8')
+        if self.utf8_validator:
+            valid, _, _, _ = self.utf8_validator.validate(data)
+            if not valid:
+                raise ParseError('invalid utf8')
 
 
 class _ReadUntil(_Awaitable):
@@ -110,6 +111,14 @@ class Parser(object):
         if self._gen is not None:
             self._gen.close()
             self._gen = None
+
+    @property
+    def unparsed_data(self):
+        """Get bytes that haven't been parsed."""
+        if isinstance(self._awaiting, _Awaitable):
+            return self._awaiting.remaining
+        else:
+            return None
 
     def feed(self, data):
         """

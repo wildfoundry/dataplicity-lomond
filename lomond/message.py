@@ -31,9 +31,10 @@ class Message(object):
         return "<message {}>".format(Opcode.to_str(self.opcode))
 
     @classmethod
-    def build(cls, frames):
+    def build(cls, frames, decompress=None):
         """Build a message from a sequence of frames."""
-        opcode = frames[0].opcode
+        first_frame = frames[0]
+        opcode = first_frame.opcode
         payload = b''.join(frame.payload for frame in frames)
         if opcode == Opcode.CLOSE:
             return Close.from_payload(payload)
@@ -42,8 +43,12 @@ class Message(object):
         elif opcode == Opcode.PONG:
             return Pong(payload)
         elif opcode == Opcode.BINARY:
+            if decompress and first_frame.rsv1:
+                return Binary(decompress(payload))
             return Binary(payload)
         elif opcode == Opcode.TEXT:
+            if decompress and first_frame.rsv1:
+                return Text.from_payload(decompress(payload))
             return Text.from_payload(payload)
         else:
             return Message(opcode)

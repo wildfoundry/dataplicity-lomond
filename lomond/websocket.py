@@ -18,8 +18,10 @@ from six.moves.urllib.parse import urlparse
 from . import constants
 from . import errors
 from . import events
+from .compression import Deflate
 from .frame import Frame
 from .opcode import Opcode
+from ._parse import parse_header
 from .response import Response
 from .stream import WebsocketStream
 from .session import WebsocketSession
@@ -54,12 +56,20 @@ class WebSocket(object):
             self.closing = False
             self.closed = False
             self.sent_close_time = None
+            self.compression = None
 
-    def __init__(self, url, proxies=None, protocols=None, agent=None):
+    def __init__(self,
+                 url,
+                 proxies=None,
+                 protocols=None,
+                 agent=None,
+                 compress=True):
         self.url = url
         self.proxies = self._detect_proxies() if proxies is None else proxies
         self.protocols = protocols or []
         self.agent = agent or constants.USER_AGENT
+        self.compress = compress
+
         self._headers = []
         _url = urlparse(url)
         self.scheme = _url.scheme
@@ -74,7 +84,7 @@ class WebSocket(object):
         if _url.query:
             self.resource = "{}?{}".format(self.resource, _url.query)
 
-        self.state = self.State()
+        self.state = None
 
     @classmethod
     def _detect_proxies(cls):
@@ -338,10 +348,18 @@ class WebSocket(object):
         if self.protocols:
             protocols = ", ".join(self.protocols).encode('utf-8')
             headers.append((b'Sec-WebSocket-Protocol', protocols))
+        if self.compress:
+            headers.append(
+                (
+                    b'Sec-WebSocket-Extensions',
+                    b'permessage-deflate; server_max_window_bits=10'
+                )
+            )
         for header, value in headers:
             request.append(header + b': ' + value)
         request.append(b'\r\n')
         request_bytes = b'\r\n'.join(request)
+        print(request_bytes)
         return request_bytes
 
     def on_response(self, response):
@@ -377,7 +395,17 @@ class WebSocket(object):
 
         protocol = response.get(b'sec-websocket-protocol')
         extensions = set(response.get_list(b'sec-websocket-extensions'))
+        self.process_extensions(extensions)
         return protocol, extensions
+
+    def process_extensions(self, extensions):
+        """Process extension headers."""
+        for extension in extensions:
+            value, options = parse_header(extension)
+            if value == 'permessage-deflate':
+                self.state.compression = compression = Deflate()
+                self.state.stream.set_compression(compression)
+                log.debug('permessage-deflate enabled')
 
     def send_ping(self, data=b''):
         """Send a ping packet.
@@ -413,7 +441,7 @@ class WebSocket(object):
             raise ValueError('pong data should be <= 125 bytes')
         self.session.send(Opcode.PONG, data)
 
-    def send_binary(self, data):
+    def send_binary(self, data, compress=True):
         """Send a binary message.
 
         :param bytes data: Binary data to send.
@@ -422,7 +450,11 @@ class WebSocket(object):
         """
         if not isinstance(data, bytes):
             raise TypeError('data argument must be bytes')
-        self.session.send(Opcode.BINARY, data)
+        if compress and self.state.compression:
+            _payload = self.state.compression.compress(data)
+            self.session.send_compressed(Opcode.BINARY, _payload)
+        else:
+            self.session.send(Opcode.BINARY, data)
 
     def send_json(self, _obj=Ellipsis, **kwargs):
         """Encode an object as JSON and send a text message.
@@ -450,7 +482,7 @@ class WebSocket(object):
             else json_obj
         )
 
-    def send_text(self, text):
+    def send_text(self, text, compress=True):
         """Send a text message.
 
         :param str text: Text to send.
@@ -459,7 +491,12 @@ class WebSocket(object):
         """
         if not isinstance(text, six.text_type):
             raise TypeError('text argument must not be bytes')
-        self.session.send(Opcode.TEXT, text.encode('utf-8'))
+        payload = text.encode('utf-8')
+        if compress and self.state.compression:
+            _payload = self.state.compression.compress(payload)
+            self.session.send_compressed(Opcode.TEXT, _payload)
+        else:
+            self.session.send(Opcode.TEXT, payload)
 
     def _send_close(self, code, reason):
         """Send a close frame."""

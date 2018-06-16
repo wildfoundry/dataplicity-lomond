@@ -29,7 +29,6 @@ class Frame(object):
         self.rsv3 = rsv3
 
         self.mask = 0
-        self.validate()
 
     def __repr__(self):
         opcode_name = Opcode.to_str(self.opcode)
@@ -98,7 +97,10 @@ class Frame(object):
         """Return binary encoding of WS frame."""
         frame_bytes = self.build(
             self.opcode,
-            payload=self.payload
+            payload=self.payload,
+            rsv1=self.rsv1,
+            rsv2=self.rsv2,
+            rsv3=self.rsv3
         )
         return frame_bytes
 
@@ -155,6 +157,30 @@ class Frame(object):
     def is_close(self):
         """Check if this is a close frame."""
         return self.opcode == Opcode.CLOSE
+
+
+class CompressedFrame(Frame):
+    """A frame that may be compressed."""
+
+    def validate(self):
+        """Check the frame and raise any errors."""
+        if self.is_control and len(self.payload) > 125:
+            raise errors.ProtocolError(
+                "control frames must be <= 125 bytes in length"
+            )
+        if self.rsv2 or self.rsv3:
+            raise errors.ProtocolError(
+                "reserved bits set"
+            )
+        if is_reserved(self.opcode):
+            raise errors.ProtocolError(
+                "opcode is reserved"
+            )
+        if not self.fin and self.is_control:
+            raise errors.ProtocolError(
+                "control frames may not be fragmented"
+            )
+
 
 
 if __name__ == "__main__":  # pragma: no cover
