@@ -22,22 +22,35 @@ class FrameParser(Parser):
 
     unpack16 = struct.Struct(b"!H").unpack
     unpack64 = struct.Struct(b"!Q").unpack
-    frame_class = Frame
 
-    def __init__(self):
+    def __init__(self, parse_headers=True):
         self._is_text = False
         self._utf8_validator = Utf8Validator()
+        self._frame_class = Frame
+        self._compression = False
+        self._parser_headers = parse_headers
         super(FrameParser, self).__init__()
+
+    def enable_compression(self):
+        """Enable compressed packets."""
+        self._compression = True
+        self._frame_class = CompressedFrame
 
     def read_text(self, length):
         """Read encoded text."""
-        return self.read_utf8(
-            length,
-            self._utf8_validator
-        )
+        if self._compression:
+            return self.read(length)
+        else:
+            return self.read_utf8(length, self._utf8_validator)
 
     def parse(self):
         # Get any WS frames
+        if self._parser_headers:
+            header_data = yield self.read_until(
+                b"\r\n\r\n", max_bytes=16 * 1024
+            )
+            yield header_data
+
         while True:
             byte1, byte2 = bytearray((yield self.read(2)))
 
@@ -61,7 +74,7 @@ class FrameParser(Parser):
             else:
                 masking_key = None
 
-            frame = self.frame_class(
+            frame = self._frame_class(
                 opcode,
                 masking_key=masking_key,
                 fin=fin,
@@ -83,23 +96,16 @@ class FrameParser(Parser):
                 else:
                     frame.payload = yield self.read(payload_length)
 
-            if (
-                self._utf8_validator is not None
-                and frame.fin
-                and (frame.is_text or frame.is_continuation)
-            ):
-                self._utf8_validator.reset()
-            if frame.fin:
-                self._is_text = False
-
+            self.on_frame(frame)
             yield frame
 
-
-class CompressedFrameParser(FrameParser):
-    """Specialised FrameParser for compressed frames."""
-
-    frame_class = CompressedFrame
-
-    def read_text(self, length):
-        """Read text without validating utf-8."""
-        return self.read(length)
+    def on_frame(self, frame):
+        """Called with new frames."""
+        if (
+            not self._compression
+            and frame.fin
+            and (frame.is_text or frame.is_continuation)
+        ):
+            self._utf8_validator.reset()
+        if frame.fin:
+            self._is_text = False

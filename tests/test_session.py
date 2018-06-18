@@ -207,7 +207,7 @@ def test_run_with_socket_open_error(session):
     assert _events[0].url == 'wss://example.com/'
 
     assert isinstance(_events[1], events.ConnectFail)
-    assert str(_events[1]) == "ConnectFail('fail')"
+    assert str(_events[1]) == "ConnectFail(reason='fail')"
 
 
 def test_run_with_send_request_raising_transport_error(session):
@@ -231,7 +231,7 @@ def test_run_with_send_request_raising_transport_error(session):
 
     assert isinstance(_events[-1], events.ConnectFail)
     assert str(_events[-1]) == (
-        "ConnectFail('request failed; socket fail; error during sendall')"
+        "ConnectFail(reason='request failed; socket fail; error during sendall')"
     )
 
 

@@ -13,8 +13,7 @@ from six import text_type
 
 from . import errors
 from .frame import CompressedFrame, Frame
-from .frame_parser import CompressedFrameParser, FrameParser
-from .header_parser import HeaderParser
+from .frame_parser import FrameParser
 from .message import Message
 from .parser import ParseError
 from .response import Response
@@ -31,35 +30,36 @@ class WebsocketStream(object):
     """
 
     def __init__(self):
-        self.header_parser = HeaderParser()
         self.frame_parser = FrameParser()
         self._parsed_response = False
         self._frames = []
         self._compression = None
+        self._decompress = None
 
     def set_compression(self, compression):
         """Set a compression object for decompressing messages."""
-        self.frame_parser = CompressedFrameParser()
+        self.frame_parser.enable_compression()
         self._compression = compression
+        self._decompress = (
+            self._compression.decompress
+            if self._compression
+            else None
+        )
 
     def build_message(self, frames):
         """Return a message, built from a list of frames."""
-        return Message.build(frames, self._compression.decompress)
+        return Message.build(frames, self._decompress)
 
     def feed(self, data):
         """Feed in data from a socket to yield 0 or more frames."""
         # This combines fragmented frames in to a single frame
 
-        if not self._parsed_response:
-            header_data = next(self.header_parser.feed(data))
-            if header_data is not None:
-                yield Response(header_data)
-                self._parsed_response = True
-            data = self.header_parser.unparsed_data
-            if not data:
-                return
-
         iter_frames = iter(self.frame_parser.feed(data))
+
+        if not self._parsed_response:
+            header_data = next(iter_frames)
+            yield Response(header_data)
+            self._parsed_response = True
 
         # Process incoming frames
         while True:

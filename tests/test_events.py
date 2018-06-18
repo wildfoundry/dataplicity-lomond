@@ -5,8 +5,8 @@ import six
 
 test_cases = [
     (events.Event(), 'Event()'),
-    (events.Text('A' * 25), 'Text(%r + 1 chars)' % ('A' * 24)),
-    (events.Text('A'), "Text('A')"),
+    (events.Text('A' * 25), 'Text(text=%r + 1 chars)' % ('A' * 24)),
+    (events.Text('A'), "Text(text='A')"),
     (
         events.Connecting('http://example.com'),
         "Connecting(url='http://example.com')"
@@ -15,26 +15,26 @@ test_cases = [
         events.Connected('http://example.org', proxy='foo'),
         "Connected(url='http://example.org', proxy='foo')"
     ),
-    (events.ConnectFail('404'), "ConnectFail('404')"),
+    (events.ConnectFail('404'), "ConnectFail(reason='404')"),
     (
-        events.Rejected('401', 'Insufficient permissions'),
-        "Rejected('401', 'Insufficient permissions')"
+        events.Rejected(response='401', reason='Insufficient permissions'),
+        "Rejected(response='401', reason='Insufficient permissions')"
     ),
     (
         events.Ready('200', 'HTTP', []),
-        "Ready('200', protocol='HTTP', extensions=[])"
+        "Ready(response='200', protocol='HTTP', extensions=[])"
     ),
-    (events.Disconnected(), "Disconnected('closed', graceful=False)"),
-    (events.Disconnected('error'), "Disconnected('error', graceful=False)"),
+    (events.Disconnected(), "Disconnected(reason='closed', graceful=False)"),
+    (events.Disconnected(reason='error'), "Disconnected(reason='error', graceful=False)"),
     (
         events.Disconnected('bye', graceful=True),
-        "Disconnected('bye', graceful=True)"
+        "Disconnected(reason='bye', graceful=True)"
     ),
-    (events.Closed(1, 'closed'), "Closed(1, 'closed')"),
-    (events.Closing(1, 'closed'), "Closing(1, 'closed')"),
+    (events.Closed(1, 'closed'), "Closed(code=1, reason='closed')"),
+    (events.Closing(1, 'closed'), "Closing(code=1, reason='closed')"),
     (events.UnknownMessage('?.!'), "UnknownMessage()"),
-    (events.Ping('o |'), "Ping('o |')"),
-    (events.Pong('  | o'), "Pong('  | o')"),
+    (events.Ping('o |'), "Ping(data='o |')"),
+    (events.Pong('  | o'), "Pong(data='  | o')"),
     (events.BackOff(0.1), "BackOff(delay=0.1)")
 ]
 
@@ -48,17 +48,17 @@ if six.PY2:
     test_cases.extend([
         (
             events.Binary(b'\xef' * 25),
-            "Binary('%s' + 1 bytes)" % ('\\xef' * 24)
+            "Binary(data='%s' + 1 bytes)" % ('\\xef' * 24)
         ),
-        (events.Binary(b'\x01'), "Binary('\\x01')"),
+        (events.Binary(b'\x01'), "Binary(data='\\x01')"),
     ])
 elif six.PY3:
     test_cases.extend([
         (
             events.Binary(b'\xef' * 25),
-            "Binary(%s + 1 bytes)" % (b'\xef' * 24)
+            "Binary(data=%s + 1 bytes)" % (b'\xef' * 24)
         ),
-        (events.Binary(b'\x01'), "Binary(b'\\x01')"),
+        (events.Binary(b'\x01'), "Binary(data=b'\\x01')"),
     ])
 
 

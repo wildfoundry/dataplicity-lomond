@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 from lomond.stream import WebsocketStream
 from lomond.errors import ProtocolError
 from lomond.response import Response
@@ -44,8 +46,8 @@ def test_feed_with_chunked_data():
         assert frames[0].http_ver == 'HTTP/1.1'
         assert frames[0].status_code == 200
         assert frames[0].status == 'OK'
-        assert frames[0].get(b'user-agent') == b'Test'
-        assert frames[0].get(b'connection') == b'Keep-Alive'
+        assert frames[0].get('user-agent') == 'Test'
+        assert frames[0].get('connection') == 'Keep-Alive'
         # decoded payload
         # one could also use isinstance(frames[1], Text) here
         assert frames[1].is_text

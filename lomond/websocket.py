@@ -18,10 +18,11 @@ from six.moves.urllib.parse import urlparse
 from . import constants
 from . import errors
 from . import events
-from .compression import Deflate
+from .compression import Deflate, ParameterError
 from .frame import Frame
 from .opcode import Opcode
-from ._parse import parse_header
+from .parser import ParseError
+from .extension import parse_extension
 from .response import Response
 from .stream import WebsocketStream
 from .session import WebsocketSession
@@ -63,7 +64,7 @@ class WebSocket(object):
                  proxies=None,
                  protocols=None,
                  agent=None,
-                 compress=True):
+                 compress=False):
         self.url = url
         self.proxies = self._detect_proxies() if proxies is None else proxies
         self.protocols = protocols or []
@@ -84,7 +85,7 @@ class WebSocket(object):
         if _url.query:
             self.resource = "{}?{}".format(self.resource, _url.query)
 
-        self.state = None
+        self.state = self.State()
 
     @classmethod
     def _detect_proxies(cls):
@@ -352,33 +353,34 @@ class WebSocket(object):
             headers.append(
                 (
                     b'Sec-WebSocket-Extensions',
-                    b'permessage-deflate; server_max_window_bits=10'
+                    b'permessage-deflate; '
+                    b'server_max_window_bits=15; '
+                    b'client_max_window_bits, '
+                    b'permessage-deflate; client_max_window_bits'
                 )
             )
         for header, value in headers:
             request.append(header + b': ' + value)
         request.append(b'\r\n')
         request_bytes = b'\r\n'.join(request)
-        print(request_bytes)
         return request_bytes
 
     def on_response(self, response):
         """Called when the HTTP response has been received."""
-
         if response.status_code != 101:
             raise errors.HandshakeError(
                 'Websocket upgrade failed (code={})',
                 response.status_code
             )
 
-        upgrade_header = response.get(b'upgrade', b'?').lower()
-        if upgrade_header != b'websocket':
+        upgrade_header = response.get('upgrade', '<header missing>').lower()
+        if upgrade_header != 'websocket':
             raise errors.HandshakeError(
                 "Can't upgrade to {}",
-                upgrade_header.decode('utf-8', errors='replace')
+                upgrade_header
             )
 
-        accept_header = response.get(b'sec-websocket-accept', None)
+        accept_header = response.get('sec-websocket-accept', None)
         if accept_header is None:
             raise errors.HandshakeError(
                 "No Sec-WebSocket-Accept header"
@@ -386,24 +388,34 @@ class WebSocket(object):
 
         challenge = b64encode(
             sha1(self.key + constants.WS_KEY).digest()
-        )
+        ).decode('ascii')
 
         if accept_header.lower() != challenge.lower():
             raise errors.HandshakeError(
                 "Sec-WebSocket-Accept challenge failed"
             )
 
-        protocol = response.get(b'sec-websocket-protocol')
-        extensions = set(response.get_list(b'sec-websocket-extensions'))
+        protocol = response.get('sec-websocket-protocol')
+        extensions = set(response.get_list('sec-websocket-extensions'))
         self.process_extensions(extensions)
         return protocol, extensions
 
     def process_extensions(self, extensions):
         """Process extension headers."""
         for extension in extensions:
-            value, options = parse_header(extension)
-            if value == 'permessage-deflate':
-                self.state.compression = compression = Deflate()
+            try:
+                extension_token, options = parse_extension(extension)
+            except ParseError as error:
+                raise errors.HandshakeError(six.text_type(error))
+            if extension_token == 'permessage-deflate':
+                try:
+                    compression = Deflate.from_options(options)
+                except ParameterError as error:
+                    log.debug(
+                        'error in permessage-defate extensions; %s', error
+                    )
+                    raise errors.HandshakeError(six.text_type(error))
+                self.state.compression = compression
                 self.state.stream.set_compression(compression)
                 log.debug('permessage-deflate enabled')
 
@@ -450,7 +462,7 @@ class WebSocket(object):
         """
         if not isinstance(data, bytes):
             raise TypeError('data argument must be bytes')
-        if compress and self.state.compression:
+        if compress and self.compress and self.state.compression:
             _payload = self.state.compression.compress(data)
             self.session.send_compressed(Opcode.BINARY, _payload)
         else:
@@ -492,7 +504,7 @@ class WebSocket(object):
         if not isinstance(text, six.text_type):
             raise TypeError('text argument must not be bytes')
         payload = text.encode('utf-8')
-        if compress and self.state.compression:
+        if compress and self.compress and self.state.compression:
             _payload = self.state.compression.compress(payload)
             self.session.send_compressed(Opcode.TEXT, _payload)
         else:

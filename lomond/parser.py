@@ -25,6 +25,9 @@ class _Awaitable(object):
     def validate(self, chunk):
         """Raise any ParseErrors"""
 
+    def eof(self, parser):
+        raise ParseError('unexpected eof of file')
+
 
 class _ReadBytes(_Awaitable):
     """Reads a fixed number of bytes."""
@@ -60,10 +63,11 @@ class _ReadUntil(_Awaitable):
         """Check the length is within max bytes."""
         if self.max_bytes is not None and pos > self.max_bytes:
             raise ParseError(
-                '{!r} expected in {} byte(s)',
-                self.sep,
-                self.max_bytes
+                'expected {!r}'.format(self.sep)
             )
+
+    def eof(self, parser):
+        raise ParseError('expected {!r}'.format(self.sep))
 
 
 class Parser(object):
@@ -90,7 +94,7 @@ class Parser(object):
         self._awaiting = None
         self._buffer = []  # Buffer for reads
         self._until = b''  # Buffer for read untils
-        self._closed = False
+        self._eof = False
         self.reset()
 
     read = _ReadBytes
@@ -99,6 +103,10 @@ class Parser(object):
 
     def __del__(self):
         self.close()
+
+    @property
+    def is_eof(self):
+        return self._eof
 
     def reset(self):
         """Reset the parser, so it may be used on a fresh stream."""
@@ -111,20 +119,33 @@ class Parser(object):
             self._gen.close()
             self._gen = None
 
-    @property
-    def unparsed_data(self):
+    def flush_buffer(self):
         """Get bytes that haven't been parsed."""
-        if isinstance(self._awaiting, _Awaitable):
-            return self._awaiting.remaining
-        else:
-            return None
+        data = b''.join(self._buffer)
+        del self._buffer[:]
+        return data
+
+    def feed_all(self, data):
+        """
+        Feed data in a single chunk. Yield tokens.
+
+        :param bytes data: Data to parse.
+
+        """
+        for token in self.feed(data):
+            yield token
+        try:
+            for token in self.feed(b''):
+                yield token
+        except ParseEOF:
+            pass
 
     def feed(self, data):
         """
         Called with data (bytes), will yield 0 or more objects parsed
         from the stream.
 
-        :param bytes data: Data to decode.
+        :param bytes data: Data to parse.
 
         """
 
@@ -132,10 +153,22 @@ class Parser(object):
             try:
                 self._awaiting.check_length(pos)
             except ParseError as error:
-                self._gen.throw(error)
+                self._awaiting = self._gen.throw(error)
 
         if not data:
-            self._gen.throw(ParseEOF('no more data to parse'))
+            self._eof = True
+            while True:
+                if isinstance(self._awaiting, _Awaitable):
+                    try:
+                        token = self._awaiting.eof(self)
+                        if token is not None:
+                            self._awaiting = self._gen.send(token)
+                    except ParseError as error:
+                        self._awaiting = self._gen.throw(error)
+                else:
+                    yield self._awaiting
+                    self._awaiting = next(self._gen)
+            return
 
         pos = 0
         while pos < len(data):
@@ -152,7 +185,7 @@ class Parser(object):
                     self._awaiting.validate(chunk)
                 except ParseError as error:
                     # Raises an exception in parse()
-                    self._gen.throw(error)
+                    self._awaiting = self._gen.throw(error)
                 # Add to buffer
                 self._buffer.append(chunk)
                 remaining -= chunk_size
@@ -181,15 +214,16 @@ class Parser(object):
                 else:
                     # Found separator
                     # Get data prior to and including separator
-                    _check_length(sep_index + len(sep))
-                    split_index = sep_index + len(sep)
-                    send_bytes = self._until[:split_index]
+                    sep_index += len(sep)
+                    _check_length(sep_index)
+                    send_bytes = self._until[:sep_index]
                     # Reset data, to continue parsing
-                    data = self._until[split_index:]
+                    data = self._until[sep_index:]
                     self._until = b''
                     pos = 0
                     # Send bytes to coroutine, get new 'awaitable'
                     self._awaiting = self._gen.send(send_bytes)
+
             # Yield any non-awaitables...
             while not isinstance(self._awaiting, _Awaitable):
                 yield self._awaiting

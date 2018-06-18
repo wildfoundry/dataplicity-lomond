@@ -283,7 +283,7 @@ def test_calling_on_close_when_websocket_is_closed_results_in_noop(
 @pytest.mark.parametrize('payload, expected_error', [
     (b'', 'Websocket upgrade failed (code=None)'),
     (b'HTTP/1.1 200 OK', 'Websocket upgrade failed (code=200)'),
-    (b'HTTP/1.1 101 Switching protocols', "Can't upgrade to ?"),
+    (b'HTTP/1.1 101 Switching protocols', "Can't upgrade to <header missing>"),
     (b'HTTP/1.1 101 Switching protocols\r\nUpgrade: 1', "Can't upgrade to 1"),
     (
         (

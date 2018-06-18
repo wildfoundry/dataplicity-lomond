@@ -6,11 +6,15 @@ A message class, built from 1 or more websocket frames.
 
 from __future__ import unicode_literals
 
+import logging
 import struct
 
 from . import errors
 from .opcode import Opcode
 from .utf8validator import Utf8Validator
+
+
+log = logging.getLogger('lomond')
 
 
 class Message(object):
@@ -44,14 +48,25 @@ class Message(object):
             return Pong(payload)
         elif opcode == Opcode.BINARY:
             if decompress and first_frame.rsv1:
-                return Binary(decompress(payload))
+                payload = cls.decompress_payload(payload, decompress)
             return Binary(payload)
         elif opcode == Opcode.TEXT:
             if decompress and first_frame.rsv1:
-                return Text.from_payload(decompress(payload))
+                payload = cls.decompress_payload(payload, decompress)
             return Text.from_payload(payload)
         else:
             return Message(opcode)
+
+    @classmethod
+    def decompress_payload(cls, payload, decompress):
+        """Decompress data and report errors."""
+        try:
+            return decompress(payload)
+        except Exception as error:
+            log.exception('error decompressing payload')
+            raise errors.CriticalProtocolError(
+                'unable to decompress payload'
+            )
 
     @property
     def is_text(self):

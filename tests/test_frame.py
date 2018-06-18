@@ -216,6 +216,7 @@ def test_calling_build_close_payload_requires_status():
 ])
 def test_validate_frame(init_params, expected_error):
     with pytest.raises(ProtocolError) as e:
-        Frame(**init_params)
+        frame = Frame(**init_params)
+        frame.validate()
 
     assert str(e.value) == expected_error

@@ -11,6 +11,11 @@ from __future__ import unicode_literals
 
 from collections import defaultdict
 
+import six
+
+
+LWS = (' ', '\t', '\n', '\r')
+
 
 class Response(object):
     """A HTTP response.
@@ -24,23 +29,32 @@ class Response(object):
         lines = iter(header_data.split(b'\r\n'))
         status_line = next(lines, b'')
         tokens = iter(status_line.split(None, 2))
-        self.http_ver = next(tokens, b'').decode('utf-8', errors='replace')
+        self.http_ver = next(tokens, b'').decode('ascii', 'replace')
         try:
             self.status_code = int(next(tokens, b''))
         except ValueError:
             self.status_code = None
-        self.status = next(tokens, b'').decode('utf-8', errors='replace')
+        self.status = next(tokens, b'').decode('ascii', 'replace')
 
         headers = defaultdict(list)
-        for line in lines:
-            if line.strip():
-                header, _, value = line.partition(b':')
+        header = None
+        for _line in lines:
+            line = _line.decode('ascii', 'replace')
+            if not line.strip():
+                continue
+            if line.startswith(LWS):
+                if header:
+                    headers[header].append(' ')
+                    headers[header].append(line.lstrip())
+            else:
+                header, _colon, value = line.partition(':')
                 header = header.lower().strip()
-                value = value.strip()
+                if header in headers:
+                    headers[header].append(',')
                 headers[header].append(value)
 
         self.headers = {
-            header: b','.join(value)
+            header: ''.join(value).strip()
             for header, value in headers.items()
         }
 
@@ -54,12 +68,12 @@ class Response(object):
     def get(self, name, default=None):
         """Get a header.
 
-        :param bytes name: Name of the header to retrieve.
+        :param str name: Name of the header to retrieve.
         :param default: Default value if header is not present.
-        :rtype: bytes
+        :rtype: str
 
         """
-        assert isinstance(name, bytes), "must be bytes"
+        assert isinstance(name, six.text_type), "must be unicode"
         return self.headers.get(name.lower(), default)
 
     def get_list(self, name):
@@ -67,11 +81,11 @@ class Response(object):
 
         :param bytes name: Name of the header to retrieve.
 
-        :rtype: list
+        :rtype: str
         :returns: A list of strings in the header.
 
         """
-        value = self.get(name, b'').decode('utf-8', errors='replace')
+        value = self.get(name, '')
         if not value.strip():
             return []
         parts = [part.strip() for part in value.split(',')]
