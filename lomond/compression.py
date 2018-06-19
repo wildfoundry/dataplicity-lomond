@@ -82,8 +82,8 @@ class Deflate(object):
         """Compress payload, return compressed data."""
         data = (
             self._compressobj.compress(payload)
-            + self._compressobj.flush(zlib.Z_SYNC_FLUSH)[:-4]
-        )
+            + self._compressobj.flush(zlib.Z_SYNC_FLUSH)
+        )[:-4]
         if self.reset_compress:
             self.reset_compressor()
         return data
