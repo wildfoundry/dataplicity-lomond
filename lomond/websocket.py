@@ -18,7 +18,7 @@ from six.moves.urllib.parse import urlparse
 from . import constants
 from . import errors
 from . import events
-from .compression import Deflate, ParameterError
+from .compression import Deflate, CompressionParameterError
 from .frame import Frame
 from .opcode import Opcode
 from .parser import ParseError
@@ -136,6 +136,12 @@ class WebSocket(object):
     def is_closed(self):
         """Flag that indicates if the websocket is closed."""
         return self.state.closed
+
+    @property
+    def supports_compression(self):
+        """Boolean that indicates if the server has compression
+        enabled."""
+        return bool(self.state.compression)
 
     @property
     def stream(self):
@@ -406,18 +412,22 @@ class WebSocket(object):
             try:
                 extension_token, options = parse_extension(extension)
             except ParseError as error:
-                raise errors.HandshakeError(six.text_type(error))
+                raise errors.HandshakeError(
+                    'parse error; {}'.format(error)
+                )
             if extension_token == 'permessage-deflate':
                 try:
                     compression = Deflate.from_options(options)
-                except ParameterError as error:
+                except CompressionParameterError as error:
                     log.debug(
-                        'error in permessage-defate extensions; %s', error
+                        'invalid extension parameter; %s', error
                     )
-                    raise errors.HandshakeError(six.text_type(error))
+                    raise errors.HandshakeError(
+                        'invalid extension parameter; {}'.format(error)
+                    )
                 self.state.compression = compression
                 self.state.stream.set_compression(compression)
-                log.debug('permessage-deflate enabled')
+                log.debug('%r enabled', compression)
 
     def send_ping(self, data=b''):
         """Send a ping packet.
@@ -457,6 +467,7 @@ class WebSocket(object):
         """Send a binary message.
 
         :param bytes data: Binary data to send.
+        :param bool compress: Enable compression if supported by the server.
         :raises TypeError: If data is not bytes.
 
         """
@@ -498,6 +509,7 @@ class WebSocket(object):
         """Send a text message.
 
         :param str text: Text to send.
+        :param bool compress: Enable compression if supported by the server.
         :raises TypeError: If data is not str (or unicode on Py2).
 
         """

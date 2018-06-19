@@ -300,6 +300,7 @@ class WebsocketSession(object):
                 # Plain socket recv
                 return self._sock.recv(count)
         except socket.error as error:
+            log.debug('error in _recv', exc_info=True)
             self._socket_fail('recv fail; {}', error)
 
     def _regular(self, poll, ping_rate, ping_timeout, close_timeout):

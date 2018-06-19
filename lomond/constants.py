@@ -22,7 +22,3 @@ USER_AGENT = 'Lomond/{} {}/{} {}/{} ({})'.format(
     platform.release(),
     platform.platform()
 )
-
-SUPPORTED_COMRESSION = [
-    'deflate'
-]

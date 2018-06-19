@@ -151,6 +151,34 @@ events, such as the following::
             log.exception('error handling %r', event)
             websocket.close()
 
+Compression
+-----------
+
+Lomond supports the *permessage-deflate* extension to the WebSocket
+specification, which enables compression of WebSocket frames. To enable
+compression, construct the WebSocket with the ``compress`` parameter set
+to ``True``::
+
+    ws = WebSocket('wss://ws.example.org', compress=True)
+
+This tells the server in the initial request to enabled compression if
+it is supported. If the server supports compression then Lomond may
+receive text or binary messages in compressed form. The decompression
+happens automatically so you will see the decompressed data in
+:class:`~lomond.events.Text` and :class:`~lomond.events.Binary` events.
+
+You can send compressed messages by setting the ``compress`` parameter
+on the :meth:`~lomond.websocket.WebSocket.send_text` and
+:meth:`~lomond.websocket.WebSocket.send_binary` methods. This parameter
+is ``True`` by default, but you might want to set it to ``False`` if
+you know the data is already compressed.
+
+If the server does not support compression, then setting the
+``compress`` parameter will have no effect. The
+:attr:`~lomond.websocket.WebSocket.supports_compression` property
+will be set to ``True`` if compression is enabled or ``False`` if
+the server does not support compression.
+
 
 Closing the WebSocket
 ---------------------

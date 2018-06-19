@@ -140,6 +140,30 @@ class TestIntegration(object):
         assert events[7].name == 'disconnected'
         assert events[7].graceful
 
+    def test_echo_compress(self):
+        """Test echo server."""
+        ws = WebSocket(self.WS_URL + 'echo', compress=True)
+        events = []
+        for event in ws.connect(poll=60, ping_rate=0, auto_pong=False):
+            events.append(event)
+            if event.name == 'ready':
+                ws.send_text(u'echofoo')
+                ws.send_binary(b'echobar')
+                ws.close()
+
+        assert len(events) == 8
+        assert events[0].name == 'connecting'
+        assert events[1].name == 'connected'
+        assert events[2].name == 'ready'
+        assert events[3].name == 'poll'
+        assert events[4].name == 'text'
+        assert events[4].text == u'echofoo'
+        assert events[5].name == 'binary'
+        assert events[5].data == b'echobar'
+        assert events[6].name == 'closed'
+        assert events[7].name == 'disconnected'
+        assert events[7].graceful
+
     def test_premature_close_connecting(self):
         """Test close after connecting event."""
         ws = WebSocket('ws://NEVERCONNECTS')

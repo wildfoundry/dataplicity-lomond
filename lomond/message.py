@@ -39,29 +39,28 @@ class Message(object):
         """Build a message from a sequence of frames."""
         first_frame = frames[0]
         opcode = first_frame.opcode
-        payload = b''.join(frame.payload for frame in frames)
-        if opcode == Opcode.CLOSE:
+        if first_frame.rsv1 and decompress:
+            payload = cls.decompress_frames(frames, decompress)
+        else:
+            payload = b''.join(frame.payload for frame in frames)
+        if opcode == Opcode.BINARY:
+            return Binary(payload)
+        elif opcode == Opcode.TEXT:
+            return Text.from_payload(payload)
+        elif opcode == Opcode.CLOSE:
             return Close.from_payload(payload)
         elif opcode == Opcode.PING:
             return Ping(payload)
         elif opcode == Opcode.PONG:
             return Pong(payload)
-        elif opcode == Opcode.BINARY:
-            if decompress and first_frame.rsv1:
-                payload = cls.decompress_payload(payload, decompress)
-            return Binary(payload)
-        elif opcode == Opcode.TEXT:
-            if decompress and first_frame.rsv1:
-                payload = cls.decompress_payload(payload, decompress)
-            return Text.from_payload(payload)
         else:
             return Message(opcode)
 
     @classmethod
-    def decompress_payload(cls, payload, decompress):
+    def decompress_frames(cls, frames, decompress):
         """Decompress data and report errors."""
         try:
-            return decompress(payload)
+            return decompress(frames)
         except Exception as error:
             log.exception('error decompressing payload')
             raise errors.CriticalProtocolError(

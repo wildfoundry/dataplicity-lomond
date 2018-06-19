@@ -3,21 +3,27 @@ from __future__ import unicode_literals
 import zlib
 
 
-class ParameterError(Exception):
-    pass
+class CompressionParameterError(Exception):
+    """An invalid parameter in the extension."""
 
 
 class Deflate(object):
     """Compress with the Deflate algorith."""
 
-    def __init__(self, decompress_wbits, compress_wbits, no_context_takeover):
+    def __init__(
+        self, decompress_wbits, compress_wbits, reset_decompress, reset_compress
+    ):
         self.decompress_wbits = decompress_wbits
         self.compress_wbits = compress_wbits
-        self.no_context_takeover = no_context_takeover
-        self._compressobj = zlib.compressobj(
-            4, zlib.DEFLATED, -self.compress_wbits
-        )
+        self.reset_decompress = reset_decompress
+        self.reset_compress = reset_compress
+        self.reset_compressor()
         self.reset_decompressor()
+
+    def reset_compressor(self):
+        self._compressobj = zlib.compressobj(
+            6, zlib.DEFLATED, -max(9, self.compress_wbits)
+        )
 
     def reset_decompressor(self):
         """Reset the compressor."""
@@ -27,45 +33,57 @@ class Deflate(object):
     def from_options(cls, options):
         """Build object from options dict."""
         decompress_wbits = cls.get_wbits(
-            options, b"server_max_window_bits", 8, 15
+            options, "server_max_window_bits"
         )
-        compress_wbits = cls.get_wbits(
-            options, b"client_max_window_bits", 9, 15
+        compress_wbits = cls.get_wbits(options, "client_max_window_bits")
+        reset_decompress = "server_no_context_takeover" in options
+        reset_compress = "client_no_context_takeover" in options
+        deflate = Deflate(
+            decompress_wbits, compress_wbits, reset_decompress, reset_compress
         )
-        auto_reset = b"server_no_context_takeover" in options
-        deflate = Deflate(decompress_wbits, compress_wbits, auto_reset)
         return deflate
 
     @classmethod
-    def get_wbits(cls, options, key, _min, _max):
+    def get_wbits(cls, options, key):
+        """Parse wbits from options."""
         _wbits = options.get(key, "15")
         try:
             wbits = int(_wbits)
         except ValueError:
-            raise ParameterError("{} is not an integer".format(key))
-        if wbits < _min or wbits > _max:
-            raise ParameterError("%s=%s is invalid".format(key, wbits))
+            raise CompressionParameterError("{} is not an integer".format(key))
+        if wbits < 8 or wbits > 15:
+            raise CompressionParameterError(
+                "{}={} is invalid".format(key, wbits)
+            )
         return wbits
 
     def __repr__(self):
-        return "Deflate({!r}, {!r}, {!r})".format(
-            self.decompress_wbits, self.compress_wbits, self.auto_reset
+        return "Deflate(decompress_wbits={!r}, compress_wbits={!r}, reset_decompress={!r}, reset_compress={!r})".format(
+            self.decompress_wbits,
+            self.compress_wbits,
+            self.reset_decompress,
+            self.reset_compress,
         )
 
-    def decompress(self, payload):
+    def decompress(self, frames):
         """Decompress payload, returned decompressed data."""
-        data = (
-            self._decompressobj.decompress(payload + b"\x00\x00\xff\xff")
-            + self._decompressobj.flush()
+        data = b"".join(
+            self._decompressobj.decompress(
+                frame.payload + b"\x00\x00\xff\xff"
+                if frame.fin
+                else frame.payload
+            )
+            for frame in frames
         )
-        if self.no_context_takeover:
+        if self.reset_decompress:
             self.reset_decompressor()
         return data
 
     def compress(self, payload):
         """Compress payload, return compressed data."""
-        data = (
-            self._compressobj.compress(payload)
-            + self._compressobj.flush(zlib.Z_SYNC_FLUSH)
+        data = self._compressobj.compress(payload) + self._compressobj.flush(
+            zlib.Z_SYNC_FLUSH
         )[:-4]
+        if self.reset_compress:
+            self.reset_compressor()
         return data

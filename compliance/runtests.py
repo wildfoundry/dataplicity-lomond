@@ -7,11 +7,13 @@ import sys
 
 from six.moves.urllib_parse import urlencode
 
+from lomond import WebSocket
+from lomond.constants import USER_AGENT
+
+
 logging.basicConfig()
 logging.getLogger('lomond').setLevel(logging.INFO)
 
-from lomond import WebSocket
-from lomond.constants import USER_AGENT
 
 server = 'ws://127.0.0.1:9001'
 
