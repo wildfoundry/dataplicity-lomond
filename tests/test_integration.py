@@ -48,6 +48,9 @@ class EchoHandler(websocket.WebSocketHandler):
     def check_origin(self, origin):
         return True
 
+    def get_compression_options(self):
+        return {}
+
     @gen.coroutine
     def on_message(self, message):
         yield self.write_message(message, binary=isinstance(message, bytes))
@@ -123,6 +126,7 @@ class TestIntegration(object):
         for event in ws.connect(poll=60, ping_rate=0, auto_pong=False):
             events.append(event)
             if event.name == 'ready':
+                assert not ws.supports_compression
                 ws.send_text(u'echofoo')
                 ws.send_binary(b'echobar')
                 ws.close()
@@ -147,6 +151,7 @@ class TestIntegration(object):
         for event in ws.connect(poll=60, ping_rate=0, auto_pong=False):
             events.append(event)
             if event.name == 'ready':
+                assert ws.supports_compression
                 ws.send_text(u'echofoo')
                 ws.send_binary(b'echobar')
                 ws.close()

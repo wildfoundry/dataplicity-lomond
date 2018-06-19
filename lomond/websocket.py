@@ -413,7 +413,7 @@ class WebSocket(object):
                 extension_token, options = parse_extension(extension)
             except ParseError as error:
                 raise errors.HandshakeError(
-                    'parse error; {}'.format(error)
+                    'extension parse error; {}'.format(error)
                 )
             if extension_token == 'permessage-deflate':
                 try:
