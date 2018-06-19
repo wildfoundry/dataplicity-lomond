@@ -76,7 +76,6 @@ class FrameParser(Parser):
 
             frame = self._frame_class(
                 opcode,
-                masking_key=masking_key,
                 fin=fin,
                 rsv1=rsv1,
                 rsv2=rsv2,

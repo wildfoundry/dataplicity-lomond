@@ -15,8 +15,3 @@ def parse_extension(extension):
         value = value.strip().strip('"')
         options[key.strip()] = value
     return extension_token, options
-
-
-if __name__ == '__main__':
-    #print(parse_extension('permessage-deflate;foo="bar";n=1;a=hello'))
-    print(parse_extension('permessage-deflate;foo="bar"'))

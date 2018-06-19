@@ -18,17 +18,23 @@ from .opcode import is_reserved, Opcode
 class Frame(object):
     """A raw websocket frame."""
 
-    def __init__(self, opcode, payload=b'', masking_key=None,
+    __slots__ = [
+        'opcode',
+        'payload',
+        'fin',
+        'rsv1',
+        'rsv2',
+        'rsv3',
+    ]
+
+    def __init__(self, opcode, payload=b'',
                  fin=1, rsv1=0, rsv2=0, rsv3=0):
         self.opcode = opcode
         self.payload = payload
-        self.masking_key = masking_key
         self.fin = fin
         self.rsv1 = rsv1
         self.rsv2 = rsv2
         self.rsv3 = rsv3
-
-        self.mask = 0
 
     def __repr__(self):
         opcode_name = Opcode.to_str(self.opcode)
@@ -53,7 +59,7 @@ class Frame(object):
     def build(cls, opcode, payload=b'',
               fin=1, rsv1=0, rsv2=0, rsv3=0,
               masking_key=None):
-        """Build a WS frame header."""
+        """Build a WS frame."""
         # https://tools.ietf.org/html/rfc6455#section-5.2
         masking_key = (
             make_masking_key()
@@ -110,10 +116,7 @@ class Frame(object):
             raise errors.ProtocolError(
                 "control frames must be <= 125 bytes in length"
             )
-        if self.rsv1 or self.rsv2 or self.rsv3:
-            raise errors.ProtocolError(
-                "reserved bits set"
-            )
+        self.validate_reserved_bits()
         if is_reserved(self.opcode):
             raise errors.ProtocolError(
                 "opcode is reserved"
@@ -121,6 +124,13 @@ class Frame(object):
         if not self.fin and self.is_control:
             raise errors.ProtocolError(
                 "control frames may not be fragmented"
+            )
+
+    def validate_reserved_bits(self):
+        """Check reserved bits."""
+        if self.rsv1 or self.rsv2 or self.rsv3:
+            raise errors.ProtocolError(
+                "reserved bits set"
             )
 
     @property
@@ -162,26 +172,12 @@ class Frame(object):
 class CompressedFrame(Frame):
     """A frame that may be compressed."""
 
-    def validate(self):
-        """Check the frame and raise any errors."""
-        if self.is_control and len(self.payload) > 125:
-            raise errors.ProtocolError(
-                "control frames must be <= 125 bytes in length"
-            )
+    def validate_reserved_bits(self):
+        """Check reserved bits."""
         if self.rsv2 or self.rsv3:
             raise errors.ProtocolError(
                 "reserved bits set"
             )
-        if is_reserved(self.opcode):
-            raise errors.ProtocolError(
-                "opcode is reserved"
-            )
-        if not self.fin and self.is_control:
-            raise errors.ProtocolError(
-                "control frames may not be fragmented"
-            )
-
-
 
 if __name__ == "__main__":  # pragma: no cover
     print(Frame(Opcode.BINARY, b'Hello, World', fin=0))
