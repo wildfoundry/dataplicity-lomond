@@ -455,13 +455,14 @@ class WebSocket(object):
         """Send a binary message.
 
         :param bytes data: Binary data to send.
-        :param bool compress: Enable compression if supported by the server.
+        :param bool compress: Send data in compressed form, if compression
+            is enabled on the server.
         :raises TypeError: If data is not bytes.
 
         """
         if not isinstance(data, bytes):
             raise TypeError('data argument must be bytes')
-        if compress and self.compress and self.state.compression:
+        if compress and self.state.compression:
             _payload = self.state.compression.compress(data)
             self.session.send_compressed(Opcode.BINARY, _payload)
         else:
@@ -497,14 +498,15 @@ class WebSocket(object):
         """Send a text message.
 
         :param str text: Text to send.
-        :param bool compress: Enable compression if supported by the server.
+        :param bool compress: Send the text in compressed form, if
+            compression is enabled on the server.
         :raises TypeError: If data is not str (or unicode on Py2).
 
         """
         if not isinstance(text, six.text_type):
             raise TypeError('text argument must not be bytes')
         payload = text.encode('utf-8')
-        if compress and self.compress and self.state.compression:
+        if compress and self.state.compression:
             _payload = self.state.compression.compress(payload)
             self.session.send_compressed(Opcode.TEXT, _payload)
         else:

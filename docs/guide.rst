@@ -155,9 +155,9 @@ Compression
 -----------
 
 Lomond supports the *permessage-deflate* extension to the WebSocket
-specification, which enables compression of WebSocket frames. To enable
-compression, construct the WebSocket with the ``compress`` parameter set
-to ``True``::
+specification to compress WebSocket frames. To enable compression,
+construct the WebSocket with the ``compress`` parameter set to
+``True``::
 
     ws = WebSocket('wss://ws.example.org', compress=True)
 
