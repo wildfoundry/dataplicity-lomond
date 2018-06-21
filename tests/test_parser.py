@@ -31,7 +31,7 @@ def test_eof():
             yield data
     test_parser = TestParser()
     test_data = [b'foo', b'']
-    not test_parser.is_eof
+    assert not test_parser.is_eof
     with pytest.raises(ParseError):
         for data in test_data:
             for _token in test_parser.feed(data):
