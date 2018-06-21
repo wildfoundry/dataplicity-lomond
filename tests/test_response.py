@@ -10,8 +10,12 @@ def test_constructor():
 
 
 def test_parsing_of_headers():
-    headers = (b'GET HTTP/1.1\r\nContent-Type:ascii\r\n'
-               b'Array:Item-1\r\nArray:Item-2\r\n\r\n')
+    headers = (
+        b'GET HTTP/1.1\r\nContent-Type:ascii\r\n'
+        b'Array:Item-1\r\nArray:Item-2\r\n'
+        b'extended:foo\r\n  bar'
+
+    )
 
     r = Response(headers)
 
@@ -19,6 +23,7 @@ def test_parsing_of_headers():
     assert r.get('array') == 'Item-1,Item-2'
     assert r.get_list('array') == ['Item-1', 'Item-2']
     assert r.get_list('no-such-header') == []
+    assert r.get('extended') == 'foo bar'
     assert r.get('no-such-header') is None
 
 

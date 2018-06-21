@@ -25,9 +25,6 @@ class _Awaitable(object):
     def validate(self, chunk):
         """Raise any ParseErrors"""
 
-    def eof(self, parser):
-        raise ParseError('unexpected eof of file')
-
 
 class _ReadBytes(_Awaitable):
     """Reads a fixed number of bytes."""
@@ -65,9 +62,6 @@ class _ReadUntil(_Awaitable):
             raise ParseError(
                 'expected {!r}'.format(self.sep)
             )
-
-    def eof(self, parser):
-        raise ParseError('expected {!r}'.format(self.sep))
 
 
 class Parser(object):
@@ -119,27 +113,6 @@ class Parser(object):
             self._gen.close()
             self._gen = None
 
-    def flush_buffer(self):
-        """Get bytes that haven't been parsed."""
-        data = b''.join(self._buffer)
-        del self._buffer[:]
-        return data
-
-    def feed_all(self, data):
-        """
-        Feed data in a single chunk. Yield tokens.
-
-        :param bytes data: Data to parse.
-
-        """
-        for token in self.feed(data):
-            yield token
-        try:
-            for token in self.feed(b''):
-                yield token
-        except ParseEOF:
-            pass
-
     def feed(self, data):
         """
         Called with data (bytes), will yield 0 or more objects parsed
@@ -155,20 +128,14 @@ class Parser(object):
             except ParseError as error:
                 self._awaiting = self._gen.throw(error)
 
+        if self._eof:
+            raise ParseError('end of file reached')
         if not data:
             self._eof = True
-            while True:
-                if isinstance(self._awaiting, _Awaitable):
-                    try:
-                        token = self._awaiting.eof(self)
-                        if token is not None:
-                            self._awaiting = self._gen.send(token)
-                    except ParseError as error:
-                        self._awaiting = self._gen.throw(error)
-                else:
-                    yield self._awaiting
-                    self._awaiting = next(self._gen)
-            return
+            self._gen.throw(
+                ParseError('unexpected eof of file')
+            )
+
 
         pos = 0
         while pos < len(data):

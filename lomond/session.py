@@ -356,8 +356,6 @@ class WebsocketSession(object):
         url = websocket.url
         # Connecting event
         yield events.Connecting(url)
-        if websocket.is_closed:
-            return
 
         # Create socket and connect to remote server
         try:

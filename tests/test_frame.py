@@ -3,7 +3,7 @@ from struct import unpack
 import pytest
 import six
 from lomond.errors import ProtocolError
-from lomond.frame import Frame
+from lomond.frame import CompressedFrame, Frame
 from lomond.opcode import Opcode
 
 
@@ -13,6 +13,50 @@ def frame_factory():
         return Frame(opcode, payload, fin=fin)
 
     return inner
+
+
+def test_constructor():
+    frame = Frame(1, b'hello', masking_key=b'mask')
+    assert frame.fin
+    assert not frame.rsv1
+    assert not frame.rsv2
+    assert not frame.rsv3
+    assert frame.is_masked
+    assert frame.is_text
+    assert not frame.is_control
+    assert not frame.is_binary
+    assert not frame.is_continuation
+    assert not frame.is_ping
+    assert not frame.is_pong
+    assert not frame.is_close
+    assert frame.to_bytes() == b'\x81\x85mask\x05\x04\x1f\x07\x02'
+    frame.validate()
+
+
+def test_constructor_compressed():
+    frame = CompressedFrame(1, b'hello', masking_key=b'mask', rsv1=1)
+    assert frame.fin
+    assert frame.rsv1
+    assert not frame.rsv2
+    assert not frame.rsv3
+    assert frame.is_masked
+    assert frame.is_text
+    assert not frame.is_control
+    assert not frame.is_binary
+    assert not frame.is_continuation
+    assert not frame.is_ping
+    assert not frame.is_pong
+    assert not frame.is_close
+    assert frame.to_bytes() == b'\xc1\x85mask\x05\x04\x1f\x07\x02'
+    frame.validate()
+    with pytest.raises(ProtocolError):
+        frame = CompressedFrame(1, b'Hello', rsv1=1, rsv2=1)
+        frame.validate()
+
+
+def test_constructor_no_mask():
+    frame = Frame(1, b'hello', mask=False)
+    assert frame.to_bytes() == b'\x81\x05hello'
 
 
 def test_length_of_frame(frame_factory):
@@ -35,37 +79,6 @@ def test_repr_of_frame(frame_factory):
     assert repr(
         frame_factory(fin=0)
     ) == '<frame-fragment TEXT (0 bytes) fin=0>'
-
-
-@pytest.mark.parametrize("opcode, property_name", [
-    (Opcode.TEXT, "is_text"),
-    (Opcode.BINARY, "is_binary"),
-    (Opcode.PING, "is_ping"),
-    (Opcode.PONG, "is_pong"),
-    (Opcode.CLOSE, "is_close"),
-])
-def test_attributes(frame_factory, opcode, property_name):
-    frame = frame_factory(opcode=opcode)
-    # this assertion checks if Frame.property_name is True
-    # property_name and opcode are substituded from the tuple above, because
-    # pytest calls this function in a loop. So on first pass,
-    # opcode=Opcode.Text, property_name=is_text and so on
-    assert getattr(frame, property_name) is True
-    # this in itself is not enough. We also have to check whether the other
-    # properties are False
-    # In order to do this, let's collect all the other property names:
-    props = filter(
-        # we exclude is_control from the list, because
-        # frame(Opcode.{PING,PONG,CLOSE}) *are* control frames
-        # please note that we also exclude `property_name` from all properties
-        # because we test for `property_name` above and obviously the property
-        # value can't be True and False at the same time
-        lambda prop: prop not in (property_name, 'is_control') and prop.startswith('is_'),  # noqa
-        dir(frame)
-    )
-
-    for prop in props:
-        assert getattr(frame, prop) is False
 
 
 def test_binary_output_length_smaller_than_126(frame_factory, monkeypatch):

@@ -23,12 +23,13 @@ class FrameParser(Parser):
     unpack16 = struct.Struct(b"!H").unpack
     unpack64 = struct.Struct(b"!Q").unpack
 
-    def __init__(self, parse_headers=True):
+    def __init__(self, parse_headers=True, validate=True):
+        self.parse_headers = parse_headers
+        self.validate = validate
         self._is_text = False
         self._utf8_validator = Utf8Validator()
         self._frame_class = Frame
         self._compression = False
-        self._parser_headers = parse_headers
         super(FrameParser, self).__init__()
 
     def enable_compression(self):
@@ -45,7 +46,7 @@ class FrameParser(Parser):
 
     def parse(self):
         # Get any WS frames
-        if self._parser_headers:
+        if self.parse_headers:
             header_data = yield self.read_until(
                 b"\r\n\r\n", max_bytes=16 * 1024
             )
@@ -80,8 +81,11 @@ class FrameParser(Parser):
                 rsv1=rsv1,
                 rsv2=rsv2,
                 rsv3=rsv3,
+                mask=bool(mask_bit),
+                masking_key=masking_key,
             )
-            frame.validate()
+            if self.validate:
+                frame.validate()
 
             if frame.is_text:
                 self._is_text = True

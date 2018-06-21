@@ -270,7 +270,8 @@ class WebSocket(object):
 
     def on_disconnect(self):
         """Called on disconnect."""
-        self.state.session.close()
+        if self.state.session is not None:
+            self.state.session.close()
         self.state.closing = False
         self.state.closed = True
 
@@ -409,22 +410,9 @@ class WebSocket(object):
     def process_extensions(self, extensions):
         """Process extension headers."""
         for extension in extensions:
-            try:
-                extension_token, options = parse_extension(extension)
-            except ParseError as error:
-                raise errors.HandshakeError(
-                    'extension parse error; {}'.format(error)
-                )
+            extension_token, options = parse_extension(extension)
             if extension_token == 'permessage-deflate':
-                try:
-                    compression = Deflate.from_options(options)
-                except CompressionParameterError as error:
-                    log.debug(
-                        'invalid extension parameter; %s', error
-                    )
-                    raise errors.HandshakeError(
-                        'invalid extension parameter; {}'.format(error)
-                    )
+                compression = Deflate.from_options(options)
                 self.state.compression = compression
                 self.state.stream.set_compression(compression)
                 log.debug('%r enabled', compression)

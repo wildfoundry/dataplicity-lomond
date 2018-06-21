@@ -115,3 +115,18 @@ def test_close_payload_with_invalid_utf8_sequence(payload, expected_error):
         Close.from_payload(payload)
 
     assert str(e.value) == expected_error
+
+
+def test_decompress():
+   assert Message.decompress_frames('foo', lambda frames: frames) == 'foo'
+
+
+def test_decompress_broken():
+    frames = [
+        Frame(1, b'hello', fin=0),
+        Frame(0, b' world!', fin=1)
+    ]
+    def decompress(frames):
+        raise ValueError('broken')
+    with pytest.raises(CriticalProtocolError):
+        Message.decompress_frames(frames, decompress)

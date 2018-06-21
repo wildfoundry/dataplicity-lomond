@@ -2,9 +2,7 @@ from __future__ import unicode_literals
 
 import zlib
 
-
-class CompressionParameterError(Exception):
-    """An invalid parameter in the extension."""
+from .errors import CompressionParameterError
 
 
 class Deflate(object):
@@ -21,7 +19,7 @@ class Deflate(object):
         self.reset_compressor()
 
     def __repr__(self):
-        return "Deflate({}, {}, {}, )".format(
+        return "Deflate({}, {}, {}, {})".format(
             "decompress_wbits={!r}".format(self.decompress_wbits),
             "compress_wbits={!r}".format(self.compress_wbits),
             "reset_decompress={!r}".format(self.reset_decompress),

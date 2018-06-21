@@ -144,6 +144,7 @@ class TestIntegration(object):
         assert events[7].name == 'disconnected'
         assert events[7].graceful
 
+
     def test_echo_compress(self):
         """Test echo server."""
         ws = WebSocket(self.WS_URL + 'echo', compress=True)

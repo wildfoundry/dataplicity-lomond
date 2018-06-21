@@ -19,6 +19,12 @@ class HandshakeError(WebSocketError):
 
     """
 
+class CompressionParameterError(HandshakeError):
+    """
+    Raised when the headers contain invalid compression parameters.
+
+    """
+
 
 class ProtocolError(WebSocketError):
     """Raised in response to a protocol violation."""
