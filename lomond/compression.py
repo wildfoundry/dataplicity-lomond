@@ -6,7 +6,7 @@ from .errors import CompressionParameterError
 
 
 class Deflate(object):
-    """Compress with the Deflate algorith."""
+    """Compress with the Deflate algorithm."""
 
     def __init__(
         self, decompress_wbits, compress_wbits, reset_decompress, reset_compress
