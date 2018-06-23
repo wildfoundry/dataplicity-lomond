@@ -18,10 +18,9 @@ from six.moves.urllib.parse import urlparse
 from . import constants
 from . import errors
 from . import events
-from .compression import Deflate, CompressionParameterError
+from .compression import Deflate
 from .frame import Frame
 from .opcode import Opcode
-from .parser import ParseError
 from .extension import parse_extension
 from .response import Response
 from .stream import WebsocketStream

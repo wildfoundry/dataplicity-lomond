@@ -15,7 +15,7 @@ def test_feed_with_chunked_data():
     stream = None
     data = (
         b'HTTP/1.1 200 OK\r\nConnection:Keep-Alive\r\nUser-Agent:Test\r\n\r\n'
-        b'\x81\x81\x00\x00\x00\x00A'
+        b'\x81\x01A'
         # the first \x81 designates a type TEXT and some magic masks set
         # the second \x81 stands for XOR masking being used, and a length of 1
         # the following 4 \x00 are the XOR masking key, and lastly, a letter

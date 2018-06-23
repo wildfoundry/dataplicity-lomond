@@ -136,7 +136,6 @@ class Parser(object):
                 ParseError('unexpected eof of file')
             )
 
-
         pos = 0
         while pos < len(data):
             # Awaiting a read of a fixed number of bytes

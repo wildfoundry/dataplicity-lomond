@@ -3,14 +3,16 @@
 import pytest
 
 from lomond.frame import Frame
-from lomond.frame_parser import FrameParser
+from lomond.frame_parser import ClientFrameParser, FrameParser
 from lomond.opcode import Opcode
-from lomond.errors import PayloadTooLarge
+from lomond.parser import ParseError
+from lomond.errors import PayloadTooLarge, ProtocolError
 
 
 def test_default_constructor():
     # not really profound, but nevertheless .
     parser = FrameParser()
+    str(parser)
     assert isinstance(parser, FrameParser)
 
 
@@ -111,3 +113,10 @@ def test_payload_without_masking_key_set():
     assert len(parsed) == 1
     assert parsed[0].opcode == Opcode.TEXT
     assert parsed[0].payload == b'A'
+
+
+def test_prohibit_masked_frames():
+    parser = ClientFrameParser()
+    frame = Frame(1, b'hello')
+    with pytest.raises(ProtocolError):
+        parser.on_frame(frame)

@@ -352,7 +352,7 @@ def test_simple_run_with_close(monkeypatch, mocker):
                 b'Connection: Upgrade\r\n'
                 b'Sec-WebSocket-Accept: icx+yqv66kxgm0fcwalwlflwtai=\r\n'
                 b'\r\n'
-                b'\x81\x01A\x88\x80\xba51e'
+                b'\x81\x01A\x88\x00'
             )]
         )
     )

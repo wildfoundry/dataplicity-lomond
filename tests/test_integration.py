@@ -52,6 +52,10 @@ class EchoHandler(websocket.WebSocketHandler):
         return {}
 
     @gen.coroutine
+    def open(self):
+        self.set_nodelay(True)
+
+    @gen.coroutine
     def on_message(self, message):
         yield self.write_message(message, binary=isinstance(message, bytes))
 
@@ -143,7 +147,6 @@ class TestIntegration(object):
         assert events[6].name == 'closed'
         assert events[7].name == 'disconnected'
         assert events[7].graceful
-
 
     def test_echo_compress(self):
         """Test echo server."""

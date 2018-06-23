@@ -52,10 +52,10 @@ def run_ws(url):
     for event in ws.connect(ping_rate=0):
         try:
             if event.name == 'text':
-                ws.send_text(event.text, compress=False)
+                ws.send_text(event.text, compress=True)
             elif event.name == 'binary':
-                ws.send_binary(event.data, compress=False)
-        except:
+                ws.send_binary(event.data, compress=True)
+        except Exception:
             log.exception('error running websocket')
             break
 

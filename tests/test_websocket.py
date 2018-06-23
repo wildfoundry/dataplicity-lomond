@@ -161,7 +161,7 @@ def test_close(websocket_with_fake_session):
     assert ws.is_closing is False
 
     data = generate_data(
-        b'\x88\x80\xba51e'
+        b'\x88\x00'
     )
 
     # we call the list to actually run the generator
@@ -171,10 +171,10 @@ def test_close(websocket_with_fake_session):
 
 
 @pytest.mark.parametrize('payload, expected', [
-    (b'\x89\x80\xbcB\x9f;', Ping),
-    (b'\x8a\x80?\x18\x16\x01', Pong),
-    (b'\x82\x81F_u\xdfG', Binary),
-    (b'\x81\x83\x99\xdeU\xab\xd8\x9c\x16', Text)
+    (b'\x89\x00', Ping),
+    (b'\x8a\x00', Pong),
+    (b'\x82\x03foo', Binary),
+    (b'\x81\x03foo', Text)
 ])
 def test_regular_message(websocket_with_fake_session, payload, expected):
     ws = websocket_with_fake_session

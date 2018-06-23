@@ -12,8 +12,7 @@ import logging
 from six import text_type
 
 from . import errors
-from .frame import CompressedFrame, Frame
-from .frame_parser import FrameParser
+from .frame_parser import ClientFrameParser
 from .message import Message
 from .parser import ParseError
 from .response import Response
@@ -30,7 +29,7 @@ class WebsocketStream(object):
     """
 
     def __init__(self):
-        self.frame_parser = FrameParser()
+        self.frame_parser = ClientFrameParser()
         self._parsed_response = False
         self._frames = []
         self._compression = None

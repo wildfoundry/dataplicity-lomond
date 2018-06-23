@@ -45,7 +45,7 @@ class Frame(object):
         opcode_name = Opcode.to_str(self.opcode)
         frame_type = "frame" if self.fin else "frame-fragment"
         return "<{} {} ({} bytes) fin={!r}>".format(
-            frame_type,
+            'compressed-' + frame_type if self.rsv1 else frame_type,
             opcode_name,
             len(self),
             self.fin
@@ -193,6 +193,7 @@ class CompressedFrame(Frame):
             raise errors.ProtocolError(
                 "reserved bits set"
             )
+
 
 if __name__ == "__main__":  # pragma: no cover
     print(Frame(Opcode.BINARY, b'Hello, World', fin=0))

@@ -32,6 +32,13 @@ class FrameParser(Parser):
         self._compression = False
         super(FrameParser, self).__init__()
 
+    def __repr__(self):
+        return '{}(parser_headers={!r}, validate={!r})'.format(
+            self.__class__.__name__,
+            self.parse_headers,
+            self.validate
+        )
+
     def enable_compression(self):
         """Enable compressed packets."""
         self._compression = True
@@ -112,3 +119,19 @@ class FrameParser(Parser):
             self._utf8_validator.reset()
         if frame.fin:
             self._is_text = False
+
+
+class ClientFrameParser(FrameParser):
+    """Parse frames at client end."""
+
+    def on_frame(self, frame):
+        """Prohibit masked frames from server."""
+        if frame.mask:
+            log.warning(
+                '%r must not have mask bit set',
+                frame
+            )
+            raise errors.ProtocolError(
+                'server sent masked frame'
+            )
+        super(ClientFrameParser, self).on_frame(frame)
