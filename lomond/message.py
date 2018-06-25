@@ -6,11 +6,15 @@ A message class, built from 1 or more websocket frames.
 
 from __future__ import unicode_literals
 
+import logging
 import struct
 
 from . import errors
 from .opcode import Opcode
 from .utf8validator import Utf8Validator
+
+
+log = logging.getLogger('lomond')
 
 
 class Message(object):
@@ -31,22 +35,37 @@ class Message(object):
         return "<message {}>".format(Opcode.to_str(self.opcode))
 
     @classmethod
-    def build(cls, frames):
+    def build(cls, frames, decompress=None):
         """Build a message from a sequence of frames."""
-        opcode = frames[0].opcode
-        payload = b''.join(frame.payload for frame in frames)
-        if opcode == Opcode.CLOSE:
+        first_frame = frames[0]
+        opcode = first_frame.opcode
+        if first_frame.rsv1 and decompress:
+            payload = cls.decompress_frames(frames, decompress)
+        else:
+            payload = b''.join(frame.payload for frame in frames)
+        if opcode == Opcode.BINARY:
+            return Binary(payload)
+        elif opcode == Opcode.TEXT:
+            return Text.from_payload(payload)
+        elif opcode == Opcode.CLOSE:
             return Close.from_payload(payload)
         elif opcode == Opcode.PING:
             return Ping(payload)
         elif opcode == Opcode.PONG:
             return Pong(payload)
-        elif opcode == Opcode.BINARY:
-            return Binary(payload)
-        elif opcode == Opcode.TEXT:
-            return Text.from_payload(payload)
         else:
             return Message(opcode)
+
+    @classmethod
+    def decompress_frames(cls, frames, decompress):
+        """Decompress data and report errors."""
+        try:
+            return decompress(frames)
+        except Exception as error:
+            log.exception('error decompressing payload')
+            raise errors.CriticalProtocolError(
+                'unable to decompress payload'
+            )
 
     @property
     def is_text(self):

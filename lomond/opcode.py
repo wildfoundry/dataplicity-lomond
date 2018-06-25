@@ -33,13 +33,14 @@ class Opcode(object):
 
     @classmethod
     def to_str(cls, opcode):
+        if not hasattr(cls, '_opcode_to_str'):
+            cls._opcode_to_str = {
+                getattr(Opcode, _name): _name
+                for _name in dir(Opcode)
+                if not _name.startswith('_') and _name.isupper()
+            }
         return cls._opcode_to_str.get(opcode, '?')
 
-Opcode._opcode_to_str = {
-    getattr(Opcode, _name): _name
-    for _name in dir(Opcode)
-    if not _name.startswith('_') and _name.isupper()
-}
 
 reserved_opcodes = {
     Opcode.RESERVED1,

@@ -75,7 +75,7 @@ class ConnectFail(Event):
         super(ConnectFail, self).__init__()
 
     def __repr__(self):
-        return "{}('{}')".format(
+        return "{}(reason='{}')".format(
             self.__class__.__name__,
             self.reason,
         )
@@ -128,7 +128,7 @@ class Rejected(Event):
         super(Rejected, self).__init__()
 
     def __repr__(self):
-        return "{}({!r}, '{}')".format(
+        return "{}(response={!r}, reason='{}')".format(
             self.__class__.__name__,
             self.response,
             self.reason
@@ -157,7 +157,7 @@ class Ready(Event):
         super(Ready, self).__init__()
 
     def __repr__(self):
-        return '{}({!r}, protocol={!r}, extensions={!r})'.format(
+        return '{}(response={!r}, protocol={!r}, extensions={!r})'.format(
             self.__class__.__name__,
             self.response,
             self.protocol,
@@ -194,7 +194,7 @@ class Disconnected(Event):
         super(Disconnected, self).__init__()
 
     def __repr__(self):
-        return "{}('{}', graceful={!r})".format(
+        return "{}(reason='{}', graceful={!r})".format(
             self.__class__.__name__,
             self.reason,
             self.graceful
@@ -220,7 +220,7 @@ class Closed(Event):
         super(Closed, self).__init__()
 
     def __repr__(self):
-        return '{}({!r}, {!r})'.format(
+        return '{}(code={!r}, reason={!r})'.format(
             self.__class__.__name__,
             self.code,
             self.reason,
@@ -249,7 +249,7 @@ class Closing(Event):
         super(Closing, self).__init__()
 
     def __repr__(self):
-        return '{}({!r}, {!r})'.format(
+        return '{}(code={!r}, reason={!r})'.format(
             self.__class__.__name__,
             self.code,
             self.reason,
@@ -283,7 +283,7 @@ class Ping(Event):
         super(Ping, self).__init__()
 
     def __repr__(self):
-        return "{}({!r})".format(self.__class__.__name__, self.data)
+        return "{}(data={!r})".format(self.__class__.__name__, self.data)
 
 
 class Pong(Event):
@@ -300,7 +300,7 @@ class Pong(Event):
         super(Pong, self).__init__()
 
     def __repr__(self):
-        return "{}({!r})".format(self.__class__.__name__, self.data)
+        return "{}(data={!r})".format(self.__class__.__name__, self.data)
 
 
 class Text(Event):
@@ -330,7 +330,7 @@ class Text(Event):
         return self._json
 
     def __repr__(self):
-        return "{}({})".format(
+        return "{}(text={})".format(
             self.__class__.__name__,
             self._summarize_text(self.text)
         )
@@ -350,7 +350,7 @@ class Binary(Event):
         super(Binary, self).__init__()
 
     def __repr__(self):
-        return "{}({})".format(
+        return "{}(data={})".format(
             self.__class__.__name__,
             self._summarize_bytes(self.data)
         )

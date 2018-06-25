@@ -35,7 +35,7 @@ def test_parser():
 
     assert response.status == 'Connection established'
     assert response.status_code == 200
-    assert response.headers[b'foo'] == b'bar'
+    assert response.headers['foo'] == 'bar'
 
 
 def test_parser_fail():
@@ -50,6 +50,7 @@ def test_parser_fail():
             for response in proxy_parser.feed(line):
                 break
 
+
 def test_parser_fail_nodata():
     """Test no response from proxy."""
     proxy_parser = proxy.ProxyParser()
@@ -57,20 +58,21 @@ def test_parser_fail_nodata():
         for response in proxy_parser.feed(b''):
             break
 
+
 def test_proxy():
     proc = subprocess.Popen(['proxy.py', '--port', '8888'])
     try:
         time.sleep(1)
         ws = WebSocket(
             'wss://echo.websocket.org',
-            proxies = {'https': 'http://127.0.0.1:8888'}
+            proxies={'https': 'http://127.0.0.1:8888'}
         )
         events = []
         for event in ws:
             events.append(event)
             if event.name == 'ready':
                 ws.close()
-        
+
         assert len(events) == 6
         assert events[0].name == 'connecting'
         assert events[1].name == 'connected'
@@ -83,21 +85,20 @@ def test_proxy():
         os.kill(proc.pid, 3)
 
 
-
 def test_bad_proxy():
     proc = subprocess.Popen(['proxy.py', '--port', '8888'])
     try:
         time.sleep(0.1)
         ws = WebSocket(
             'wss://echo.websocket.org',
-            proxies = {'https': 'http://bad.test:8888'}
+            proxies={'https': 'http://bad.test:8888'}
         )
         events = []
         for event in ws:
             events.append(event)
             if event.name == 'ready':
                 ws.close()
-        
+
         assert len(events) == 2
         assert events[0].name == 'connecting'
         assert events[1].name == 'connect_fail'

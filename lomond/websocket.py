@@ -18,8 +18,10 @@ from six.moves.urllib.parse import urlparse
 from . import constants
 from . import errors
 from . import events
+from .compression import Deflate
 from .frame import Frame
 from .opcode import Opcode
+from .extension import parse_extension
 from .response import Response
 from .stream import WebsocketStream
 from .session import WebsocketSession
@@ -54,12 +56,20 @@ class WebSocket(object):
             self.closing = False
             self.closed = False
             self.sent_close_time = None
+            self.compression = None
 
-    def __init__(self, url, proxies=None, protocols=None, agent=None):
+    def __init__(self,
+                 url,
+                 proxies=None,
+                 protocols=None,
+                 agent=None,
+                 compress=False):
         self.url = url
         self.proxies = self._detect_proxies() if proxies is None else proxies
         self.protocols = protocols or []
         self.agent = agent or constants.USER_AGENT
+        self.compress = compress
+
         self._headers = []
         _url = urlparse(url)
         self.scheme = _url.scheme
@@ -125,6 +135,12 @@ class WebSocket(object):
     def is_closed(self):
         """Flag that indicates if the websocket is closed."""
         return self.state.closed
+
+    @property
+    def supports_compression(self):
+        """Boolean that indicates if the server has compression
+        enabled."""
+        return bool(self.state.compression)
 
     @property
     def stream(self):
@@ -253,7 +269,8 @@ class WebSocket(object):
 
     def on_disconnect(self):
         """Called on disconnect."""
-        self.state.session.close()
+        if self.state.session is not None:
+            self.state.session.close()
         self.state.closing = False
         self.state.closed = True
 
@@ -338,6 +355,16 @@ class WebSocket(object):
         if self.protocols:
             protocols = ", ".join(self.protocols).encode('utf-8')
             headers.append((b'Sec-WebSocket-Protocol', protocols))
+        if self.compress:
+            headers.append(
+                (
+                    b'Sec-WebSocket-Extensions',
+                    b'permessage-deflate; '
+                    b'server_max_window_bits=15; '
+                    b'client_max_window_bits, '
+                    b'permessage-deflate; client_max_window_bits'
+                )
+            )
         for header, value in headers:
             request.append(header + b': ' + value)
         request.append(b'\r\n')
@@ -346,21 +373,20 @@ class WebSocket(object):
 
     def on_response(self, response):
         """Called when the HTTP response has been received."""
-
         if response.status_code != 101:
             raise errors.HandshakeError(
                 'Websocket upgrade failed (code={})',
                 response.status_code
             )
 
-        upgrade_header = response.get(b'upgrade', b'?').lower()
-        if upgrade_header != b'websocket':
+        upgrade_header = response.get('upgrade', '<header missing>').lower()
+        if upgrade_header != 'websocket':
             raise errors.HandshakeError(
                 "Can't upgrade to {}",
-                upgrade_header.decode('utf-8', errors='replace')
+                upgrade_header
             )
 
-        accept_header = response.get(b'sec-websocket-accept', None)
+        accept_header = response.get('sec-websocket-accept', None)
         if accept_header is None:
             raise errors.HandshakeError(
                 "No Sec-WebSocket-Accept header"
@@ -368,16 +394,27 @@ class WebSocket(object):
 
         challenge = b64encode(
             sha1(self.key + constants.WS_KEY).digest()
-        )
+        ).decode('ascii')
 
         if accept_header.lower() != challenge.lower():
             raise errors.HandshakeError(
                 "Sec-WebSocket-Accept challenge failed"
             )
 
-        protocol = response.get(b'sec-websocket-protocol')
-        extensions = set(response.get_list(b'sec-websocket-extensions'))
+        protocol = response.get('sec-websocket-protocol')
+        extensions = set(response.get_list('sec-websocket-extensions'))
+        self.process_extensions(extensions)
         return protocol, extensions
+
+    def process_extensions(self, extensions):
+        """Process extension headers."""
+        for extension in extensions:
+            extension_token, options = parse_extension(extension)
+            if extension_token == 'permessage-deflate':
+                compression = Deflate.from_options(options)
+                self.state.compression = compression
+                self.state.stream.set_compression(compression)
+                log.debug('%r enabled', compression)
 
     def send_ping(self, data=b''):
         """Send a ping packet.
@@ -413,16 +450,22 @@ class WebSocket(object):
             raise ValueError('pong data should be <= 125 bytes')
         self.session.send(Opcode.PONG, data)
 
-    def send_binary(self, data):
+    def send_binary(self, data, compress=True):
         """Send a binary message.
 
         :param bytes data: Binary data to send.
+        :param bool compress: Send data in compressed form, if compression
+            is enabled on the server.
         :raises TypeError: If data is not bytes.
 
         """
         if not isinstance(data, bytes):
             raise TypeError('data argument must be bytes')
-        self.session.send(Opcode.BINARY, data)
+        if compress and self.state.compression:
+            _payload = self.state.compression.compress(data)
+            self.session.send_compressed(Opcode.BINARY, _payload)
+        else:
+            self.session.send(Opcode.BINARY, data)
 
     def send_json(self, _obj=Ellipsis, **kwargs):
         """Encode an object as JSON and send a text message.
@@ -450,16 +493,23 @@ class WebSocket(object):
             else json_obj
         )
 
-    def send_text(self, text):
+    def send_text(self, text, compress=True):
         """Send a text message.
 
         :param str text: Text to send.
+        :param bool compress: Send the text in compressed form, if
+            compression is enabled on the server.
         :raises TypeError: If data is not str (or unicode on Py2).
 
         """
         if not isinstance(text, six.text_type):
             raise TypeError('text argument must not be bytes')
-        self.session.send(Opcode.TEXT, text.encode('utf-8'))
+        payload = text.encode('utf-8')
+        if compress and self.state.compression:
+            _payload = self.state.compression.compress(payload)
+            self.session.send_compressed(Opcode.TEXT, _payload)
+        else:
+            self.session.send(Opcode.TEXT, payload)
 
     def _send_close(self, code, reason):
         """Send a close frame."""

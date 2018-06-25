@@ -21,7 +21,7 @@ make_masking_key = partial(os.urandom, 4)
 
 if XorMaskerSimple is not None:
     # Fast C version (works with Py2 and Py3)
-    def mask(masking_key, data):
+    def mask_payload(masking_key, data):
         return XorMaskerSimple(masking_key).process(data)
 
 else:
@@ -44,7 +44,7 @@ else:
     else:
         _XOR_TABLE = [bytes(a ^ b for a in range(256)) for b in range(256)]
 
-    def mask(masking_key, data):
+    def mask_payload(masking_key, data):
         """XOR mask bytes."""
         a, b, c, d = (_XOR_TABLE[n] for n in bytearray(masking_key))
         # there are 4 bytes in our masking key, that's why we are picking 4
