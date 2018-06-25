@@ -10,6 +10,11 @@ from six.moves.urllib_parse import urlencode
 from lomond import WebSocket
 from lomond.constants import USER_AGENT
 
+
+logging.basicConfig()
+logging.getLogger('lomond').setLevel(logging.INFO)
+
+
 server = 'ws://127.0.0.1:9001'
 
 
@@ -21,6 +26,7 @@ def get_test_count():
     ws = WebSocket(server + '/getCaseCount')
     case_count = None
     for event in ws:
+        print(event)
         if event.name == 'text':
             case_count = json.loads(event.text)
     if case_count is None:
@@ -42,14 +48,14 @@ def run_tests():
 
 def run_ws(url):
     """Run a websocket until close."""
-    ws = WebSocket(url)
+    ws = WebSocket(url, compress=True)
     for event in ws.connect(ping_rate=0):
         try:
             if event.name == 'text':
-                ws.send_text(event.text)
+                ws.send_text(event.text, compress=True)
             elif event.name == 'binary':
-                ws.send_binary(event.data)
-        except:
+                ws.send_binary(event.data, compress=True)
+        except Exception:
             log.exception('error running websocket')
             break
 

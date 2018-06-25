@@ -18,7 +18,8 @@ Control your Raspberry Pi from anywhere!
 Support
 =======
 
-For questions or comments about this library, either open an issue or contact support@dataplicity.com.
+For questions or comments about this library, either open an issue or
+contact support@dataplicity.com.
 
 
 .. toctree::

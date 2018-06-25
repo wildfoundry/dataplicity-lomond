@@ -11,31 +11,41 @@ from __future__ import unicode_literals
 import struct
 
 from . import errors
-from .mask import make_masking_key, mask
+from .mask import make_masking_key, mask_payload
 from .opcode import is_reserved, Opcode
 
 
 class Frame(object):
     """A raw websocket frame."""
 
-    def __init__(self, opcode, payload=b'', masking_key=None,
-                 fin=1, rsv1=0, rsv2=0, rsv3=0):
+    __slots__ = [
+        'opcode',
+        'payload',
+        'fin',
+        'rsv1',
+        'rsv2',
+        'rsv3',
+        'mask',
+        'masking_key',
+    ]
+
+    def __init__(self, opcode, payload=b'',
+                 fin=1, rsv1=0, rsv2=0, rsv3=0,
+                 mask=True, masking_key=None):
         self.opcode = opcode
         self.payload = payload
-        self.masking_key = masking_key
         self.fin = fin
         self.rsv1 = rsv1
         self.rsv2 = rsv2
         self.rsv3 = rsv3
-
-        self.mask = 0
-        self.validate()
+        self.mask = mask
+        self.masking_key = masking_key
 
     def __repr__(self):
         opcode_name = Opcode.to_str(self.opcode)
         frame_type = "frame" if self.fin else "frame-fragment"
         return "<{} {} ({} bytes) fin={!r}>".format(
-            frame_type,
+            'compressed-' + frame_type if self.rsv1 else frame_type,
             opcode_name,
             len(self),
             self.fin
@@ -45,43 +55,46 @@ class Frame(object):
         return len(self.payload)
 
     # Use struct module to pack ws frame header
-    _pack8 = struct.Struct(b'!BB4s').pack  # 8 bit length field
-    _pack16 = struct.Struct(b'!BBH4s').pack  # 16 bit length field
-    _pack64 = struct.Struct(b'!BBQ4s').pack  # 64 bit length field
+    _pack8 = struct.Struct(b'!BB').pack  # 8 bit length field
+    _pack16 = struct.Struct(b'!BBH').pack  # 16 bit length field
+    _pack64 = struct.Struct(b'!BBQ').pack  # 64 bit length field
+    _pack_mask = struct.Struct(b'4s').pack  # 4 byte string
     _pack_close_code = struct.Struct(b'!H').pack
 
     @classmethod
     def build(cls, opcode, payload=b'',
               fin=1, rsv1=0, rsv2=0, rsv3=0,
-              masking_key=None):
-        """Build a WS frame header."""
+              mask=True, masking_key=None):
+        """Build a WS frame."""
         # https://tools.ietf.org/html/rfc6455#section-5.2
-        masking_key = (
-            make_masking_key()
-            if masking_key is None
-            else masking_key
-        )
-        mask_bit = 1 << 7
+
+        mask_bit = 1 << 7 if mask else 0
         byte0 = fin << 7 | rsv1 << 6 | rsv2 << 5 | rsv3 << 4 | opcode
         length = len(payload)
         if length < 126:
-            header_bytes = cls._pack8(
-                byte0, mask_bit | length, masking_key
-            )
+            header_bytes = cls._pack8(byte0, mask_bit | length)
         elif length < (1 << 16):
-            header_bytes = cls._pack16(
-                byte0, mask_bit | 126, length, masking_key
-            )
+            header_bytes = cls._pack16(byte0, mask_bit | 126, length)
         elif length < (1 << 63):
-            header_bytes = cls._pack64(
-                byte0, mask_bit | 127, length, masking_key
-            )
+            header_bytes = cls._pack64(byte0, mask_bit | 127, length)
         else:  # pragma: no cover
             # Can't send a payload > 2**63 bytes
             raise errors.FrameBuildError(
                 'payload is too large for a single frame'
             )
-        frame_bytes = header_bytes + mask(masking_key, payload)
+        if mask:
+            masking_key = (
+                make_masking_key()
+                if masking_key is None
+                else masking_key
+            )
+            frame_bytes = b''.join((
+                header_bytes,
+                cls._pack_mask(masking_key),
+                mask_payload(masking_key, payload)
+            ))
+        else:
+            frame_bytes = header_bytes + payload
         return frame_bytes
 
     @classmethod
@@ -98,7 +111,12 @@ class Frame(object):
         """Return binary encoding of WS frame."""
         frame_bytes = self.build(
             self.opcode,
-            payload=self.payload
+            payload=self.payload,
+            rsv1=self.rsv1,
+            rsv2=self.rsv2,
+            rsv3=self.rsv3,
+            mask=self.mask,
+            masking_key=self.masking_key
         )
         return frame_bytes
 
@@ -108,10 +126,7 @@ class Frame(object):
             raise errors.ProtocolError(
                 "control frames must be <= 125 bytes in length"
             )
-        if self.rsv1 or self.rsv2 or self.rsv3:
-            raise errors.ProtocolError(
-                "reserved bits set"
-            )
+        self.validate_reserved_bits()
         if is_reserved(self.opcode):
             raise errors.ProtocolError(
                 "opcode is reserved"
@@ -120,6 +135,18 @@ class Frame(object):
             raise errors.ProtocolError(
                 "control frames may not be fragmented"
             )
+
+    def validate_reserved_bits(self):
+        """Check reserved bits."""
+        if self.rsv1 or self.rsv2 or self.rsv3:
+            raise errors.ProtocolError(
+                "reserved bits set"
+            )
+
+    @property
+    def is_masked(self):
+        """Check if this frame is masked."""
+        return self.mask
 
     @property
     def is_control(self):
@@ -155,6 +182,17 @@ class Frame(object):
     def is_close(self):
         """Check if this is a close frame."""
         return self.opcode == Opcode.CLOSE
+
+
+class CompressedFrame(Frame):
+    """A frame that may be compressed."""
+
+    def validate_reserved_bits(self):
+        """Check reserved bits."""
+        if self.rsv2 or self.rsv3:
+            raise errors.ProtocolError(
+                "reserved bits set"
+            )
 
 
 if __name__ == "__main__":  # pragma: no cover

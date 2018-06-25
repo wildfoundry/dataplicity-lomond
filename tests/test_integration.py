@@ -48,6 +48,13 @@ class EchoHandler(websocket.WebSocketHandler):
     def check_origin(self, origin):
         return True
 
+    def get_compression_options(self):
+        return {}
+
+    @gen.coroutine
+    def open(self):
+        self.set_nodelay(True)
+
     @gen.coroutine
     def on_message(self, message):
         yield self.write_message(message, binary=isinstance(message, bytes))
@@ -123,6 +130,32 @@ class TestIntegration(object):
         for event in ws.connect(poll=60, ping_rate=0, auto_pong=False):
             events.append(event)
             if event.name == 'ready':
+                assert not ws.supports_compression
+                ws.send_text(u'echofoo')
+                ws.send_binary(b'echobar')
+                ws.close()
+
+        assert len(events) == 8
+        assert events[0].name == 'connecting'
+        assert events[1].name == 'connected'
+        assert events[2].name == 'ready'
+        assert events[3].name == 'poll'
+        assert events[4].name == 'text'
+        assert events[4].text == u'echofoo'
+        assert events[5].name == 'binary'
+        assert events[5].data == b'echobar'
+        assert events[6].name == 'closed'
+        assert events[7].name == 'disconnected'
+        assert events[7].graceful
+
+    def test_echo_compress(self):
+        """Test echo server."""
+        ws = WebSocket(self.WS_URL + 'echo', compress=True)
+        events = []
+        for event in ws.connect(poll=60, ping_rate=0, auto_pong=False):
+            events.append(event)
+            if event.name == 'ready':
+                assert ws.supports_compression
                 ws.send_text(u'echofoo')
                 ws.send_binary(b'echobar')
                 ws.close()

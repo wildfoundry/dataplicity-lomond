@@ -98,7 +98,13 @@ class WebsocketSession(object):
         """Send a WS Frame."""
         frame = Frame(opcode, payload=data)
         self.write(frame.to_bytes())
-        log.debug('CLI -> SRV : %r', frame)
+        log.debug(' SRV <- CLI : %r', frame)
+
+    def send_compressed(self, opcode, data):
+        """Send a compressed WS Frame."""
+        frame = Frame(opcode, payload=data, rsv1=1)
+        self.write(frame.to_bytes())
+        log.debug(' SRV <- CLI : %r', frame)
 
     @classmethod
     def _socket_fail(cls, msg, *args, **kwargs):
@@ -119,16 +125,19 @@ class WebsocketSession(object):
             af, socktype, proto, canonname, sa = res
             try:
                 sock = socket.socket(af, socktype, proto)
-            except socket.error:
+            except socket.error as error:
+                log.debug('unable to create socket; %s', error)
                 sock = None
                 continue
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             sock.settimeout(30)  # TODO: make a parameter for this?
             if ssl:
+                log.debug('wrapping socket')
                 sock = self._wrap_socket(sock, host)
             try:
                 sock.connect(sa)
-            except socket.error:
+            except socket.error as error:
+                log.debug('socket error connecting to %r; %s', sa, error)
                 sock.close()
                 sock = None
                 continue
@@ -206,6 +215,7 @@ class WebsocketSession(object):
         else:
             # Fallback for no SNI
             ssl_sock = ssl.wrap_socket(sock)
+        log.debug('wrapped socket %r', ssl_sock)
         return ssl_sock
 
     def _close_socket(self):
@@ -291,6 +301,7 @@ class WebsocketSession(object):
                 # Plain socket recv
                 return self._sock.recv(count)
         except socket.error as error:
+            log.debug('error in _recv', exc_info=True)
             self._socket_fail('recv fail; {}', error)
 
     def _regular(self, poll, ping_rate, ping_timeout, close_timeout):
@@ -346,8 +357,6 @@ class WebsocketSession(object):
         url = websocket.url
         # Connecting event
         yield events.Connecting(url)
-        if websocket.is_closed:
-            return
 
         # Create socket and connect to remote server
         try:

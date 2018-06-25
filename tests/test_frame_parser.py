@@ -3,14 +3,16 @@
 import pytest
 
 from lomond.frame import Frame
-from lomond.frame_parser import FrameParser
+from lomond.frame_parser import ClientFrameParser, FrameParser
 from lomond.opcode import Opcode
-from lomond.errors import PayloadTooLarge
+from lomond.parser import ParseError
+from lomond.errors import PayloadTooLarge, ProtocolError
 
 
 def test_default_constructor():
     # not really profound, but nevertheless .
     parser = FrameParser()
+    str(parser)
     assert isinstance(parser, FrameParser)
 
 
@@ -32,7 +34,7 @@ def test_parse_valid_frames():
     # the above frame yields 7 bytes:
 
     data = b'\x81\x81\x00\x00\x00\x00A'
-    parser = FrameParser(parse_headers=False)
+    parser = FrameParser(parse_headers=False, validate=False)
     parsed = list(parser.feed(data))
 
     assert len(parsed) == 1
@@ -50,7 +52,7 @@ def test_frame_with_length_gt_125():
     # we also append the actual payload
     data += b'\x41' * 126
 
-    parser = FrameParser(parse_headers=False)
+    parser = FrameParser(parse_headers=False, validate=False)
     parsed = list(parser.feed(data))
 
     assert len(parsed) == 1
@@ -69,7 +71,7 @@ def test_frame_with_length_gt_2__16():
     #              +----------------------  1 << 7 | 127, then turned into hex
     # we also append the actual payload
     data += b'\x41' * 126
-    parser = FrameParser(parse_headers=False)
+    parser = FrameParser(parse_headers=False, validate=False)
     parsed = list(parser.feed(data))
     assert len(parsed) == 1
     assert parsed[0].opcode == Opcode.TEXT
@@ -87,13 +89,13 @@ def test_too_large_payload():
     # the payload above is missing the mas bytes, but we don't have to worry
     # about that because the parser will discard the length anyway
     with pytest.raises(PayloadTooLarge):
-        parser = FrameParser(parse_headers=False)
+        parser = FrameParser(parse_headers=False, validate=False)
         list(parser.feed(data))
 
 
 def test_payload_with_headers():
     data = b'Connection:Keep-Alive\r\nUser-Agent:Test\r\n\r\n\x81\x81\x00\x00\x00\x00A'  # noqa
-    parser = FrameParser()
+    parser = FrameParser(validate=False)
     parsed = list(parser.feed(data))
 
     assert len(parsed) == 2
@@ -105,9 +107,16 @@ def test_payload_with_headers():
 
 def test_payload_without_masking_key_set():
     data = b'\x81\x01A'
-    parser = FrameParser(parse_headers=False)
+    parser = FrameParser(parse_headers=False, validate=False)
     parsed = list(parser.feed(data))
 
     assert len(parsed) == 1
     assert parsed[0].opcode == Opcode.TEXT
     assert parsed[0].payload == b'A'
+
+
+def test_prohibit_masked_frames():
+    parser = ClientFrameParser()
+    frame = Frame(1, b'hello')
+    with pytest.raises(ProtocolError):
+        parser.on_frame(frame)
