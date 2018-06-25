@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
-## [0.3.0] - Unreleased
+## [0.3.0] - 2018-06-25
 
 ### Added
 
@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
-- Response now uses unicode rather thatn bytes for keys/value
+- Response now uses unicode rather than bytes for keys/value
 
 ## [0.2.5] - 2018-05-28
 
