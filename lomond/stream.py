@@ -32,18 +32,12 @@ class WebsocketStream(object):
         self.frame_parser = ClientFrameParser()
         self._parsed_response = False
         self._frames = []
-        self._compression = None
         self._decompress = None
 
     def set_compression(self, compression):
         """Set a compression object for decompressing messages."""
         self.frame_parser.enable_compression()
-        self._compression = compression
-        self._decompress = (
-            self._compression.decompress
-            if self._compression
-            else None
-        )
+        self._decompress = compression.decompress if compression else None
 
     def build_message(self, frames):
         """Return a message, built from a list of frames."""
@@ -56,7 +50,14 @@ class WebsocketStream(object):
         iter_frames = iter(self.frame_parser.feed(data))
 
         if not self._parsed_response:
-            header_data = next(iter_frames)
+            try:
+                header_data = next(iter_frames)
+            except StopIteration:
+                return
+            except ParseError as error:
+                raise errors.CriticalProtocolError(
+                    text_type(error)
+                )
             yield Response(header_data)
             self._parsed_response = True
 
@@ -64,6 +65,8 @@ class WebsocketStream(object):
         while True:
             try:
                 frame = next(iter_frames)
+            except StopIteration:
+                return
             except ParseError as error:
                 raise errors.CriticalProtocolError(
                     text_type(error)

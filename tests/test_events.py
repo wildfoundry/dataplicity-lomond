@@ -35,7 +35,8 @@ test_cases = [
     (events.UnknownMessage('?.!'), "UnknownMessage()"),
     (events.Ping('o |'), "Ping(data='o |')"),
     (events.Pong('  | o'), "Pong(data='  | o')"),
-    (events.BackOff(0.1), "BackOff(delay=0.1)")
+    (events.BackOff(0.1), "BackOff(delay=0.1)"),
+    (events.ProtocolError('error', critical=False), "ProtocolError(error='error', critical=False)")
 ]
 
 # we are splitting these two test cases into separate branches, because the

@@ -267,6 +267,11 @@ class WebSocket(object):
             self.close(message.code, message.reason)
             self.state.closing = True
 
+    def force_disconnect(self):
+        """Force the socket to disconnect."""
+        if self.state.session is not None:
+            self.state.session.force_disconnect()
+
     def on_disconnect(self):
         """Called on disconnect."""
         if self.state.session is not None:
@@ -316,14 +321,16 @@ class WebSocket(object):
             # An error that warrants an immediate disconnect.
             # Usually invalid unicode.
             log.debug('critical protocol error; %s', error)
-            self.on_disconnect()
+            yield events.ProtocolError(six.text_type(error), True)
+            self.force_disconnect()
 
         except errors.ProtocolError as error:
             # A violation of the protocol that allows for a graceful
             # disconnect.
             log.debug('protocol error; %s', error)
+            yield events.ProtocolError(six.text_type(error), False)
             self.close(Status.PROTOCOL_ERROR, six.text_type(error))
-            self.on_disconnect()
+            self.force_disconnect()
 
         except GeneratorExit:
             # The generator has exited prematurely, due to an exception
@@ -402,19 +409,23 @@ class WebSocket(object):
             )
 
         protocol = response.get('sec-websocket-protocol')
-        extensions = set(response.get_list('sec-websocket-extensions'))
-        self.process_extensions(extensions)
+        extensions = self.process_extensions(
+            response.get_list('sec-websocket-extensions')
+        )
         return protocol, extensions
 
     def process_extensions(self, extensions):
         """Process extension headers."""
+        extensions = set()
         for extension in extensions:
             extension_token, options = parse_extension(extension)
             if extension_token == 'permessage-deflate':
+                extensions.add('permessage-deflate')
                 compression = Deflate.from_options(options)
                 self.state.compression = compression
                 self.state.stream.set_compression(compression)
                 log.debug('%r enabled', compression)
+        return extensions
 
     def send_ping(self, data=b''):
         """Send a ping packet.
