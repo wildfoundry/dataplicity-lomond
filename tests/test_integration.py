@@ -186,7 +186,6 @@ class TestIntegration(object):
         events = []
         for event in ws.connect(poll=60, ping_rate=0, auto_pong=False):
             events.append(event)
-            print(event)
             if event.name == 'ready':
                 assert ws.supports_compression
                 ws.send_text(u'echofoo')
