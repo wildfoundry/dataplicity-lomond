@@ -34,6 +34,9 @@ class FakeSession(object):
     def close(self):
         pass
 
+    def force_disconnect(self):
+        pass
+
 
 @pytest.fixture
 def websocket(monkeypatch):

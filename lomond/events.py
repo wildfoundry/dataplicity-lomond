@@ -140,11 +140,10 @@ class Ready(Event):
     and successfully negotiated the websocket upgrade.
 
     :param response: A :class:`~lomond.response.Response` object.
-    :param str protocol: A websocket protocol or `None` if no protocol
+    :param str protocol: A websocket protocol or ``None`` if no protocol
         was supplied.
     :param set extensions: A set of negotiated websocket extensions.
-        Currently Lomond does not support any extensions, so this will
-        be an empty set.
+        Currently only the ``'permessage-deflate'`` extension is supported.
 
     """
     __slots__ = ['response', 'protocol', 'extensions']
@@ -162,6 +161,31 @@ class Ready(Event):
             self.response,
             self.protocol,
             self.extensions
+        )
+
+
+class ProtocolError(Event):
+    """Generated when the server deviates from the protocol.
+
+    :param str error: A description of the error.
+    :param bool critical: Indicates if the error is considered
+        'critical'. If ``True``, Lomond will disconnect immediately.
+        If ``False``, Lomond will send a close message to the server.
+
+    """
+    __slots__ = ['error', 'critical']
+    name = 'protocol_error'
+
+    def __init__(self, error, critical):
+        self.error = error
+        self.critical = critical
+        super(ProtocolError, self).__init__()
+
+    def __repr__(self):
+        return "{}(error='{}', critical={!r})".format(
+            self.__class__.__name__,
+            self.error,
+            self.critical
         )
 
 

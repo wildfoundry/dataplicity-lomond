@@ -337,6 +337,40 @@ def test_simple_run(monkeypatch, mocker):
     assert not _events[5].graceful
 
 
+
+@mocketize
+def test_simple_run_error(monkeypatch, mocker):
+    monkeypatch.setattr(
+        'os.urandom', b'\x00'.__mul__
+    )
+    # Header is too large
+    Mocket.register(
+        MocketEntry(
+            ('example.com', 80),
+            [b'X' * 32768]
+        )
+    )
+
+    # mocket doesn't support .pending() call which is used when ssl is used
+    session = WebsocketSession(WebSocket('ws://example.com/'))
+    session._selector_cls = FakeSelector
+    session._on_ready()
+    session._regular_orig = session._regular
+
+    mocker.patch(
+        'lomond.websocket.WebSocket._send_close')
+    mocker.patch.object(session.websocket, 'send_ping')
+
+    _events = list(session.run())
+    assert len(_events) == 4
+    assert isinstance(_events[0], events.Connecting)
+    assert isinstance(_events[1], events.Connected)
+    assert isinstance(_events[2], events.ProtocolError)
+    assert _events[2].critical
+    assert isinstance(_events[3], events.Disconnected)
+    assert not _events[3].graceful
+
+
 @mocketize
 def test_simple_run_with_close(monkeypatch, mocker):
     """Test graceful close."""

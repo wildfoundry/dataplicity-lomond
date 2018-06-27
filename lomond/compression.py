@@ -29,7 +29,9 @@ class Deflate(object):
     def reset_compressor(self):
         """Reset the compressor for the next frame."""
         self._compressobj = zlib.compressobj(
-            6, zlib.DEFLATED, -max(9, self.compress_wbits)
+            zlib.Z_DEFAULT_COMPRESSION,
+            zlib.DEFLATED,
+            -max(9, self.compress_wbits)
         )
 
     def reset_decompressor(self):
@@ -64,17 +66,15 @@ class Deflate(object):
 
     def decompress(self, frames):
         """Decompress payload, returned decompressed data."""
-        data = b"".join(
-            self._decompressobj.decompress(
-                frame.payload + b"\x00\x00\xff\xff"
-                if frame.fin
-                else frame.payload
-            )
+        data = [
+            self._decompressobj.decompress(frame.payload)
             for frame in frames
-        )
+        ]
+        data.append(self._decompressobj.decompress(b"\x00\x00\xff\xff"))
+        payload = b''.join(data)
         if self.reset_decompress:
             self.reset_decompressor()
-        return data
+        return payload
 
     def compress(self, payload):
         """Compress payload, return compressed data."""

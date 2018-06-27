@@ -42,6 +42,21 @@ class NonGracefulHandler(websocket.WebSocketHandler):
         yield self.stream.close()
 
 
+class BrokenHandler(websocket.WebSocketHandler):
+    """Writes text/binary then closes the socket."""
+
+    def check_origin(self, origin):
+        return True
+
+    @gen.coroutine
+    def open(self):
+        self.set_nodelay(True)
+        yield self.write_message(u'foo')
+        yield self.stream.write(b'WebSocket? WTF is a WebSocket?')
+        yield self.write_message(b'bar', binary=True)
+        yield self.stream.close()
+
+
 class EchoHandler(websocket.WebSocketHandler):
     """Echos any message sent to it."""
 
@@ -69,7 +84,8 @@ class TestIntegration(object):
         app = web.Application([
             (r'^/graceful$', GracefulHandler),
             (r'^/non-graceful$', NonGracefulHandler),
-            (r'^/echo$', EchoHandler)
+            (r'^/echo$', EchoHandler),
+            (r'^/broken', BrokenHandler)
         ])
         cls.server = server = httpserver.HTTPServer(app)
         cls.loop = ioloop.IOLoop.current()
@@ -120,6 +136,22 @@ class TestIntegration(object):
         assert events[4].text == u'foo'
         assert events[5].name == 'binary'
         assert events[5].data == b'bar'
+        assert events[6].name == 'disconnected'
+        assert not events[6].graceful
+
+    def test_broken(self):
+        """Test server that closes gracefully."""
+        ws = WebSocket(self.WS_URL + 'broken')
+        events = list(ws.connect(ping_rate=0))
+        assert len(events) == 7
+        assert events[0].name == 'connecting'
+        assert events[1].name == 'connected'
+        assert events[2].name == 'ready'
+        assert events[3].name == 'poll'
+        assert events[4].name == 'text'
+        assert events[4].text == u'foo'
+        assert events[5].name == 'protocol_error'
+        assert not events[5].critical
         assert events[6].name == 'disconnected'
         assert not events[6].graceful
 

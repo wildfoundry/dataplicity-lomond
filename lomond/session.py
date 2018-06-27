@@ -68,6 +68,10 @@ class WebsocketSession(object):
         self._close_socket()
         self._sock = None
 
+    def force_disconnect(self):
+        """Force the socket to disconnect."""
+        raise _ForceDisconnect()
+
     def write(self, data):
         """Send raw data."""
         with self._lock:
