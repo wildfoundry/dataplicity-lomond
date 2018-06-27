@@ -416,16 +416,16 @@ class WebSocket(object):
 
     def process_extensions(self, extensions):
         """Process extension headers."""
-        extensions = set()
+        enabled_extensions = set()
         for extension in extensions:
             extension_token, options = parse_extension(extension)
             if extension_token == 'permessage-deflate':
-                extensions.add('permessage-deflate')
+                enabled_extensions.add('permessage-deflate')
                 compression = Deflate.from_options(options)
                 self.state.compression = compression
                 self.state.stream.set_compression(compression)
                 log.debug('%r enabled', compression)
-        return extensions
+        return enabled_extensions
 
     def send_ping(self, data=b''):
         """Send a ping packet.
