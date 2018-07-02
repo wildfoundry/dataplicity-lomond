@@ -67,7 +67,7 @@ class Frame(object):
               mask=True, masking_key=None):
         """Build a WS frame."""
         # https://tools.ietf.org/html/rfc6455#section-5.2
-
+        payload = bytearray(payload)
         mask_bit = 1 << 7 if mask else 0
         byte0 = fin << 7 | rsv1 << 6 | rsv2 << 5 | rsv3 << 4 | opcode
         length = len(payload)
@@ -88,13 +88,14 @@ class Frame(object):
                 if masking_key is None
                 else masking_key
             )
+            mask_payload(masking_key, payload)
             frame_bytes = b''.join((
                 header_bytes,
                 cls._pack_mask(masking_key),
-                mask_payload(masking_key, payload)
+                bytes(payload)
             ))
         else:
-            frame_bytes = header_bytes + payload
+            frame_bytes = header_bytes + bytes(payload)
         return frame_bytes
 
     @classmethod

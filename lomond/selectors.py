@@ -10,6 +10,16 @@ class SelectorBase(object):
         """Construct with an open socket."""
         self._socket = socket
 
+    def wait(self, max_bytes, timeout=0.0):
+        """Block until socket is readable or a timeout occurs. Return
+        a tuple of <readable>,  <max bytes>.
+
+        """
+        if hasattr(self._socket, 'pending') and self._socket.pending():
+            return True, self._socket.pending()
+        readable = self.wait_readable(timeout=timeout)
+        return readable, max_bytes
+
     def wait_readable(self, timeout=0.0):
         """Block until socket is readable or a timeout occurs, return
         `True` if the socket is readable, or `False` if the timeout

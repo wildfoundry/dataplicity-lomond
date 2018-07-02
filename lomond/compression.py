@@ -2,6 +2,8 @@ from __future__ import unicode_literals
 
 import zlib
 
+from six import PY2
+
 from .errors import CompressionParameterError
 
 
@@ -66,10 +68,17 @@ class Deflate(object):
 
     def decompress(self, frames):
         """Decompress payload, returned decompressed data."""
-        data = [
-            self._decompressobj.decompress(frame.payload)
-            for frame in frames
-        ]
+        if PY2:
+            data = [
+                self._decompressobj.decompress(bytes(frame.payload))
+                for frame in frames
+            ]
+        else:
+            data = [
+                self._decompressobj.decompress(frame.payload)
+                for frame in frames
+            ]
+
         data.append(self._decompressobj.decompress(b"\x00\x00\xff\xff"))
         payload = b''.join(data)
         if self.reset_decompress:
@@ -78,8 +87,10 @@ class Deflate(object):
 
     def compress(self, payload):
         """Compress payload, return compressed data."""
+        if PY2:
+            payload = bytes(payload)
         data = (
-            self._compressobj.compress(payload)
+            self._compressobj.compress(bytes(payload))
             + self._compressobj.flush(zlib.Z_SYNC_FLUSH)
         )[:-4]
         if self.reset_compress:

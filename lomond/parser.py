@@ -43,7 +43,7 @@ class _ReadUtf8(_ReadBytes):
         self.utf8_validator = utf8_validator
 
     def validate(self, data):
-        valid, _, _, _ = self.utf8_validator.validate(data)
+        valid, _, _, _ = self.utf8_validator.validate(bytes(data))
         if not valid:
             raise ParseError('invalid utf8')
 
@@ -86,8 +86,7 @@ class Parser(object):
     def __init__(self):
         self._gen = None
         self._awaiting = None
-        self._buffer = []  # Buffer for reads
-        self._until = b''  # Buffer for read untils
+        self._buffer = bytearray()  # Buffer for reads
         self._eof = False
         self.reset()
 
@@ -153,42 +152,40 @@ class Parser(object):
                     # Raises an exception in parse()
                     self._awaiting = self._gen.throw(error)
                 # Add to buffer
-                self._buffer.append(chunk)
+                self._buffer.extend(chunk)
                 remaining -= chunk_size
                 if remaining:
                     # Await more bytes
                     self._awaiting.remaining = remaining
                 else:
-                    # Got all the bytes we need in buffer
-                    send_bytes = b''.join(self._buffer)
-                    del self._buffer[:]
                     # Send to coroutine, get new 'awaitable'
+                    send_bytes = self._buffer[:]
+                    del self._buffer[:]
                     self._awaiting = self._gen.send(send_bytes)
 
             # Awaiting a read until a terminator
             elif isinstance(self._awaiting, _ReadUntil):
                 # Reading to separator
                 chunk = data[pos:]
-                self._until += chunk
+                self._buffer.extend(chunk)
                 sep = self._awaiting.sep
-                sep_index = self._until.find(sep)
+                sep_index = self._buffer.find(sep)
 
                 if sep_index == -1:
                     # Separator not found, advance position
                     pos += len(chunk)
-                    _check_length(len(self._until))
+                    _check_length(len(self._buffer))
                 else:
                     # Found separator
                     # Get data prior to and including separator
                     sep_index += len(sep)
                     _check_length(sep_index)
-                    send_bytes = self._until[:sep_index]
                     # Reset data, to continue parsing
-                    data = self._until[sep_index:]
-                    self._until = b''
+                    data = self._buffer[sep_index:]
                     pos = 0
                     # Send bytes to coroutine, get new 'awaitable'
-                    self._awaiting = self._gen.send(send_bytes)
+                    self._awaiting = self._gen.send(self._buffer[:sep_index])
+                    del self._buffer[:]
 
             # Yield any non-awaitables...
             while not isinstance(self._awaiting, _Awaitable):
@@ -226,6 +223,6 @@ if __name__ == "__main__":  # pragma: no cover
             data = yield self.read(2)
             yield data
     parser = TestParser()
-    for b in (b'head', b'ers: example', b'\r\n', b'\r\n', b'12', b'34', b'5', b'678', b'', b'90'):
+    for b in (b'head', b'ers: example', b'\r\n', b'\r\n', b'12', b'34', b'5', b'678', b'90'):
         for frame in parser.feed(b):
             print(repr(frame))

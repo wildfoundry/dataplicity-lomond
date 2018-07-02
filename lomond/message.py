@@ -42,7 +42,7 @@ class Message(object):
         if first_frame.rsv1 and decompress:
             payload = cls.decompress_frames(frames, decompress)
         else:
-            payload = b''.join(frame.payload for frame in frames)
+            payload = b''.join(bytes(frame.payload) for frame in frames)
         if opcode == Opcode.BINARY:
             return Binary(payload)
         elif opcode == Opcode.TEXT:

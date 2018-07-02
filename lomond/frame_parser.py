@@ -60,7 +60,7 @@ class FrameParser(Parser):
             yield header_data
 
         while True:
-            byte1, byte2 = bytearray((yield self.read(2)))
+            byte1, byte2 = yield self.read(2)
 
             fin = byte1 >> 7
             rsv1 = (byte1 >> 6) & 1

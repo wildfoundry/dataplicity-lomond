@@ -40,6 +40,8 @@ class WebsocketSession(object):
     """Manages the mechanics of running the websocket."""
     _selector_cls = selectors.PlatformSelector
 
+    BUFFER_SIZE = 64 * 1024
+
     def __init__(self, websocket):
         self.websocket = websocket
         self._address = (websocket.host, websocket.port)
@@ -50,6 +52,7 @@ class WebsocketSession(object):
         self._last_pong = None
         self._start_time = None
         self._ready = False
+        self._buffer = bytearray(self.BUFFER_SIZE)
 
     def __repr__(self):
         return "<ws-session '{}'>".format(self.websocket.url)
@@ -99,13 +102,13 @@ class WebsocketSession(object):
 
     def send(self, opcode, data):
         """Send a WS Frame."""
-        frame = Frame(opcode, payload=data)
+        frame = Frame(opcode, payload=bytearray(data))
         self.write(frame.to_bytes())
         log.debug(' SRV <- CLI : %r', frame)
 
     def send_compressed(self, opcode, data):
         """Send a compressed WS Frame."""
-        frame = Frame(opcode, payload=data, rsv1=1)
+        frame = Frame(opcode, payload=bytearray(data), rsv1=1)
         self.write(frame.to_bytes())
         log.debug(' SRV <- CLI : %r', frame)
 
@@ -290,19 +293,10 @@ class WebsocketSession(object):
     def _recv(self, count):
         """Receive and return pending data from the socket."""
         if self._sock is None:
-            return b''
+            return bytearray(b'')
         try:
-            if hasattr(self._sock, 'pending'):
-                # exhaust ssl buffer
-                recv_bytes = []
-                while count:
-                    data = self._sock.recv(count)
-                    recv_bytes.append(data)
-                    count = self._sock.pending()
-                return b''.join(recv_bytes)
-            else:
-                # Plain socket recv
-                return self._sock.recv(count)
+            _recv_count = self._sock.recv_into(self._buffer, count)
+            return self._buffer[:_recv_count]
         except socket.error as error:
             log.debug('error in _recv', exc_info=True)
             self._socket_fail('recv fail; {}', error)
@@ -398,11 +392,11 @@ class WebsocketSession(object):
 
         try:
             while not websocket.is_closed:
-                readable = selector.wait_readable(poll)
+                readable, max_bytes = selector.wait(self.BUFFER_SIZE, poll)
                 for event in _regular():
                     yield event
                 if readable:
-                    data = self._recv(64 * 1024)
+                    data = self._recv(max_bytes)
                     if data:
                         for event in self.websocket.feed(data):
                             self._on_event(event, auto_pong)

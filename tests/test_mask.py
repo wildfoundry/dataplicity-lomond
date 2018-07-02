@@ -1,9 +1,4 @@
 import lomond.mask
-import os
-
-
-def fake_masking_key():
-    return b'\xaa\xff\x7f\xf7'
 
 
 def test_make_masking_key():
@@ -14,12 +9,13 @@ def test_make_masking_key():
 
 
 def test_masking():
-    key = fake_masking_key()
-    plain = b"Hello, World"
-    masked = lomond.mask.mask_payload(key, plain)
+    key = b'\xaa\xff\x7f\xf7'
+    test = b'Hello, World'
+    data = bytearray(test)
+    lomond.mask.mask_payload(key, data)
     # Masked byte should look like gibberish
-    assert masked == b'\xe2\x9a\x13\x9b\xc5\xd3_\xa0\xc5\x8d\x13\x93'
+    assert data == bytearray(b'\xe2\x9a\x13\x9b\xc5\xd3_\xa0\xc5\x8d\x13\x93')
     # Apply mask again to unmask
-    unmasked = lomond.mask.mask_payload(key, masked)
+    lomond.mask.mask_payload(key, data)
     # Result should be plain text
-    assert plain == unmasked
+    assert data == test

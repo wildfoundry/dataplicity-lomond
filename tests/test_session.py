@@ -6,7 +6,6 @@ from lomond import errors, events
 from lomond import constants
 from lomond.session import WebsocketSession, _ForceDisconnect, _SocketFail
 from lomond.websocket import WebSocket
-from mocket import Mocket, MocketEntry, mocketize
 
 
 @pytest.fixture()
@@ -21,20 +20,6 @@ def session(monkeypatch):
     # deterministic, hence this sequence of bytes.
 
     return WebsocketSession(WebSocket('wss://example.com/'))
-
-
-@pytest.fixture()
-# @mocketize
-def session_with_socket(monkeypatch):
-    Mocket.register(
-        MocketEntry(
-            ('example.com', 80),
-            [b'some binary data']
-        )
-    )
-
-    session_obj = session(monkeypatch)
-    return session_obj
 
 
 class FakeSocket(object):
@@ -55,6 +40,9 @@ class FakeSocket(object):
         return 999
 
     def recv(self, *args, **kwargs):
+        raise socket.error('fail')
+
+    def recv_into(self, *args, **kwargs):
         raise socket.error('fail')
 
     def shutdown(self, *args, **kwargs):
@@ -83,6 +71,9 @@ class FakeWebSocket(object):
 class FakeSelector(object):
     def __init__(self, socket):
         pass
+
+    def wait(self, max_bytes, timeout):
+        return True, max_bytes
 
     def wait_readable(self, timeout):
         return True
@@ -164,18 +155,6 @@ def test_close_socket(session, mocker):
 
     assert FakeSocket.shutdown.call_count == 1
     assert FakeSocket.close.call_count == 1
-
-
-@mocketize
-def test_connect(session, mocker):
-    Mocket.register(
-        MocketEntry(
-            ('example.com', 80),
-            [b'some binary data']
-        )
-    )
-    _socket, _proxy = session._connect()
-    assert isinstance(_socket, socket.socket)
 
 
 def test_send_request(session):
@@ -288,207 +267,9 @@ def test_check_ping_timeout(session, mocker):
     assert session._check_ping_timeout(10, 11)
 
 
-@mocketize
-def test_simple_run(monkeypatch, mocker):
-    monkeypatch.setattr(
-        'os.urandom', b'\x00'.__mul__
-    )
-    Mocket.register(
-        MocketEntry(
-            ('example.com', 80),
-            [(
-                b'HTTP/1.1 101 Switching Protocols\r\n'
-                b'Upgrade: websocket\r\n'
-                b'Connection: Upgrade\r\n'
-                b'Sec-WebSocket-Accept: icx+yqv66kxgm0fcwalwlflwtai=\r\n'
-                b'\r\n'
-                b'\x81\x01A'
-            )]
-        )
-    )
-
-    # mocket doesn't support .pending() call which is used when ssl is used
-    session = WebsocketSession(WebSocket('ws://example.com/'))
-    session._selector_cls = FakeSelector
-    session._on_ready()
-    # well, we have to cheat a little. The thing is, inner loop of
-    # run() sets last poll time to time.time and so we would have to
-    # wait for some time to actually hit poll / ping. This is not desirable
-    # so we can do the following:
-    # save original _regular call into _regular_orig
-    # (_regular is a first - well, technically, a second) call inside run
-    # after _poll_start is set which makes it a nice candidate for monkey-patch
-    # location. Here's how we do it:
-    session._regular_orig = session._regular
-
-    mocker.patch(
-        'lomond.websocket.WebSocket._send_close')
-    mocker.patch.object(session.websocket, 'send_ping')
-
-    _events = list(session.run())
-
-    assert len(_events) == 6
-    assert isinstance(_events[0], events.Connecting)
-    assert isinstance(_events[1], events.Connected)
-    assert isinstance(_events[2], events.Ready)
-    assert isinstance(_events[3], events.Poll)
-    assert isinstance(_events[4], events.Text)
-    assert isinstance(_events[5], events.Disconnected)
-    assert not _events[5].graceful
-
-
-
-@mocketize
-def test_simple_run_error(monkeypatch, mocker):
-    monkeypatch.setattr(
-        'os.urandom', b'\x00'.__mul__
-    )
-    # Header is too large
-    Mocket.register(
-        MocketEntry(
-            ('example.com', 80),
-            [b'X' * 32768]
-        )
-    )
-
-    # mocket doesn't support .pending() call which is used when ssl is used
-    session = WebsocketSession(WebSocket('ws://example.com/'))
-    session._selector_cls = FakeSelector
-    session._on_ready()
-    session._regular_orig = session._regular
-
-    mocker.patch(
-        'lomond.websocket.WebSocket._send_close')
-    mocker.patch.object(session.websocket, 'send_ping')
-
-    _events = list(session.run())
-    assert len(_events) == 4
-    assert isinstance(_events[0], events.Connecting)
-    assert isinstance(_events[1], events.Connected)
-    assert isinstance(_events[2], events.ProtocolError)
-    assert _events[2].critical
-    assert isinstance(_events[3], events.Disconnected)
-    assert not _events[3].graceful
-
-
-@mocketize
-def test_simple_run_with_close(monkeypatch, mocker):
-    """Test graceful close."""
-    monkeypatch.setattr(
-        'os.urandom', b'\x00'.__mul__
-    )
-    Mocket.register(
-        MocketEntry(
-            ('example.com', 80),
-            [(
-                b'HTTP/1.1 101 Switching Protocols\r\n'
-                b'Upgrade: websocket\r\n'
-                b'Connection: Upgrade\r\n'
-                b'Sec-WebSocket-Accept: icx+yqv66kxgm0fcwalwlflwtai=\r\n'
-                b'\r\n'
-                b'\x81\x01A\x88\x00'
-            )]
-        )
-    )
-
-    session = WebsocketSession(WebSocket('ws://example.com/'))
-    session._selector_cls = FakeSelector
-    session._on_ready()
-
-    session._regular_orig = session._regular
-
-    mocker.patch(
-        'lomond.websocket.WebSocket._send_close')
-    mocker.patch.object(session.websocket, 'send_ping')
-    session.websocket.state.session = session
-
-    _events = list(session.run())
-
-    assert len(_events) == 7
-    assert isinstance(_events[0], events.Connecting)
-    assert isinstance(_events[1], events.Connected)
-    assert isinstance(_events[2], events.Ready)
-    assert isinstance(_events[3], events.Poll)
-    assert isinstance(_events[4], events.Text)
-    assert isinstance(_events[5], events.Closing)
-    assert isinstance(_events[6], events.Disconnected)
-    assert _events[6].graceful
-
-
-@freeze_time("1994-05-01 18:40:00")
-@mocketize
-def test_unresponsive(monkeypatch, mocker):
-    """Check ping timeout."""
-    monkeypatch.setattr(
-        'os.urandom', b'\x00'.__mul__
-    )
-    Mocket.register(
-        MocketEntry(
-            ('example.com', 80),
-            [(
-                b'HTTP/1.1 101 Switching Protocols\r\n'
-                b'Upgrade: websocket\r\n'
-                b'Connection: Upgrade\r\n'
-                b'Sec-WebSocket-Accept: icx+yqv66kxgm0fcwalwlflwtai=\r\n'
-                b'\r\n'
-                b'\x81\x01A'
-            )]
-        )
-    )
-
-    # mocket doesn't support .pending() call which is used when ssl is used
-    session = WebsocketSession(WebSocket('ws://example.com/'))
-    session._selector_cls = FakeSelector
-    session._on_ready()
-    # well, we have to cheat a little. The thing is, inner loop of
-    # run() sets last poll time to time.time and so we would have to
-    # wait for some time to actually hit poll / ping. This is not desirable
-    # so we can do the following:
-    # save original _regular call into _regular_orig
-    # (_regular is a first - well, technically, a second) call inside run
-    # after _poll_start is set which makes it a nice candidate for monkey-patch
-    # location. Here's how we do it:
-    session._regular_orig = session._regular
-
-    mocker.patch(
-        'lomond.websocket.WebSocket._send_close')
-    mocker.patch.object(session.websocket, 'send_ping')
-
-    _events = []
-    iter_events = iter(session.run(ping_timeout=5))
-
-    for event in iter_events:
-        _events.append(event)
-        if event.name == 'text':
-            break
-
-    with freeze_time("1994-05-01 18:41:00"):
-        for event in iter_events:
-            _events.append(event)
-
-    assert len(_events) == 8
-    assert isinstance(_events[0], events.Connecting)
-    assert isinstance(_events[1], events.Connected)
-    assert isinstance(_events[2], events.Ready)
-    assert isinstance(_events[3], events.Poll)
-    assert isinstance(_events[4], events.Text)
-    assert isinstance(_events[5], events.Poll)
-    assert isinstance(_events[6], events.Unresponsive)
-    assert isinstance(_events[7], events.Disconnected)
-    assert not _events[7].graceful
-
-
 def test_recv_no_sock(session):
     session._sock = None
     assert session._recv(1) == b''
-
-
-def test_recv_with_secure_websocket(session):
-    def fake_recv(self):
-        return b'\x01'
-    session._sock = FakeSocket()
-    session._sock.recv = fake_recv
-    assert session._recv(1) == b'\x01'
 
 
 def test_on_pong(session):
