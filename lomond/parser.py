@@ -21,6 +21,7 @@ class ParseEOF(ParseError):
 class _Awaitable(object):
     """An operation that effectively suspends the coroutine."""
     # Analogous to Python3 asyncio concept
+    __slots__ = []
 
     def validate(self, chunk):
         """Raise any ParseErrors"""
@@ -120,7 +121,6 @@ class Parser(object):
         :param bytes data: Data to parse.
 
         """
-
         def _check_length(pos):
             try:
                 self._awaiting.check_length(pos)
@@ -135,6 +135,7 @@ class Parser(object):
                 ParseError('unexpected eof of file')
             )
 
+        _buffer = self._buffer
         pos = 0
         while pos < len(data):
             # Awaiting a read of a fixed number of bytes
@@ -152,40 +153,39 @@ class Parser(object):
                     # Raises an exception in parse()
                     self._awaiting = self._gen.throw(error)
                 # Add to buffer
-                self._buffer.extend(chunk)
+                _buffer.extend(chunk)
                 remaining -= chunk_size
                 if remaining:
                     # Await more bytes
                     self._awaiting.remaining = remaining
                 else:
                     # Send to coroutine, get new 'awaitable'
-                    send_bytes = self._buffer[:]
-                    del self._buffer[:]
-                    self._awaiting = self._gen.send(send_bytes)
+                    self._awaiting = self._gen.send(_buffer[:])
+                    del _buffer[:]
 
             # Awaiting a read until a terminator
             elif isinstance(self._awaiting, _ReadUntil):
                 # Reading to separator
                 chunk = data[pos:]
-                self._buffer.extend(chunk)
+                _buffer.extend(chunk)
                 sep = self._awaiting.sep
-                sep_index = self._buffer.find(sep)
+                sep_index = _buffer.find(sep)
 
                 if sep_index == -1:
                     # Separator not found, advance position
                     pos += len(chunk)
-                    _check_length(len(self._buffer))
+                    _check_length(len(_buffer))
                 else:
                     # Found separator
                     # Get data prior to and including separator
                     sep_index += len(sep)
                     _check_length(sep_index)
                     # Reset data, to continue parsing
-                    data = self._buffer[sep_index:]
+                    data = _buffer[sep_index:]
                     pos = 0
                     # Send bytes to coroutine, get new 'awaitable'
-                    self._awaiting = self._gen.send(self._buffer[:sep_index])
-                    del self._buffer[:]
+                    self._awaiting = self._gen.send(_buffer[:sep_index])
+                    del _buffer[:]
 
             # Yield any non-awaitables...
             while not isinstance(self._awaiting, _Awaitable):

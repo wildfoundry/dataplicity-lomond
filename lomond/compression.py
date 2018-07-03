@@ -90,7 +90,7 @@ class Deflate(object):
         if PY2:
             payload = bytes(payload)
         data = (
-            self._compressobj.compress(bytes(payload))
+            self._compressobj.compress(payload)
             + self._compressobj.flush(zlib.Z_SYNC_FLUSH)
         )[:-4]
         if self.reset_compress:

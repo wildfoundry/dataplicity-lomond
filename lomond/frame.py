@@ -67,7 +67,7 @@ class Frame(object):
               mask=True, masking_key=None):
         """Build a WS frame."""
         # https://tools.ietf.org/html/rfc6455#section-5.2
-        payload = bytearray(payload)
+        payload = bytearray(payload) if isinstance(payload, bytes) else payload
         mask_bit = 1 << 7 if mask else 0
         byte0 = fin << 7 | rsv1 << 6 | rsv2 << 5 | rsv3 << 4 | opcode
         length = len(payload)

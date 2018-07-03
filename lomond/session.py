@@ -296,7 +296,7 @@ class WebsocketSession(object):
             return bytearray(b'')
         try:
             _recv_count = self._sock.recv_into(self._buffer, count)
-            return self._buffer[:_recv_count]
+            return memoryview(self._buffer)[:_recv_count]
         except socket.error as error:
             log.debug('error in _recv', exc_info=True)
             self._socket_fail('recv fail; {}', error)
