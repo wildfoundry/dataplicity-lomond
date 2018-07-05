@@ -180,6 +180,24 @@ class TestIntegration(object):
         assert events[7].name == 'disconnected'
         assert events[7].graceful
 
+    def test_echo_no_pong(self):
+        """Test echo server."""
+        # No way to disable pongs from tornado, so we will set the
+        # ping timeout to so low it couldn't get the pong in time
+        ws = WebSocket(self.WS_URL + 'echo')
+        events = []
+        for event in ws.connect(poll=60, ping_rate=1, auto_pong=False, ping_timeout=0.000001):
+            events.append(event)
+
+        assert len(events) == 6
+        assert events[0].name == 'connecting'
+        assert events[1].name == 'connected'
+        assert events[2].name == 'ready'
+        assert events[3].name == 'poll'
+        assert events[4].name == 'unresponsive'
+        assert events[5].name == 'disconnected'
+        assert not events[5].graceful
+
     def test_echo_compress(self):
         """Test echo server."""
         ws = WebSocket(self.WS_URL + 'echo', compress=True)

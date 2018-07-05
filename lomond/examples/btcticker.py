@@ -1,6 +1,5 @@
 from lomond import WebSocket
 
-
 websocket = WebSocket('wss://ws-feed.gdax.com')
 
 for event in websocket:

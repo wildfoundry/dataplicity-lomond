@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 
 from lomond.stream import WebsocketStream
-from lomond.errors import ProtocolError
+from lomond.errors import CriticalProtocolError, ProtocolError
 from lomond.response import Response
 import pytest
 
@@ -9,6 +9,16 @@ import pytest
 @pytest.fixture
 def stream():
     return WebsocketStream()
+
+
+
+def test_bad_header():
+    """Test with stupidly large headers."""
+    data = b'HTTP/1.1 200 OK\r\nConnection:Keep-Alive\r\nUser-Agent:Test\r\n'
+    data += b'F' * 16384
+    stream = WebsocketStream()
+    with pytest.raises(CriticalProtocolError):
+        list(stream.feed(data))
 
 
 def test_feed_with_chunked_data():
