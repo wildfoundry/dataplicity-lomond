@@ -37,6 +37,7 @@ setup(
     setup_requires=['pytest-runner'],
     tests_require=['pytest'],
     install_requires=[
+        'monotonic>=1.5',
         'six>=1.10.0',
     ],
     zip_safe=True

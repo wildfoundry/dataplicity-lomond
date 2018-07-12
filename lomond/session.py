@@ -13,9 +13,10 @@ import math
 import socket
 import ssl
 import threading
-import time
 
 from six.moves.urllib.parse import urlparse
+
+from monotonic import monotonic as monotonic_time
 
 from .frame import Frame
 from . import errors
@@ -63,7 +64,7 @@ class WebsocketSession(object):
         return (
             0.0
             if self._start_time is None else
-            time.time() - self._start_time
+            monotonic_time() - self._start_time
         )
 
     def close(self):
@@ -330,7 +331,7 @@ class WebsocketSession(object):
         """Called when a ready event is received."""
         self._last_pong = 0.0
         self._next_ping = 0.0
-        self._start_time = time.time()
+        self._start_time = monotonic_time()
 
     def _on_event(self, event, auto_pong=True):
         """Handle logic in response to an event."""
