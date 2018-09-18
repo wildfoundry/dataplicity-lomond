@@ -18,6 +18,10 @@ class ParseEOF(ParseError):
     """End of Stream."""
 
 
+class ParseOverflow(Exception):
+    """Extra bytes in feed after parser completed."""
+
+
 class _Awaitable(object):
     """An operation that effectively suspends the coroutine."""
     # Analogous to Python3 asyncio concept
@@ -89,6 +93,7 @@ class Parser(object):
         self._awaiting = None
         self._buffer = bytearray()  # Buffer for reads
         self._eof = False
+        self._exausted = False
         self.reset()
 
     read = _ReadBytes
@@ -127,70 +132,77 @@ class Parser(object):
             except ParseError as error:
                 self._awaiting = self._gen.throw(error)
 
+        if self._exausted:
+            raise ParseOverflow('extra bytes in feed(); {!r}'.format(data[:100]))
         if self._eof:
-            raise ParseError('end of file reached')
+            raise ParseEOF('end of file reached; feed() has previously been called with empty bytes')
         if not data:
             self._eof = True
             self._gen.throw(
-                ParseError('unexpected eof of file')
+                ParseEOF('unexpected eof of file')
             )
 
-        _buffer = self._buffer
-        pos = 0
-        while pos < len(data):
-            # Awaiting a read of a fixed number of bytes
-            if isinstance(self._awaiting, _ReadBytes):
-                # This many bytes left to read
-                remaining = self._awaiting.remaining
-                # Bite off remaining bytes
-                chunk = data[pos:pos + remaining]
-                chunk_size = len(chunk)
-                pos += chunk_size
-                try:
-                    # Validate new data
-                    self._awaiting.validate(chunk)
-                except ParseError as error:
-                    # Raises an exception in parse()
-                    self._awaiting = self._gen.throw(error)
-                # Add to buffer
-                _buffer.extend(chunk)
-                remaining -= chunk_size
-                if remaining:
-                    # Await more bytes
-                    self._awaiting.remaining = remaining
-                else:
-                    # Send to coroutine, get new 'awaitable'
-                    self._awaiting = self._gen.send(_buffer[:])
-                    del _buffer[:]
+        try:
+            _buffer = self._buffer
+            pos = 0
+            while pos < len(data):
+                # Awaiting a read of a fixed number of bytes
+                if isinstance(self._awaiting, _ReadBytes):
+                    # This many bytes left to read
+                    remaining = self._awaiting.remaining
+                    # Bite off remaining bytes
+                    chunk = data[pos:pos + remaining]
+                    chunk_size = len(chunk)
+                    pos += chunk_size
+                    try:
+                        # Validate new data
+                        self._awaiting.validate(chunk)
+                    except ParseError as error:
+                        # Raises an exception in parse()
+                        self._awaiting = self._gen.throw(error)
+                    # Add to buffer
+                    _buffer.extend(chunk)
+                    remaining -= chunk_size
+                    if remaining:
+                        # Await more bytes
+                        self._awaiting.remaining = remaining
+                    else:
+                        # Send to coroutine, get new 'awaitable'
+                        self._awaiting = self._gen.send(_buffer[:])
+                        del _buffer[:]
 
-            # Awaiting a read until a terminator
-            elif isinstance(self._awaiting, _ReadUntil):
-                # Reading to separator
-                chunk = data[pos:]
-                _buffer.extend(chunk)
-                sep = self._awaiting.sep
-                sep_index = _buffer.find(sep)
+                # Awaiting a read until a terminator
+                elif isinstance(self._awaiting, _ReadUntil):
+                    # Reading to separator
+                    chunk = data[pos:]
+                    _buffer.extend(chunk)
+                    sep = self._awaiting.sep
+                    sep_index = _buffer.find(sep)
 
-                if sep_index == -1:
-                    # Separator not found, advance position
-                    pos += len(chunk)
-                    _check_length(len(_buffer))
-                else:
-                    # Found separator
-                    # Get data prior to and including separator
-                    sep_index += len(sep)
-                    _check_length(sep_index)
-                    # Reset data, to continue parsing
-                    data = _buffer[sep_index:]
-                    pos = 0
-                    # Send bytes to coroutine, get new 'awaitable'
-                    self._awaiting = self._gen.send(_buffer[:sep_index])
-                    del _buffer[:]
+                    if sep_index == -1:
+                        # Separator not found, advance position
+                        pos += len(chunk)
+                        _check_length(len(_buffer))
+                    else:
+                        # Found separator
+                        # Get data prior to and including separator
+                        sep_index += len(sep)
+                        _check_length(sep_index)
+                        # Reset data, to continue parsing
+                        data = _buffer[sep_index:]
+                        pos = 0
+                        # Send bytes to coroutine, get new 'awaitable'
+                        self._awaiting = self._gen.send(_buffer[:sep_index])
+                        del _buffer[:]
 
-            # Yield any non-awaitables...
-            while not isinstance(self._awaiting, _Awaitable):
-                yield self._awaiting
-                self._awaiting = next(self._gen)
+                # Yield any non-awaitables...
+                while not isinstance(self._awaiting, _Awaitable):
+                    yield self._awaiting
+                    self._awaiting = next(self._gen)
+        except StopIteration:
+            self._exausted = True
+            if pos < len(data):
+                raise ParseOverflow('extra bytes in feed(); {!r}'.format(data[pos:][:100]))
 
     def parse(self):
         """
@@ -223,6 +235,6 @@ if __name__ == "__main__":  # pragma: no cover
             data = yield self.read(2)
             yield data
     parser = TestParser()
-    for b in (b'head', b'ers: example', b'\r\n', b'\r\n', b'12', b'34', b'5', b'678', b'90'):
+    for b in (b'head', b'ers: example', b'\r\n', b'\r\n', b'12', b'34', b'5', b'678', b'9', b'9', b'9'):
         for frame in parser.feed(b):
             print(repr(frame))

@@ -2,7 +2,7 @@ import types
 
 import pytest
 
-from lomond.parser import ParseError, Parser
+from lomond.parser import ParseEOF, ParseError, ParseOverflow, Parser
 
 
 def test_parser_reset_is_a_generator():
@@ -32,12 +32,29 @@ def test_eof():
     test_parser = TestParser()
     test_data = [b'foo', b'']
     assert not test_parser.is_eof
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseEOF):
         for data in test_data:
             for _token in test_parser.feed(data):
                 print(_token)
     assert test_parser.is_eof
-    test_parser.feed(b'more')
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseEOF):
         for data in test_parser.feed('foo'):
             print(data)
+
+
+def test_overflow():
+    class TestParser(Parser):
+        def parse(self):
+            data = yield self.read(3)
+            yield data
+    test_parser = TestParser()
+    output = []
+    with pytest.raises(ParseOverflow):
+        for data in test_parser.feed(b'foobar'):
+            output.append(data)
+    assert output == [b'foo']
+    output = []
+    with pytest.raises(ParseOverflow):
+        for data in test_parser.feed(b'foobar'):
+            output.append(data)
+    assert not output
