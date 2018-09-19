@@ -71,6 +71,8 @@ class WebsocketStream(object):
                 raise errors.CriticalProtocolError(
                     text_type(error)
                 )
+            except errors.WebSocketError:
+                raise
             except Exception as error:
                 log.exception('unknown error in websocket stream')
                 raise errors.CriticalProtocolError(
