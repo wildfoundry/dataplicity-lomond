@@ -73,7 +73,7 @@ class WebsocketStream(object):
                 )
             except Exception as error:
                 log.exception('unknown error in websocket stream')
-                raise errors.CrticicalProtocolError(
+                raise errors.CriticalProtocolError(
                     "unknown error; {}".format(error)
                 )
             log.debug(" SRV -> CLI : %r", frame)
