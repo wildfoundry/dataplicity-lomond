@@ -24,6 +24,7 @@ class ParseOverflow(Exception):
 
 class _Awaitable(object):
     """An operation that effectively suspends the coroutine."""
+
     # Analogous to Python3 asyncio concept
     __slots__ = []
 
@@ -33,7 +34,8 @@ class _Awaitable(object):
 
 class _ReadBytes(_Awaitable):
     """Reads a fixed number of bytes."""
-    __slots__ = ['remaining']
+
+    __slots__ = ["remaining"]
 
     def __init__(self, count):
         self.remaining = count
@@ -41,7 +43,8 @@ class _ReadBytes(_Awaitable):
 
 class _ReadUtf8(_ReadBytes):
     """Reads a fixed number of bytes, validates utf-8."""
-    __slots__ = ['utf8_validator']
+
+    __slots__ = ["utf8_validator"]
 
     def __init__(self, count, utf8_validator):
         self.remaining = count
@@ -50,12 +53,13 @@ class _ReadUtf8(_ReadBytes):
     def validate(self, data):
         valid, _, _, _ = self.utf8_validator.validate(bytes(data))
         if not valid:
-            raise ParseError('invalid utf8')
+            raise ParseError("invalid utf8")
 
 
 class _ReadUntil(_Awaitable):
     """Read until a separator."""
-    __slots__ = ['sep', 'max_bytes']
+
+    __slots__ = ["sep", "max_bytes"]
 
     def __init__(self, sep, max_bytes=None):
         self.sep = sep
@@ -64,9 +68,7 @@ class _ReadUntil(_Awaitable):
     def check_length(self, pos):
         """Check the length is within max bytes."""
         if self.max_bytes is not None and pos > self.max_bytes:
-            raise ParseError(
-                'expected {!r}'.format(self.sep)
-            )
+            raise ParseError("expected {!r}".format(self.sep))
 
 
 class Parser(object):
@@ -93,7 +95,7 @@ class Parser(object):
         self._awaiting = None
         self._buffer = bytearray()  # Buffer for reads
         self._eof = False
-        self._exausted = False
+        self._exhausted = False
         self.reset()
 
     read = _ReadBytes
@@ -126,21 +128,22 @@ class Parser(object):
         :param bytes data: Data to parse.
 
         """
+
         def _check_length(pos):
             try:
                 self._awaiting.check_length(pos)
             except ParseError as error:
                 self._awaiting = self._gen.throw(error)
 
-        if self._exausted:
-            raise ParseOverflow('extra bytes in feed(); {!r}'.format(data[:100]))
+        if self._exhausted:
+            raise ParseOverflow("extra bytes in feed(); {!r}".format(data[:100]))
         if self._eof:
-            raise ParseEOF('end of file reached; feed() has previously been called with empty bytes')
+            raise ParseEOF(
+                "end of file reached; feed() has previously been called with empty bytes"
+            )
         if not data:
             self._eof = True
-            self._gen.throw(
-                ParseEOF('unexpected eof of file')
-            )
+            self._gen.throw(ParseEOF("unexpected eof of file"))
 
         try:
             _buffer = self._buffer
@@ -151,7 +154,7 @@ class Parser(object):
                     # This many bytes left to read
                     remaining = self._awaiting.remaining
                     # Bite off remaining bytes
-                    chunk = data[pos:pos + remaining]
+                    chunk = data[pos : pos + remaining]
                     chunk_size = len(chunk)
                     pos += chunk_size
                     try:
@@ -200,9 +203,11 @@ class Parser(object):
                     yield self._awaiting
                     self._awaiting = next(self._gen)
         except StopIteration:
-            self._exausted = True
+            self._exhausted = True
             if pos < len(data):
-                raise ParseOverflow('extra bytes in feed(); {!r}'.format(data[pos:][:100]))
+                raise ParseOverflow(
+                    "extra bytes in feed(); {!r}".format(data[pos:][:100])
+                )
 
     def parse(self):
         """
@@ -222,9 +227,10 @@ class Parser(object):
 
 
 if __name__ == "__main__":  # pragma: no cover
+
     class TestParser(Parser):
         def parse(self):
-            data = yield self.read_until(b'\r\n\r\n')
+            data = yield self.read_until(b"\r\n\r\n")
             yield data
             data = yield self.read(1)
             yield data
@@ -234,7 +240,20 @@ if __name__ == "__main__":  # pragma: no cover
             yield data
             data = yield self.read(2)
             yield data
+
     parser = TestParser()
-    for b in (b'head', b'ers: example', b'\r\n', b'\r\n', b'12', b'34', b'5', b'678', b'9', b'9', b'9'):
+    for b in (
+        b"head",
+        b"ers: example",
+        b"\r\n",
+        b"\r\n",
+        b"12",
+        b"34",
+        b"5",
+        b"678",
+        b"9",
+        b"9",
+        b"9",
+    ):
         for frame in parser.feed(b):
             print(repr(frame))

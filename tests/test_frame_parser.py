@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import codecs
+
 import pytest
 
 from lomond.frame import Frame
@@ -120,3 +122,23 @@ def test_prohibit_masked_frames():
     frame = Frame(1, b'hello')
     with pytest.raises(ProtocolError):
         parser.on_frame(frame)
+
+
+def test_utf8_fail():
+    chops = [
+        "cebae1bdb9cf83cebcceb5",
+        "f4908080",
+        "656469746564",
+    ]
+
+    parser = ClientFrameParser(parse_headers=False, validate=False)
+    results = []
+    chop_count = 0
+    with pytest.raises(ParseError):
+        for chop in chops:
+            data = codecs.decode(chop, 'hex')
+            for msg in parser.feed(data):
+                results.append(msg)
+            chop_count += 1
+    assert len(results) == 0
+    assert chop_count == 3

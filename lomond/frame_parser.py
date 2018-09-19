@@ -92,6 +92,7 @@ class FrameParser(Parser):
                 masking_key=masking_key,
             )
             if self.validate:
+                print(repr(frame))
                 frame.validate()
 
             if frame.is_text:
