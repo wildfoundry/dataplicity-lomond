@@ -332,12 +332,6 @@ class WebSocket(object):
             self.close(Status.PROTOCOL_ERROR, six.text_type(error))
             self.force_disconnect()
 
-        except Exception as error:
-            log.exception('unknown error; %s', error)
-            yield events.ProtocolError(six.text_type(error), True)
-            self.close(Status.PROTOCOL_ERROR, six.text_type(error))
-            self.force_disconnect()
-
         except GeneratorExit:
             # The generator has exited prematurely, due to an exception
             # handling the event.
