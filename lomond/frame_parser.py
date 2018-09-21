@@ -20,9 +20,6 @@ log = logging.getLogger("lomond")
 class FrameParser(Parser):
     """Parses a stream of data in to HTTP headers + WS frames."""
 
-    unpack16 = struct.Struct(b"!H").unpack
-    unpack64 = struct.Struct(b"!Q").unpack
-
     def __init__(self, parse_headers=True, validate=True):
         self.parse_headers = parse_headers
         self.validate = validate
@@ -38,6 +35,17 @@ class FrameParser(Parser):
             self.parse_headers,
             self.validate
         )
+
+    # A bug in Python2.7.3 requires casting data to bytes
+    @classmethod
+    def unpack16(cls, data, _unpack16 = struct.Struct(b"!H").unpack):
+        """Unpack 16 bits in to an integer."""
+        return _unpack16(bytes(data))[0]
+
+    @classmethod
+    def unpack64(cls, data, _unpack64 = struct.Struct(b"!Q").unpack):
+        """Unpack 64 bits in to an integer."""
+        return _unpack64(bytes(data))[0]
 
     def enable_compression(self):
         """Enable compressed packets."""
@@ -71,9 +79,9 @@ class FrameParser(Parser):
             payload_length = byte2 & 0b01111111
 
             if payload_length == 126:
-                (payload_length,) = self.unpack16((yield self.read(2)))
+                payload_length = self.unpack16((yield self.read(2)))
             elif payload_length == 127:
-                (payload_length,) = self.unpack64((yield self.read(8)))
+                payload_length = self.unpack64((yield self.read(8)))
             if payload_length > 0x7fffffffffffffff:
                 raise errors.PayloadTooLarge("payload is too large")
 
@@ -92,7 +100,6 @@ class FrameParser(Parser):
                 masking_key=masking_key,
             )
             if self.validate:
-                print(repr(frame))
                 frame.validate()
 
             if frame.is_text:
