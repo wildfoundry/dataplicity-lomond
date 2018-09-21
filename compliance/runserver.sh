@@ -1,0 +1,1 @@
+wstest -m fuzzingserver
