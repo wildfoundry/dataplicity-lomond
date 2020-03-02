@@ -41,20 +41,9 @@ class Opcode(object):
             }
         return cls._opcode_to_str.get(opcode, '?')
 
-
 reserved_opcodes = {
-    Opcode.RESERVED1,
-    Opcode.RESERVED2,
-    Opcode.RESERVED3,
-    Opcode.RESERVED4,
-    Opcode.RESERVED5,
-    Opcode.RESERVED6,
-    Opcode.RESERVED7,
-    Opcode.RESERVED8,
-    Opcode.RESERVED9,
-    Opcode.RESERVED10,
+    Opcode.__dict__[x] for x in Opcode.__dict__.keys() if x.startswith('RESERVED')
 }
-
 
 def is_reserved(opcode):
     """Check if an opcode is reserved."""
