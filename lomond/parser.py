@@ -214,14 +214,10 @@ if __name__ == "__main__":  # pragma: no cover
         def parse(self):
             data = yield self.read_until(b'\r\n\r\n')
             yield data
-            data = yield self.read(1)
-            yield data
-            data = yield self.read(2)
-            yield data
-            data = yield self.read(4)
-            yield data
-            data = yield self.read(2)
-            yield data
+            for x in (1, 2, 4, 2):
+                data = yield self.read(x)
+                yield data
+
     parser = TestParser()
     for b in (b'head', b'ers: example', b'\r\n', b'\r\n', b'12', b'34', b'5', b'678', b'90'):
         for frame in parser.feed(b):
