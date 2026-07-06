@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [0.3.4] - 2026-07-06
 
+### Changed
+
+- README CI badges now point to GitHub Actions workflows (CircleCI removed)
+
 ### Added
 
 - TLS configuration controls on `WebSocket`: `ssl_verify`, `ssl_cafile`,
@@ -32,6 +36,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Corrected typo in tox `PYTHONPATH` configuration
 - Corrected broken `test_session` mock assertion (`assert_called_with`)
 - Proxy auto-detection now respects lowercase env vars (`http_proxy`, `https_proxy`)
+- Stabilized local websocket fixture close handshake to avoid intermittent
+  non-graceful disconnect assertions in CI
 
 
 ## [0.3.2] - 2018-07-04
