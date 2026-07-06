@@ -6,68 +6,66 @@ on:
       - published
   workflow_dispatch:
 
-permissions:
-  contents: read
-
-concurrency:
-  group: pypi-publish-${{ github.event.release.tag_name || github.ref }}
-  cancel-in-progress: false
-
 jobs:
+  noop:
+    if: github.event_name != 'release' && github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Publish workflow is only active for release/workflow_dispatch events."
+
   build:
-    if: github.repository == 'wildfoundry/dataplicity-lomond'
+    if: github.repository == 'wildfoundry/dataplicity-lomond' && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    concurrency:
+      group: pypi-publish-${{ github.event.release.tag_name || github.ref_name }}
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.12"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       - name: Validate release tag format
-      run: |
-        TAG_NAME="${{ github.event.release.tag_name || github.ref_name }}"
-        case "$TAG_NAME" in
-          v*) ;;
-          *)
-            echo "Release tag '$TAG_NAME' must start with 'v'"
-            exit 1
-            ;;
-        esac
+        run: |
+          TAG_NAME="${{ github.event.release.tag_name || github.ref_name }}"
+          case "$TAG_NAME" in
+            v*) ;;
+            *)
+              echo "Release tag '$TAG_NAME' must start with 'v'"
+              exit 1
+              ;;
+          esac
 
       - name: Validate tag matches package version
-      run: |
-        TAG_NAME="${{ github.event.release.tag_name || github.ref_name }}"
-        TAG_VERSION="${TAG_NAME#v}"
-        PACKAGE_VERSION="$(python - <<'PY'
-from lomond._version import __version__
-print(__version__)
-PY
-)"
-        if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
-          echo "Tag version '$TAG_VERSION' does not match package version '$PACKAGE_VERSION'"
-          exit 1
-        fi
+        run: |
+          TAG_NAME="${{ github.event.release.tag_name || github.ref_name }}"
+          TAG_VERSION="${TAG_NAME#v}"
+          PACKAGE_VERSION="$(python -c 'from lomond._version import __version__; print(__version__)')"
+          if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "Tag version '$TAG_VERSION' does not match package version '$PACKAGE_VERSION'"
+            exit 1
+          fi
 
       - name: Build distributions
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install build twine
-        python -m build
-        twine check dist/*
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine
+          python -m build
+          twine check dist/*
 
       - name: Upload distributions
-      uses: actions/upload-artifact@v4
-      with:
-        name: dist-artifacts
-        path: dist/
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-artifacts
+          path: dist/
 
   publish:
     needs: build
-    if: github.repository == 'wildfoundry/dataplicity-lomond'
+    if: github.repository == 'wildfoundry/dataplicity-lomond' && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     environment:
       name: release
@@ -76,12 +74,12 @@ PY
       contents: read
     steps:
       - name: Download distributions
-      uses: actions/download-artifact@v4
-      with:
-        name: dist-artifacts
-        path: dist/
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-artifacts
+          path: dist/
 
       - name: Publish to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        attestations: true
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          attestations: true

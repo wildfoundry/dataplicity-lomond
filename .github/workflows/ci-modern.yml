@@ -19,17 +19,17 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
 
       - name: Install test dependencies
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install -e .
-        python -m pip install pytest pytest-mock freezegun proxy.py
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install pytest pytest-mock freezegun proxy.py
 
       - name: Run deterministic test suite
-      run: |
-        pytest -vv \
-          --ignore=tests/test_integration.py
+        run: |
+          pytest -vv \
+            --ignore=tests/test_integration.py
