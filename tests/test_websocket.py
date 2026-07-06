@@ -102,6 +102,34 @@ def test_init_ssl_options():
     assert ws.ssl_context is context
 
 
+def test_detect_proxies_supports_lowercase_env_vars(monkeypatch):
+    monkeypatch.delenv('HTTP_PROXY', raising=False)
+    monkeypatch.delenv('HTTPS_PROXY', raising=False)
+    monkeypatch.setenv('http_proxy', 'http://127.0.0.1:8888')
+    monkeypatch.setenv('https_proxy', 'http://127.0.0.1:9999')
+
+    proxies = WebSocket._detect_proxies()
+
+    assert proxies == {
+        'http': 'http://127.0.0.1:8888',
+        'https': 'http://127.0.0.1:9999'
+    }
+
+
+def test_detect_proxies_supports_uppercase_env_vars(monkeypatch):
+    monkeypatch.delenv('http_proxy', raising=False)
+    monkeypatch.delenv('https_proxy', raising=False)
+    monkeypatch.setenv('HTTP_PROXY', 'http://127.0.0.1:8080')
+    monkeypatch.setenv('HTTPS_PROXY', 'http://127.0.0.1:9443')
+
+    proxies = WebSocket._detect_proxies()
+
+    assert proxies == {
+        'http': 'http://127.0.0.1:8080',
+        'https': 'http://127.0.0.1:9443'
+    }
+
+
 def test_repr(websocket):
     assert repr(websocket) == "WebSocket('ws://example.com')"
 

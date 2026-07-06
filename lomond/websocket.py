@@ -13,6 +13,7 @@ import logging
 import os
 
 import six
+from six.moves.urllib.request import getproxies
 from six.moves.urllib.parse import urlparse
 
 from . import constants
@@ -103,9 +104,10 @@ class WebSocket(object):
     @classmethod
     def _detect_proxies(cls):
         """Get proxy information form environment."""
+        detected = getproxies()
         proxies = {
-            'http': os.environ.get('HTTP_PROXY'),
-            'https': os.environ.get('HTTPS_PROXY')
+            'http': detected.get('http'),
+            'https': detected.get('https')
         }
         return proxies
 
