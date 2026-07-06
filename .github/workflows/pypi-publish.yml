@@ -6,17 +6,18 @@ on:
       - published
   workflow_dispatch:
 
-permissions:
-  contents: read
-
-concurrency:
-  group: pypi-publish-${{ github.event.release.tag_name || github.ref }}
-  cancel-in-progress: false
-
 jobs:
-  build:
-    if: github.repository == 'wildfoundry/dataplicity-lomond'
+  noop:
+    if: github.event_name != 'release' && github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
+    steps:
+      - run: echo "Publish workflow is only active for release/workflow_dispatch events."
+  build:
+    if: github.repository == 'wildfoundry/dataplicity-lomond' && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pypi-publish-${{ github.event.release.tag_name || github.ref_name }}
+      cancel-in-progress: false
     permissions:
       contents: read
     steps:
@@ -67,7 +68,7 @@ PY
 
   publish:
     needs: build
-    if: github.repository == 'wildfoundry/dataplicity-lomond'
+    if: github.repository == 'wildfoundry/dataplicity-lomond' && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     environment:
       name: release
