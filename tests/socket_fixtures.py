@@ -150,6 +150,14 @@ class LocalWebSocketServer(object):
 
             if self.close_after_messages:
                 conn.sendall(Frame(Opcode.CLOSE, b'', mask=False).to_bytes())
+                # Give the client a short window to respond with CLOSE so the
+                # socket shutdown is less likely to surface as a connection
+                # reset race on faster runtimes.
+                try:
+                    conn.settimeout(0.5)
+                    _read_frame(conn)
+                except Exception:
+                    pass
                 return
 
             while True:
