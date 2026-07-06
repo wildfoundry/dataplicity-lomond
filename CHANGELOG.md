@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - GitHub Actions CI workflows for modern Python matrix and legacy Py2.7 lane
 - Expanded legacy GitHub Actions lane to validate Python 2.7, 3.5, 3.6, 3.7
   in CI without requiring local Docker for developers
+- Hardened PyPI Trusted Publisher workflow (release-triggered, version/tag
+  verification, environment-gated publish, OIDC attestations)
 
 ### Fixed
 

@@ -80,9 +80,16 @@ PyPI Trusted Publisher form values:
 Before first release, create the GitHub environment named `release` in the
 repository settings.
 
+Recommended hardening for the `release` environment:
+
+- require at least one reviewer approval before job execution
+- restrict deployment branch/tag patterns to trusted maintainers
+- keep admin bypass disabled for production releases
+
 Publishing behavior:
 
-- Push a version tag matching `v*` (for example `v0.3.3`) to trigger publish.
+- Publish workflow runs when a GitHub Release is published.
+- Release tag must start with `v` and match `lomond/_version.py`.
 - You can also run the workflow manually via `workflow_dispatch`.
 
 ## Example
