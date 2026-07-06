@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.3.4] - 2026-07-06
+
+### Added
+
+- TLS configuration controls on `WebSocket`: `ssl_verify`, `ssl_cafile`,
+  and `ssl_context`
+- Structured tracing via `WebSocket(trace=...)` for deeper runtime debugging
+- Tests for TLS wrapping behavior and tracing hooks
+- `Retry-After` support in `persist()` reconnect backoff behavior
+- Deterministic local socket fixtures for websocket, HTTP, and proxy tests
+- Fuzz/property-style parser and frame roundtrip tests
+- Failure-injection coverage for session selector crashes and reconnect policy
+- Monotonic clock support for websocket session timing stability
+- Dedicated troubleshooting guide for trace-first diagnostics
+- Expanded tox env list to include modern Python versions (3.7-3.13) while
+  preserving Python 2.7 support
+- GitHub Actions CI workflows for modern Python matrix and legacy Py2.7 lane
+- Expanded legacy GitHub Actions lane to validate Python 2.7, 3.5, 3.6, 3.7
+  in CI without requiring local Docker for developers
+- Hardened PyPI Trusted Publisher workflow (release-triggered, version/tag
+  verification, environment-gated publish, OIDC attestations)
+
+### Fixed
+
+- Corrected `Proxy-Authorization` request header formatting
+- Corrected typo in tox `PYTHONPATH` configuration
+- Corrected broken `test_session` mock assertion (`assert_called_with`)
+
 
 ## [0.3.2] - 2018-07-04
 

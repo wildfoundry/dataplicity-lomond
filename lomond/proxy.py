@@ -34,7 +34,7 @@ def build_request(host, port, proxy_username=None, proxy_password=None):
         ).encode('utf-8')
         b64_credentials = base64.standard_b64encode(credentials)
         headers.append(
-            (b'Proxy-Authorization:', b'Basic ' + b64_credentials)
+            (b'Proxy-Authorization', b'Basic ' + b64_credentials)
         )
 
     for header, value in headers:
@@ -46,7 +46,7 @@ def build_request(host, port, proxy_username=None, proxy_password=None):
 
 
 class ProxyParser(Parser):
-    """Parser for communication with a SOCKS proxy."""
+    """Parser for communication with an HTTP CONNECT proxy."""
 
     def parse(self):
         try:

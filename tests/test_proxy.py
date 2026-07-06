@@ -1,11 +1,20 @@
 from __future__ import unicode_literals
 
-import os
-import subprocess
 import pytest
 import time
 
 from lomond import WebSocket, proxy
+from socket_fixtures import get_free_port, LocalWebSocketServer, LocalConnectProxy
+
+
+@pytest.fixture(scope='module')
+def ws_url():
+    port = get_free_port()
+    server = LocalWebSocketServer(port)
+    server.start()
+    time.sleep(0.05)
+    yield 'ws://127.0.0.1:{}/echo'.format(port)
+    server.stop()
 
 
 def test_build_request():
@@ -17,7 +26,7 @@ def test_build_request():
         b'Host: ws://example.org\r\n'
         b'Proxy-Connection: keep-alive\r\n'
         b'Connection: keep-alive\r\n'
-        b'Proxy-Authorization:: Basic Zm9v\r\n\r\n'
+        b'Proxy-Authorization: Basic Zm9v\r\n\r\n'
     )
     assert request_bytes == expected
 
@@ -59,48 +68,41 @@ def test_parser_fail_nodata():
             break
 
 
-def test_proxy():
-    proc = subprocess.Popen(['proxy.py', '--port', '8888'])
+def test_proxy(ws_url):
+    proxy_port = get_free_port()
+    proxy_server = LocalConnectProxy(proxy_port)
+    proxy_server.start()
+    proxy_url = 'http://127.0.0.1:{}'.format(proxy_port)
     try:
-        time.sleep(1)
         ws = WebSocket(
-            'wss://echo.websocket.org',
-            proxies={'https': 'http://127.0.0.1:8888'}
+            ws_url,
+            proxies={'http': proxy_url}
         )
-        events = []
+        _events = []
         for event in ws:
-            events.append(event)
+            _events.append(event)
             if event.name == 'ready':
                 ws.close()
 
-        assert len(events) == 6
-        assert events[0].name == 'connecting'
-        assert events[1].name == 'connected'
-        assert events[1].proxy == 'http://127.0.0.1:8888'
-        assert events[2].name == 'ready'
-        assert events[3].name == 'poll'
-        assert events[4].name == 'closed'
-        assert events[5].name == 'disconnected'
+        assert len(_events) == 6
+        assert _events[0].name == 'connecting'
+        assert _events[1].name == 'connected'
+        assert _events[1].proxy == proxy_url
+        assert _events[2].name == 'ready'
+        assert _events[3].name == 'poll'
+        assert _events[4].name == 'closed'
+        assert _events[5].name == 'disconnected'
     finally:
-        os.kill(proc.pid, 3)
+        proxy_server.stop()
 
 
-def test_bad_proxy():
-    proc = subprocess.Popen(['proxy.py', '--port', '8888'])
-    try:
-        time.sleep(0.1)
-        ws = WebSocket(
-            'wss://echo.websocket.org',
-            proxies={'https': 'http://bad.test:8888'}
-        )
-        events = []
-        for event in ws:
-            events.append(event)
-            if event.name == 'ready':
-                ws.close()
-
-        assert len(events) == 2
-        assert events[0].name == 'connecting'
-        assert events[1].name == 'connect_fail'
-    finally:
-        os.kill(proc.pid, 3)
+def test_bad_proxy(ws_url):
+    bad_proxy_port = get_free_port()
+    ws = WebSocket(
+        ws_url,
+        proxies={'http': 'http://127.0.0.1:{}'.format(bad_proxy_port)}
+    )
+    _events = list(ws.connect())
+    assert len(_events) == 2
+    assert _events[0].name == 'connecting'
+    assert _events[1].name == 'connect_fail'

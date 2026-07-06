@@ -64,6 +64,9 @@ class FakeWebSocket(object):
 
     sent_close_time = -100
 
+    def _emit_trace(self, *args, **kwargs):
+        return
+
     def send_pong(self, data):
         raise errors.WebSocketClosed('sorry')
 
@@ -86,11 +89,24 @@ class FakeBrokenSelector(object):
     def __init__(self, socket):
         pass
 
+    def wait(self, max_bytes, timeout):
+        raise IOError('broke')
+
     def wait_readable(self, timeout):
         raise IOError('broke')
 
     def close(self):
         pass
+
+
+class FakeSSLContext(object):
+    def __init__(self, marker='context'):
+        self.marker = marker
+        self.calls = []
+
+    def wrap_socket(self, sock, server_hostname=None):
+        self.calls.append((sock, server_hostname))
+        return (self.marker, sock, server_hostname)
 
 
 def test_write_without_sock_fails(session):
@@ -223,7 +239,7 @@ def test_that_on_ping_responds_with_pong(session, mocker):
 
     session._send_pong(events.Ping(b'\x00'))
 
-    assert send_pong.called_with(b'\x00')
+    send_pong.assert_called_with(b'\x00')
 
 
 def test_error_on_close_socket(caplog, session):
@@ -322,3 +338,68 @@ def test_check_close_timeout(session):
     session._check_close_timeout(10, 19)
     with pytest.raises(_ForceDisconnect):
         session._check_close_timeout(10, 21)
+
+
+def test_wrap_socket_uses_default_context(monkeypatch, session):
+    fake_ctx = FakeSSLContext(marker='default')
+    called = {}
+
+    def create_default_context(**kwargs):
+        called.update(kwargs)
+        return fake_ctx
+
+    monkeypatch.setattr('lomond.session.HAS_SNI', True)
+    monkeypatch.setattr('ssl.create_default_context', create_default_context)
+    session.websocket.ssl_verify = True
+    session.websocket.ssl_cafile = '/tmp/ca.pem'
+    session.websocket.ssl_context = None
+
+    wrapped = session._wrap_socket(FakeSocket(), 'example.com')
+    assert wrapped[0] == 'default'
+    assert called == {'cafile': '/tmp/ca.pem'}
+    assert fake_ctx.calls[0][1] == 'example.com'
+
+
+def test_wrap_socket_uses_unverified_context(monkeypatch, session):
+    fake_ctx = FakeSSLContext(marker='unverified')
+    called = {'count': 0}
+
+    def create_unverified_context():
+        called['count'] += 1
+        return fake_ctx
+
+    monkeypatch.setattr('lomond.session.HAS_SNI', False)
+    monkeypatch.setattr('ssl._create_unverified_context', create_unverified_context)
+    session.websocket.ssl_verify = False
+    session.websocket.ssl_cafile = None
+    session.websocket.ssl_context = None
+
+    wrapped = session._wrap_socket(FakeSocket(), 'example.com')
+    assert wrapped[0] == 'unverified'
+    assert called['count'] == 1
+    assert fake_ctx.calls[0][1] is None
+
+
+def test_run_selector_failure_disconnects(session):
+    def connect_success():
+        return FakeSocket(), None
+
+    session._connect = connect_success
+    session._selector_cls = FakeBrokenSelector
+    _events = list(session.run())
+    assert _events[0].name == 'connecting'
+    assert _events[1].name == 'connected'
+    assert _events[2].name == 'disconnected'
+    assert not _events[2].graceful
+
+
+def test_session_time_uses_monotonic_clock(monkeypatch, session):
+    t = {'now': 100.0}
+
+    def fake_monotonic():
+        return t['now']
+
+    monkeypatch.setattr('lomond.session.monotonic_time', fake_monotonic)
+    session._on_ready()
+    t['now'] = 103.5
+    assert session.session_time == 3.5

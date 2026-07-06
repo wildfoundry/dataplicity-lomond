@@ -1,0 +1,54 @@
+name: CI Legacy Python
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - main
+
+jobs:
+  test-legacy:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: py27
+            docker_tag: "2.7-slim"
+            pytest_spec: "pytest<5"
+            pytest_mock_spec: "pytest-mock<2"
+            freezegun_spec: "freezegun<1"
+          - name: py35
+            docker_tag: "3.5-slim"
+            pytest_spec: "pytest<7"
+            pytest_mock_spec: "pytest-mock<3.7"
+            freezegun_spec: "freezegun<1.3"
+          - name: py36
+            docker_tag: "3.6-slim"
+            pytest_spec: "pytest<7"
+            pytest_mock_spec: "pytest-mock<3.10"
+            freezegun_spec: "freezegun<1.3"
+          - name: py37
+            docker_tag: "3.7-slim"
+            pytest_spec: "pytest<8"
+            pytest_mock_spec: "pytest-mock<3.11"
+            freezegun_spec: "freezegun<1.4"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run legacy compatibility suite in Docker
+      run: |
+        docker run --rm \
+          -v "$PWD":/work \
+          -w /work \
+          python:${{ matrix.docker_tag }} \
+          /bin/bash -lc "
+            pip install --upgrade pip &&
+            pip install -e . &&
+            pip install '${{ matrix.pytest_spec }}' '${{ matrix.pytest_mock_spec }}' '${{ matrix.freezegun_spec }}' &&
+            pytest -vv \
+              tests \
+              --ignore=tests/test_integration.py
+          "

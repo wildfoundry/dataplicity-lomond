@@ -27,6 +27,11 @@ from . import selectors
 HAS_SNI = hasattr(ssl, 'SSLContext') and getattr(ssl, 'HAS_SNI', False)
 log = logging.getLogger('lomond')
 
+try:
+    from monotonic import monotonic as monotonic_time
+except Exception:  # pragma: no cover
+    monotonic_time = getattr(time, 'monotonic', time.time)
+
 
 class _SocketFail(Exception):
     """Used internally to respond to socket fails."""
@@ -63,7 +68,7 @@ class WebsocketSession(object):
         return (
             0.0
             if self._start_time is None else
-            time.time() - self._start_time
+            monotonic_time() - self._start_time
         )
 
     def close(self):
@@ -89,6 +94,7 @@ class WebsocketSession(object):
                 raise errors.WebSocketClosing('data not sent')
             try:
                 self._sock.sendall(data)
+                self.websocket._emit_trace('socket_send', length=len(data))
             except socket.error as error:
                 log.debug('WebSocket send error; %s', error)
                 raise errors.TransportFail(
@@ -207,20 +213,87 @@ class WebsocketSession(object):
 
     def _wrap_socket(self, sock, host):
         """Wrap the socket with an SSL proxy."""
-        # sniff SNI support (added Python 2.7.9)
-        if HAS_SNI:
-            _protocol = getattr(
-                ssl,
-                'PROTOCOL_TLS',  # Supported since 2.7.13
-                ssl.PROTOCOL_SSLv23   # Supported since 2.7.9
-            )
-            ssl_context = ssl.SSLContext(_protocol)
-            ssl_sock = ssl_context.wrap_socket(
-                sock, server_hostname=host
-            )
+        verify = self.websocket.ssl_verify
+        cafile = self.websocket.ssl_cafile
+        ssl_context = self.websocket.ssl_context
+
+        def _select_ssl_protocol():
+            if hasattr(ssl, 'PROTOCOL_TLS_CLIENT'):
+                return ssl.PROTOCOL_TLS_CLIENT
+            if hasattr(ssl, 'PROTOCOL_TLSv1_2'):
+                return ssl.PROTOCOL_TLSv1_2
+            if hasattr(ssl, 'PROTOCOL_TLS'):
+                return ssl.PROTOCOL_TLS
+            return ssl.PROTOCOL_SSLv23
+
+        if ssl_context is None:
+            if verify and hasattr(ssl, 'create_default_context'):
+                kwargs = {}
+                if cafile is not None:
+                    kwargs['cafile'] = cafile
+                ssl_context = ssl.create_default_context(**kwargs)
+            elif not verify and hasattr(ssl, '_create_unverified_context'):
+                ssl_context = ssl._create_unverified_context()
+            elif hasattr(ssl, 'SSLContext'):
+                ssl_context = ssl.SSLContext(_select_ssl_protocol())
+                if verify:
+                    if hasattr(ssl_context, 'check_hostname'):
+                        ssl_context.check_hostname = True
+                    if hasattr(ssl_context, 'verify_mode'):
+                        ssl_context.verify_mode = ssl.CERT_REQUIRED
+                    if cafile is not None and hasattr(ssl_context, 'load_verify_locations'):
+                        ssl_context.load_verify_locations(cafile)
+                    elif hasattr(ssl_context, 'load_default_certs'):
+                        ssl_context.load_default_certs()
+                    elif hasattr(ssl_context, 'set_default_verify_paths'):
+                        ssl_context.set_default_verify_paths()
+                else:
+                    if hasattr(ssl_context, 'check_hostname'):
+                        ssl_context.check_hostname = False
+                    if hasattr(ssl_context, 'verify_mode'):
+                        ssl_context.verify_mode = ssl.CERT_NONE
+
+        if ssl_context is not None:
+            try:
+                ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
+            except Exception:
+                pass
+            try:
+                ssl_context.options |= ssl.OP_NO_TLSv1
+            except Exception:
+                pass
+            try:
+                ssl_context.options |= ssl.OP_NO_TLSv1_1
+            except Exception:
+                pass
+
+        if ssl_context is not None:
+            if HAS_SNI:
+                ssl_sock = ssl_context.wrap_socket(
+                    sock, server_hostname=host
+                )
+            else:
+                ssl_sock = ssl_context.wrap_socket(sock)
         else:
-            # Fallback for no SNI
-            ssl_sock = ssl.wrap_socket(sock)
+            ssl_version = _select_ssl_protocol()
+            cert_reqs = ssl.CERT_REQUIRED if verify else ssl.CERT_NONE
+            if cafile is None:
+                ssl_sock = ssl.wrap_socket(
+                    sock, cert_reqs=cert_reqs, ssl_version=ssl_version
+                )
+            else:
+                ssl_sock = ssl.wrap_socket(
+                    sock,
+                    cert_reqs=cert_reqs,
+                    ca_certs=cafile,
+                    ssl_version=ssl_version
+                )
+        self.websocket._emit_trace(
+            'tls_wrapped',
+            verify=verify,
+            has_context=ssl_context is not None,
+            cafile=bool(cafile)
+        )
         log.debug('wrapped socket %r', ssl_sock)
         return ssl_sock
 
@@ -296,6 +369,7 @@ class WebsocketSession(object):
             return bytearray(b'')
         try:
             _recv_count = self._sock.recv_into(self._buffer, count)
+            self.websocket._emit_trace('socket_recv', length=_recv_count)
             return memoryview(self._buffer)[:_recv_count]
         except socket.error as error:
             log.debug('error in _recv', exc_info=True)
@@ -330,7 +404,7 @@ class WebsocketSession(object):
         """Called when a ready event is received."""
         self._last_pong = 0.0
         self._next_ping = 0.0
-        self._start_time = time.time()
+        self._start_time = monotonic_time()
 
     def _on_event(self, event, auto_pong=True):
         """Handle logic in response to an event."""
