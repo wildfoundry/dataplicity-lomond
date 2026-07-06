@@ -4,20 +4,13 @@ on:
   release:
     types:
       - published
-  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  noop:
-    if: github.event_name != 'release' && github.event_name != 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Publish workflow is only active for release/workflow_dispatch events."
-
   build:
-    if: github.repository == 'wildfoundry/dataplicity-lomond' && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
+    if: github.repository == 'wildfoundry/dataplicity-lomond' && github.event_name == 'release' && github.event.action == 'published' && github.event.release.prerelease == false && github.event.release.draft == false
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -68,7 +61,7 @@ jobs:
 
   publish:
     needs: build
-    if: github.repository == 'wildfoundry/dataplicity-lomond' && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
+    if: github.repository == 'wildfoundry/dataplicity-lomond' && github.event_name == 'release' && github.event.action == 'published' && github.event.release.prerelease == false && github.event.release.draft == false
     runs-on: ubuntu-latest
     environment:
       name: release
