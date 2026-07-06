@@ -249,21 +249,26 @@ class WebsocketSession(object):
                         ssl_context.verify_mode = ssl.CERT_NONE
 
         if ssl_context is not None:
-            if hasattr(ssl, 'TLSVersion') and hasattr(ssl_context, 'minimum_version'):
+            try:
                 ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
-            else:
-                if hasattr(ssl, 'OP_NO_TLSv1') and hasattr(ssl_context, 'options'):
-                    ssl_context.options |= ssl.OP_NO_TLSv1
-                if hasattr(ssl, 'OP_NO_TLSv1_1') and hasattr(ssl_context, 'options'):
-                    ssl_context.options |= ssl.OP_NO_TLSv1_1
+            except Exception:
+                pass
+            try:
+                ssl_context.options |= ssl.OP_NO_TLSv1
+            except Exception:
+                pass
+            try:
+                ssl_context.options |= ssl.OP_NO_TLSv1_1
+            except Exception:
+                pass
 
         if ssl_context is not None:
             if HAS_SNI:
-                ssl_sock = ssl_context.wrap_socket(  # lgtm[py/insecure-default-protocol]
+                ssl_sock = ssl_context.wrap_socket(
                     sock, server_hostname=host
                 )
             else:
-                ssl_sock = ssl_context.wrap_socket(sock)  # lgtm[py/insecure-default-protocol]
+                ssl_sock = ssl_context.wrap_socket(sock)
         else:
             ssl_version = _select_ssl_protocol()
             cert_reqs = ssl.CERT_REQUIRED if verify else ssl.CERT_NONE
