@@ -1,5 +1,6 @@
 from lomond.persist import persist
 from lomond import events
+from lomond.response import Response
 
 
 class FakeEvent(object):
@@ -11,6 +12,16 @@ class FakeWebSocket(object):
     def connect(self, poll=None, ping_rate=None, ping_timeout=None):
         yield events.Connecting('ws://localhost:1234/')
         yield events.ConnectFail('test')
+
+
+def _build_rejected(retry_after):
+    payload = (
+        b'HTTP/1.1 429 Too Many Requests\r\n'
+        b'Retry-After: ' + retry_after + b'\r\n'
+        b'\r\n'
+    )
+    response = Response(payload)
+    return events.Rejected(response, 'rate limited')
 
 
 def persist_testing_helper(mocker, validate_function, websocket_connect=None):
@@ -63,3 +74,81 @@ def test_emulate_ready_event(mocker):
         assert isinstance(_events[2], events.BackOff)
 
     persist_testing_helper(mocker, validate_events, successful_connect)
+
+
+def test_persist_respects_retry_after_delta(mocker):
+    class FakeExitEvent(object):
+        waited = None
+
+        def wait(self, wait_for=None):
+            self.waited = wait_for
+            return True
+
+    def rejected_connect(poll=None, ping_rate=None, ping_timeout=None):
+        yield events.Connecting('ws://localhost:1234')
+        yield _build_rejected(b'12')
+
+    websocket = FakeWebSocket()
+    websocket.connect = rejected_connect
+    exit_event = FakeExitEvent()
+    yielded_events = list(persist(websocket, exit_event=exit_event))
+
+    assert isinstance(yielded_events[1], events.Rejected)
+    assert isinstance(yielded_events[2], events.BackOff)
+    assert yielded_events[2].delay == 12.0
+    assert exit_event.waited == 12.0
+
+
+def test_persist_ignores_invalid_retry_after(mocker):
+    class FakeExitEvent(object):
+        waited = None
+
+        def wait(self, wait_for=None):
+            self.waited = wait_for
+            return True
+
+    def rejected_connect(poll=None, ping_rate=None, ping_timeout=None):
+        yield events.Connecting('ws://localhost:1234')
+        yield _build_rejected(b'not-a-duration')
+
+    websocket = FakeWebSocket()
+    websocket.connect = rejected_connect
+    exit_event = FakeExitEvent()
+    yielded_events = list(persist(
+        websocket,
+        min_wait=5,
+        max_wait=5,
+        exit_event=exit_event
+    ))
+
+    assert isinstance(yielded_events[2], events.BackOff)
+    assert yielded_events[2].delay == 5.0
+    assert exit_event.waited == 5.0
+
+
+def test_persist_retry_after_can_be_disabled(mocker):
+    class FakeExitEvent(object):
+        waited = None
+
+        def wait(self, wait_for=None):
+            self.waited = wait_for
+            return True
+
+    def rejected_connect(poll=None, ping_rate=None, ping_timeout=None):
+        yield events.Connecting('ws://localhost:1234')
+        yield _build_rejected(b'60')
+
+    websocket = FakeWebSocket()
+    websocket.connect = rejected_connect
+    exit_event = FakeExitEvent()
+    yielded_events = list(persist(
+        websocket,
+        min_wait=3,
+        max_wait=3,
+        exit_event=exit_event,
+        respect_retry_after=False
+    ))
+
+    assert isinstance(yielded_events[2], events.BackOff)
+    assert yielded_events[2].delay == 3.0
+    assert exit_event.waited == 3.0

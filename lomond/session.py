@@ -89,6 +89,7 @@ class WebsocketSession(object):
                 raise errors.WebSocketClosing('data not sent')
             try:
                 self._sock.sendall(data)
+                self.websocket._emit_trace('socket_send', length=len(data))
             except socket.error as error:
                 log.debug('WebSocket send error; %s', error)
                 raise errors.TransportFail(
@@ -207,20 +208,56 @@ class WebsocketSession(object):
 
     def _wrap_socket(self, sock, host):
         """Wrap the socket with an SSL proxy."""
-        # sniff SNI support (added Python 2.7.9)
-        if HAS_SNI:
-            _protocol = getattr(
-                ssl,
-                'PROTOCOL_TLS',  # Supported since 2.7.13
-                ssl.PROTOCOL_SSLv23   # Supported since 2.7.9
-            )
-            ssl_context = ssl.SSLContext(_protocol)
-            ssl_sock = ssl_context.wrap_socket(
-                sock, server_hostname=host
-            )
+        verify = self.websocket.ssl_verify
+        cafile = self.websocket.ssl_cafile
+        ssl_context = self.websocket.ssl_context
+
+        if ssl_context is None:
+            if verify and hasattr(ssl, 'create_default_context'):
+                kwargs = {}
+                if cafile is not None:
+                    kwargs['cafile'] = cafile
+                ssl_context = ssl.create_default_context(**kwargs)
+            elif not verify and hasattr(ssl, '_create_unverified_context'):
+                ssl_context = ssl._create_unverified_context()
+            elif hasattr(ssl, 'SSLContext'):
+                _protocol = getattr(
+                    ssl,
+                    'PROTOCOL_TLS',
+                    ssl.PROTOCOL_SSLv23
+                )
+                ssl_context = ssl.SSLContext(_protocol)
+                if verify:
+                    if hasattr(ssl_context, 'verify_mode'):
+                        ssl_context.verify_mode = ssl.CERT_REQUIRED
+                    if cafile is not None and hasattr(ssl_context, 'load_verify_locations'):
+                        ssl_context.load_verify_locations(cafile)
+                    elif hasattr(ssl_context, 'set_default_verify_paths'):
+                        ssl_context.set_default_verify_paths()
+                else:
+                    if hasattr(ssl_context, 'check_hostname'):
+                        ssl_context.check_hostname = False
+                    if hasattr(ssl_context, 'verify_mode'):
+                        ssl_context.verify_mode = ssl.CERT_NONE
+
+        if ssl_context is not None:
+            if HAS_SNI:
+                ssl_sock = ssl_context.wrap_socket(
+                    sock, server_hostname=host
+                )
+            else:
+                ssl_sock = ssl_context.wrap_socket(sock)
         else:
-            # Fallback for no SNI
-            ssl_sock = ssl.wrap_socket(sock)
+            wrap_kwargs = {'cert_reqs': ssl.CERT_REQUIRED if verify else ssl.CERT_NONE}
+            if cafile is not None:
+                wrap_kwargs['ca_certs'] = cafile
+            ssl_sock = ssl.wrap_socket(sock, **wrap_kwargs)
+        self.websocket._emit_trace(
+            'tls_wrapped',
+            verify=verify,
+            has_context=ssl_context is not None,
+            cafile=bool(cafile)
+        )
         log.debug('wrapped socket %r', ssl_sock)
         return ssl_sock
 
@@ -296,6 +333,7 @@ class WebsocketSession(object):
             return bytearray(b'')
         try:
             _recv_count = self._sock.recv_into(self._buffer, count)
+            self.websocket._emit_trace('socket_recv', length=_recv_count)
             return memoryview(self._buffer)[:_recv_count]
         except socket.error as error:
             log.debug('error in _recv', exc_info=True)

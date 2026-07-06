@@ -39,6 +39,7 @@ contact support@dataplicity.com.
    status.rst
    response.rst
    websocket.rst
+   troubleshooting.rst
 
 
 Indices and tables

@@ -79,11 +79,27 @@ def test_init(websocket):
     assert len(b64decode(websocket.key)) == 16
     assert websocket.session is None
     assert isinstance(websocket.stream, WebsocketStream)
+    assert websocket.ssl_verify is True
+    assert websocket.ssl_cafile is None
+    assert websocket.ssl_context is None
 
 
 def test_init_with_query():
     ws = WebSocket('ws://example.com/resource?query')
     assert ws.resource == '/resource?query'
+
+
+def test_init_ssl_options():
+    context = object()
+    ws = WebSocket(
+        'wss://example.com/resource',
+        ssl_verify=False,
+        ssl_cafile='/tmp/cafile.pem',
+        ssl_context=context
+    )
+    assert ws.ssl_verify is False
+    assert ws.ssl_cafile == '/tmp/cafile.pem'
+    assert ws.ssl_context is context
 
 
 def test_repr(websocket):
@@ -151,6 +167,15 @@ def test_connect(websocket_with_fake_session):
     # Session object.
     assert isinstance(websocket.session, FakeSession)
     assert websocket.session.run_called
+
+
+def test_trace_callback():
+    records = []
+    ws = WebSocket('ws://example.com', trace=records.append)
+    ws._emit_trace('unit_test', foo='bar')
+    assert records == [
+        {'stage': 'unit_test', 'url': 'ws://example.com', 'foo': 'bar'}
+    ]
 
 
 def test_calling_close_sets_is_closing_flag(websocket_with_fake_session):

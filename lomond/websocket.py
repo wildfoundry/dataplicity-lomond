@@ -44,6 +44,12 @@ class WebSocket(object):
     :param str agent: A user agent string to be sent in the header. The
         default uses the value ``USER_AGENT`` defined in
         :mod:`lomond.constants`.
+    :param bool ssl_verify: Verify TLS certificates for ``wss://``
+        connections (default ``True``).
+    :param str ssl_cafile: Optional path to a CA bundle file used for
+        TLS verification.
+    :param ssl.SSLContext ssl_context: Optional custom SSL context.
+    :param trace: Optional callable for structured debug trace records.
 
     """
 
@@ -63,12 +69,20 @@ class WebSocket(object):
                  proxies=None,
                  protocols=None,
                  agent=None,
-                 compress=False):
+                 compress=False,
+                 ssl_verify=True,
+                 ssl_cafile=None,
+                 ssl_context=None,
+                 trace=None):
         self.url = url
         self.proxies = self._detect_proxies() if proxies is None else proxies
         self.protocols = protocols or []
         self.agent = agent or constants.USER_AGENT
         self.compress = compress
+        self.ssl_verify = ssl_verify
+        self.ssl_cafile = ssl_cafile
+        self.ssl_context = ssl_context
+        self.trace = trace
 
         self._headers = []
         _url = urlparse(url)
@@ -97,6 +111,17 @@ class WebSocket(object):
 
     def __repr__(self):
         return "WebSocket('{}')".format(self.url)
+
+    def _emit_trace(self, stage, **fields):
+        """Emit an optional trace record for in-depth debugging."""
+        if not self.trace:
+            return
+        record = {'stage': stage, 'url': self.url}
+        record.update(fields)
+        if callable(self.trace):
+            self.trace(record)
+        else:
+            log.debug('TRACE %r', record)
 
     @property
     def is_secure(self):
@@ -207,6 +232,14 @@ class WebSocket(object):
         """
         self.reset()
         self.state.session = session = session_class(self)
+        self._emit_trace(
+            'connect_start',
+            poll=poll,
+            ping_rate=ping_rate,
+            ping_timeout=ping_timeout,
+            auto_pong=auto_pong,
+            close_timeout=close_timeout
+        )
         run_generator = session.run(
             poll=poll,
             ping_rate=ping_rate,
@@ -248,6 +281,7 @@ class WebSocket(object):
                 self._send_close(code, reason)
                 self.state.closing = True
                 self.state.sent_close_time = self.session.session_time
+                self._emit_trace('close_requested', code=code, reason=reason)
 
     def _on_close(self, message):
         """Close logic generator."""
@@ -278,6 +312,7 @@ class WebSocket(object):
             self.state.session.close()
         self.state.closing = False
         self.state.closed = True
+        self._emit_trace('disconnected')
 
     def feed(self, data):
         """Feed with data from the socket, and yield any events.
@@ -298,21 +333,40 @@ class WebSocket(object):
                         protocol, extensions = self.on_response(response)
                     except errors.HandshakeError as error:
                         self.on_disconnect()
+                        self._emit_trace(
+                            'handshake_rejected',
+                            reason=six.text_type(error),
+                            status_code=response.status_code
+                        )
                         yield events.Rejected(response, six.text_type(error))
                         break
                     else:
+                        self._emit_trace(
+                            'handshake_ready',
+                            protocol=protocol,
+                            extensions=sorted(extensions)
+                        )
                         yield events.Ready(response, protocol, extensions)
                 else:
                     if message.is_close:
                         for event in self._on_close(message):
+                            self._emit_trace(
+                                'message_close',
+                                code=event.code,
+                                reason=event.reason
+                            )
                             yield event
                     elif message.is_ping:
+                        self._emit_trace('message_ping', length=len(message.data))
                         yield events.Ping(message.data)
                     elif message.is_pong:
+                        self._emit_trace('message_pong', length=len(message.data))
                         yield events.Pong(message.data)
                     elif message.is_binary:
+                        self._emit_trace('message_binary', length=len(message.data))
                         yield events.Binary(message.data)
                     elif message.is_text:
+                        self._emit_trace('message_text', length=len(message.text))
                         yield events.Text(message.text)
                 if self.is_closed:
                     break
@@ -440,6 +494,7 @@ class WebSocket(object):
             raise TypeError('data argument must be bytes')
         if len(data) > 125:
             raise ValueError('ping data should be <= 125 bytes')
+        self._emit_trace('send_ping', length=len(data))
         self.session.send(Opcode.PING, data)
 
     def send_pong(self, data):
@@ -459,6 +514,7 @@ class WebSocket(object):
             raise TypeError('data argument must be bytes')
         if len(data) > 125:
             raise ValueError('pong data should be <= 125 bytes')
+        self._emit_trace('send_pong', length=len(data))
         self.session.send(Opcode.PONG, data)
 
     def send_binary(self, data, compress=True):
@@ -472,6 +528,7 @@ class WebSocket(object):
         """
         if not isinstance(data, bytes):
             raise TypeError('data argument must be bytes')
+        self._emit_trace('send_binary', length=len(data), compressed=bool(compress))
         if compress and self.state.compression:
             _payload = self.state.compression.compress(data)
             self.session.send_compressed(Opcode.BINARY, _payload)
@@ -516,6 +573,7 @@ class WebSocket(object):
         if not isinstance(text, six.text_type):
             raise TypeError('text argument must not be bytes')
         payload = text.encode('utf-8')
+        self._emit_trace('send_text', length=len(payload), compressed=bool(compress))
         if compress and self.state.compression:
             _payload = self.state.compression.compress(payload)
             self.session.send_compressed(Opcode.TEXT, _payload)

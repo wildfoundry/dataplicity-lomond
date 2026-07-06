@@ -1,70 +1,64 @@
 import lomond
+import pytest
+
 from lomond import events
 from lomond.session import WebsocketSession
 from lomond import selectors
+from socket_fixtures import get_free_port, LocalWebSocketServer, LocalHTTPServer
 
 
-def test_echo():
-    """Test against public echo server."""
-    # TODO: host our own echo server
-    ws = lomond.WebSocket('wss://echo.websocket.org')
-    events = []
+@pytest.fixture(scope='module')
+def local_ws_url():
+    port = get_free_port()
+    server = LocalWebSocketServer(
+        port,
+        messages=[('text', u'foo'), ('binary', b'bar')],
+        close_after_messages=True
+    )
+    server.start()
+    yield 'ws://127.0.0.1:{}/echo'.format(port)
+    server.stop()
+
+
+@pytest.fixture(scope='module')
+def local_idle_ws_url():
+    port = get_free_port()
+    server = LocalWebSocketServer(port, messages=[], close_after_messages=False)
+    server.start()
+    yield 'ws://127.0.0.1:{}/echo'.format(port)
+    server.stop()
+
+
+@pytest.fixture(scope='module')
+def local_http_url():
+    port = get_free_port()
+    server = LocalHTTPServer(port)
+    server.start()
+    yield 'http://127.0.0.1:{}/'.format(port)
+    server.stop()
+
+
+def test_echo(local_ws_url):
+    ws = lomond.WebSocket(local_ws_url)
+    _events = []
     for event in ws.connect(poll=60, ping_rate=0, auto_pong=False):
-        events.append(event)
-        if event.name == 'ready':
-            ws.send_text(u'foo')
-            ws.send_binary(b'bar')
-            ws.close()
-
-    assert len(events) == 8
-    assert events[0].name == 'connecting'
-    assert events[1].name == 'connected'
-    assert events[2].name == 'ready'
-    assert events[3].name == 'poll'
-    assert events[4].name == 'text'
-    assert events[4].text == u'foo'
-    assert events[5].name == 'binary'
-    assert events[5].data == b'bar'
-    assert events[6].name == 'closed'
-    assert events[7].name == 'disconnected'
-    assert events[7].graceful
+        _events.append(event)
+    assert len(_events) == 8
+    assert _events[0].name == 'connecting'
+    assert _events[1].name == 'connected'
+    assert _events[2].name == 'ready'
+    assert _events[3].name == 'poll'
+    assert _events[4].name == 'text'
+    assert _events[4].text == u'foo'
+    assert _events[5].name == 'binary'
+    assert _events[5].data == b'bar'
+    assert _events[6].name == 'closing'
+    assert _events[7].name == 'disconnected'
+    assert _events[7].graceful
 
 
-def test_echo_no_sni():
-    """Test against public echo server."""
-    try:
-        from lomond import session
-        has_sni = session.HAS_SNI
-        session.HAS_SNI = False
-        ws = lomond.WebSocket('wss://echo.websocket.org')
-        events = []
-        for event in ws.connect(poll=60, ping_rate=0, auto_pong=False):
-            events.append(event)
-            if event.name == 'ready':
-                ws.send_text(u'foo')
-                ws.send_binary(b'bar')
-                ws.close()
-
-        assert len(events) == 8
-        assert events[0].name == 'connecting'
-        assert events[1].name == 'connected'
-        assert events[2].name == 'ready'
-        assert events[3].name == 'poll'
-        assert events[4].name == 'text'
-        assert events[4].text == u'foo'
-        assert events[5].name == 'binary'
-        assert events[5].data == b'bar'
-        assert events[6].name == 'closed'
-        assert events[7].name == 'disconnected'
-        assert events[7].graceful
-    finally:
-        session.HAS_SNI = has_sni
-
-
-def test_echo_poll():
-    """Test against public echo server."""
-    # TODO: host our own echo server
-    ws = lomond.WebSocket('wss://echo.websocket.org')
+def test_echo_poll(local_idle_ws_url):
+    ws = lomond.WebSocket(local_idle_ws_url)
     _events = []
     polls = 0
     for event in ws.connect(poll=1.0, ping_rate=1.0, auto_pong=True):
@@ -74,37 +68,36 @@ def test_echo_poll():
             if polls == 1:
                 ws.session._on_event(events.Ping(b'foo'))
             elif polls == 2:
-                # Covers some lesser used code paths
                 ws.state.closed = True
                 ws.session._sock.close()
+    assert polls >= 2
 
 
-def test_not_ws():
-    """Test against a URL that doesn't serve websockets."""
-    ws = lomond.WebSocket('wss://www.google.com')
-    events = list(ws.connect())
-    assert len(events) == 4
-    assert events[0].name == 'connecting'
-    assert events[1].name == 'connected'
-    assert events[2].name == 'rejected'
-    assert events[3].name == 'disconnected'
-    assert events[3].graceful
+def test_not_ws(local_http_url):
+    ws = lomond.WebSocket(local_http_url.replace('http://', 'ws://'))
+    _events = list(ws.connect())
+    assert len(_events) == 4
+    assert _events[0].name == 'connecting'
+    assert _events[1].name == 'connected'
+    assert _events[2].name == 'rejected'
+    assert _events[3].name == 'disconnected'
+    assert _events[3].graceful
 
 
 class SelectSession(WebsocketSession):
     _selector_cls = selectors.SelectSelector
 
 
-def test_not_ws_select():
+def test_not_ws_select(local_http_url):
     """Test against a URL that doesn't serve websockets."""
-    ws = lomond.WebSocket('wss://www.google.com')
-    events = list(ws.connect(session_class=SelectSession))
-    assert len(events) == 4
-    assert events[0].name == 'connecting'
-    assert events[1].name == 'connected'
-    assert events[2].name == 'rejected'
-    assert events[3].name == 'disconnected'
-    assert events[3].graceful
+    ws = lomond.WebSocket(local_http_url.replace('http://', 'ws://'))
+    _events = list(ws.connect(session_class=SelectSession))
+    assert len(_events) == 4
+    assert _events[0].name == 'connecting'
+    assert _events[1].name == 'connected'
+    assert _events[2].name == 'rejected'
+    assert _events[3].name == 'disconnected'
+    assert _events[3].graceful
 
 
 def test_no_url_wss():
