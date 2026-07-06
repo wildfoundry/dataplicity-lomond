@@ -5,7 +5,8 @@ Tranquil WebSockets for Python.
 [![PyPI version](https://badge.fury.io/py/lomond.svg)](https://pypi.org/project/lomond/)
 [![PyPI](https://img.shields.io/pypi/pyversions/lomond.svg)](https://pypi.org/project/lomond/)
 [![Coverage Status](https://coveralls.io/repos/github/wildfoundry/dataplicity-lomond/badge.svg?branch=master)](https://coveralls.io/github/wildfoundry/dataplicity-lomond?branch=master)
-[![CircleCI](https://circleci.com/gh/wildfoundry/dataplicity-lomond/tree/master.svg?style=svg)](https://circleci.com/gh/wildfoundry/dataplicity-lomond/tree/master)
+[![CI (modern)](https://github.com/wildfoundry/dataplicity-lomond/actions/workflows/ci-modern.yml/badge.svg?branch=master)](https://github.com/wildfoundry/dataplicity-lomond/actions/workflows/ci-modern.yml)
+[![CI (legacy)](https://github.com/wildfoundry/dataplicity-lomond/actions/workflows/ci-legacy-py27.yml/badge.svg?branch=master)](https://github.com/wildfoundry/dataplicity-lomond/actions/workflows/ci-legacy-py27.yml)
 
 Lomond is a Websocket client which turns a websocket connection in to
 an orderly stream of _events_. No threads or callbacks necessary.
