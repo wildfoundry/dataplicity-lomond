@@ -157,6 +157,8 @@ class LocalWebSocketServer(object):
                     conn.settimeout(0.5)
                     _read_frame(conn)
                 except Exception:
+                    # The test fixture should not fail teardown if the client
+                    # races socket close and no CLOSE frame is readable.
                     pass
                 return
 
