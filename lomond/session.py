@@ -212,17 +212,14 @@ class WebsocketSession(object):
         cafile = self.websocket.ssl_cafile
         ssl_context = self.websocket.ssl_context
 
-        def _harden_context(context):
-            """Prefer TLS 1.2+ where runtime supports minimum_version."""
-            if context is None:
-                return
-            if hasattr(ssl, 'TLSVersion') and hasattr(context, 'minimum_version'):
-                context.minimum_version = ssl.TLSVersion.TLSv1_2
-            else:
-                if hasattr(ssl, 'OP_NO_TLSv1') and hasattr(context, 'options'):
-                    context.options |= ssl.OP_NO_TLSv1
-                if hasattr(ssl, 'OP_NO_TLSv1_1') and hasattr(context, 'options'):
-                    context.options |= ssl.OP_NO_TLSv1_1
+        def _select_ssl_protocol():
+            if hasattr(ssl, 'PROTOCOL_TLS_CLIENT'):
+                return ssl.PROTOCOL_TLS_CLIENT
+            if hasattr(ssl, 'PROTOCOL_TLSv1_2'):
+                return ssl.PROTOCOL_TLSv1_2
+            if hasattr(ssl, 'PROTOCOL_TLS'):
+                return ssl.PROTOCOL_TLS
+            return ssl.PROTOCOL_SSLv23
 
         if ssl_context is None:
             if verify and hasattr(ssl, 'create_default_context'):
@@ -233,17 +230,16 @@ class WebsocketSession(object):
             elif not verify and hasattr(ssl, '_create_unverified_context'):
                 ssl_context = ssl._create_unverified_context()
             elif hasattr(ssl, 'SSLContext'):
-                _protocol = getattr(
-                    ssl,
-                    'PROTOCOL_TLS',
-                    ssl.PROTOCOL_SSLv23
-                )
-                ssl_context = ssl.SSLContext(_protocol)
+                ssl_context = ssl.SSLContext(_select_ssl_protocol())
                 if verify:
+                    if hasattr(ssl_context, 'check_hostname'):
+                        ssl_context.check_hostname = True
                     if hasattr(ssl_context, 'verify_mode'):
                         ssl_context.verify_mode = ssl.CERT_REQUIRED
                     if cafile is not None and hasattr(ssl_context, 'load_verify_locations'):
                         ssl_context.load_verify_locations(cafile)
+                    elif hasattr(ssl_context, 'load_default_certs'):
+                        ssl_context.load_default_certs()
                     elif hasattr(ssl_context, 'set_default_verify_paths'):
                         ssl_context.set_default_verify_paths()
                 else:
@@ -251,7 +247,15 @@ class WebsocketSession(object):
                         ssl_context.check_hostname = False
                     if hasattr(ssl_context, 'verify_mode'):
                         ssl_context.verify_mode = ssl.CERT_NONE
-        _harden_context(ssl_context)
+
+        if ssl_context is not None:
+            if hasattr(ssl, 'TLSVersion') and hasattr(ssl_context, 'minimum_version'):
+                ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
+            else:
+                if hasattr(ssl, 'OP_NO_TLSv1') and hasattr(ssl_context, 'options'):
+                    ssl_context.options |= ssl.OP_NO_TLSv1
+                if hasattr(ssl, 'OP_NO_TLSv1_1') and hasattr(ssl_context, 'options'):
+                    ssl_context.options |= ssl.OP_NO_TLSv1_1
 
         if ssl_context is not None:
             if HAS_SNI:
@@ -261,17 +265,19 @@ class WebsocketSession(object):
             else:
                 ssl_sock = ssl_context.wrap_socket(sock)
         else:
-            wrap_kwargs = {
-                'cert_reqs': ssl.CERT_REQUIRED if verify else ssl.CERT_NONE,
-                'ssl_version': getattr(
-                    ssl,
-                    'PROTOCOL_TLSv1_2',
-                    getattr(ssl, 'PROTOCOL_TLS', ssl.PROTOCOL_SSLv23)
+            ssl_version = _select_ssl_protocol()
+            cert_reqs = ssl.CERT_REQUIRED if verify else ssl.CERT_NONE
+            if cafile is None:
+                ssl_sock = ssl.wrap_socket(
+                    sock, cert_reqs=cert_reqs, ssl_version=ssl_version
                 )
-            }
-            if cafile is not None:
-                wrap_kwargs['ca_certs'] = cafile
-            ssl_sock = ssl.wrap_socket(sock, **wrap_kwargs)
+            else:
+                ssl_sock = ssl.wrap_socket(
+                    sock,
+                    cert_reqs=cert_reqs,
+                    ca_certs=cafile,
+                    ssl_version=ssl_version
+                )
         self.websocket._emit_trace(
             'tls_wrapped',
             verify=verify,
