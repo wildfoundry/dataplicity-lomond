@@ -259,11 +259,11 @@ class WebsocketSession(object):
 
         if ssl_context is not None:
             if HAS_SNI:
-                ssl_sock = ssl_context.wrap_socket(
+                ssl_sock = ssl_context.wrap_socket(  # lgtm[py/insecure-default-protocol]
                     sock, server_hostname=host
                 )
             else:
-                ssl_sock = ssl_context.wrap_socket(sock)
+                ssl_sock = ssl_context.wrap_socket(sock)  # lgtm[py/insecure-default-protocol]
         else:
             ssl_version = _select_ssl_protocol()
             cert_reqs = ssl.CERT_REQUIRED if verify else ssl.CERT_NONE
