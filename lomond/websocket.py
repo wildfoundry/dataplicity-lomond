@@ -3,7 +3,6 @@ Abstract websocket functionality.
 
 """
 
-from __future__ import print_function
 from __future__ import unicode_literals
 
 from base64 import b64encode
@@ -103,7 +102,7 @@ class WebSocket(object):
 
     @classmethod
     def _detect_proxies(cls):
-        """Get proxy information form environment."""
+        """Get proxy information from environment."""
         detected = getproxies()
         proxies = {
             'http': detected.get('http'),

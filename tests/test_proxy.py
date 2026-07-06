@@ -32,13 +32,13 @@ def test_build_request():
 
 
 def test_parser():
-    response = [
+    response_lines = [
         b'HTTP/1.1 200 Connection established\r\n',
         b'foo: bar\r\n',
         b'\r\n',
     ]
     proxy_parser = proxy.ProxyParser()
-    for line in response:
+    for line in response_lines:
         for response in proxy_parser.feed(line):
             break
 
@@ -49,14 +49,14 @@ def test_parser():
 
 def test_parser_fail():
     """Test non-success response from proxy."""
-    response = [
+    response_lines = [
         b'HTTP/1.1 407 auth required\r\n',
         b'foo: bar\r\n\r\n'
     ]
     proxy_parser = proxy.ProxyParser()
     with pytest.raises(proxy.ProxyFail):
-        for line in response:
-            for response in proxy_parser.feed(line):
+        for line in response_lines:
+            for _parsed_response in proxy_parser.feed(line):
                 break
 
 

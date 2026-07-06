@@ -22,8 +22,8 @@ class FakeSession(object):
     def run(self, *args, **kwargs):
         self.run_called = True
 
-    def send(self, opcode, bytes):
-        self.socket_buffer.append((opcode, bytes))
+    def send(self, opcode, payload):
+        self.socket_buffer.append((opcode, payload))
 
     @property
     def session_time(self):
