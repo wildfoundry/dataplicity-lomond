@@ -39,16 +39,16 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run legacy compatibility suite in Docker
-      run: |
-        docker run --rm \
-          -v "$PWD":/work \
-          -w /work \
-          python:${{ matrix.docker_tag }} \
-          /bin/bash -lc "
-            pip install --upgrade pip &&
-            pip install -e . &&
-            pip install '${{ matrix.pytest_spec }}' '${{ matrix.pytest_mock_spec }}' '${{ matrix.freezegun_spec }}' &&
-            pytest -vv \
-              tests \
-              --ignore=tests/test_integration.py
-          "
+        run: |
+          docker run --rm \
+            -v "$PWD":/work \
+            -w /work \
+            python:${{ matrix.docker_tag }} \
+            /bin/bash -lc "
+              pip install --upgrade pip &&
+              pip install -e . &&
+              pip install '${{ matrix.pytest_spec }}' '${{ matrix.pytest_mock_spec }}' '${{ matrix.freezegun_spec }}' &&
+              pytest -vv \
+                tests \
+                --ignore=tests/test_integration.py
+            "

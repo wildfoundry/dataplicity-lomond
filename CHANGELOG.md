@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Corrected `Proxy-Authorization` request header formatting
 - Corrected typo in tox `PYTHONPATH` configuration
 - Corrected broken `test_session` mock assertion (`assert_called_with`)
+- Proxy auto-detection now respects lowercase env vars (`http_proxy`, `https_proxy`)
 
 
 ## [0.3.2] - 2018-07-04
