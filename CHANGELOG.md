@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Deterministic local socket fixtures for websocket, HTTP, and proxy tests
 - Fuzz/property-style parser and frame roundtrip tests
 - Failure-injection coverage for session selector crashes and reconnect policy
+- Monotonic clock support for websocket session timing stability
 - Dedicated troubleshooting guide for trace-first diagnostics
 - Expanded tox env list to include modern Python versions (3.7-3.13) while
   preserving Python 2.7 support

@@ -27,6 +27,11 @@ from . import selectors
 HAS_SNI = hasattr(ssl, 'SSLContext') and getattr(ssl, 'HAS_SNI', False)
 log = logging.getLogger('lomond')
 
+try:
+    from monotonic import monotonic as monotonic_time
+except Exception:  # pragma: no cover
+    monotonic_time = getattr(time, 'monotonic', time.time)
+
 
 class _SocketFail(Exception):
     """Used internally to respond to socket fails."""
@@ -63,7 +68,7 @@ class WebsocketSession(object):
         return (
             0.0
             if self._start_time is None else
-            time.time() - self._start_time
+            monotonic_time() - self._start_time
         )
 
     def close(self):
@@ -399,7 +404,7 @@ class WebsocketSession(object):
         """Called when a ready event is received."""
         self._last_pong = 0.0
         self._next_ping = 0.0
-        self._start_time = time.time()
+        self._start_time = monotonic_time()
 
     def _on_event(self, event, auto_pong=True):
         """Handle logic in response to an event."""

@@ -391,3 +391,15 @@ def test_run_selector_failure_disconnects(session):
     assert _events[1].name == 'connected'
     assert _events[2].name == 'disconnected'
     assert not _events[2].graceful
+
+
+def test_session_time_uses_monotonic_clock(monkeypatch, session):
+    t = {'now': 100.0}
+
+    def fake_monotonic():
+        return t['now']
+
+    monkeypatch.setattr('lomond.session.monotonic_time', fake_monotonic)
+    session._on_ready()
+    t['now'] = 103.5
+    assert session.session_time == 3.5
