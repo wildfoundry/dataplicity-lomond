@@ -7,6 +7,9 @@ on:
       - master
       - main
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: py${{ matrix.python-version }}
