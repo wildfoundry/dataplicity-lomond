@@ -12,8 +12,15 @@ and ease of use.
 Sponsor
 =======
 
-Lomond was sponsored by `Dataplicity <https://www.dataplicity.com/>`_ --
-Control your Raspberry Pi from anywhere!
+Lomond was sponsored by `Dataplicity <https://www.dataplicity.com/>`_,
+which helps teams connect, monitor and manage Linux devices, from prototypes
+to fleets in the field. Dataplicity provides remote access, logs, diagnostics
+and fleet operations, with optional branded customer applications.
+
+Raspberry Pi is one supported starting point alongside Ubuntu and Debian
+devices. See the `Dataplicity getting-started guide
+<https://docs.dataplicity.com/getting-started/getting-started-with-dataplicity>`_
+for current platform guidance.
 
 Support
 =======
