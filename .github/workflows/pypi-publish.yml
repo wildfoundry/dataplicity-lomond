@@ -40,7 +40,9 @@ jobs:
         run: |
           TAG_NAME="${{ github.event.release.tag_name || github.ref_name }}"
           TAG_VERSION="${TAG_NAME#v}"
-          PACKAGE_VERSION="$(python -c 'from lomond._version import __version__; print(__version__)')"
+          # Read _version.py directly — importing lomond pulls in runtime deps
+          # (six) that are not installed until the build step.
+          PACKAGE_VERSION="$(python -c 'exec(open("lomond/_version.py").read()); print(__version__)')"
           if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
             echo "Tag version '$TAG_VERSION' does not match package version '$PACKAGE_VERSION'"
             exit 1
