@@ -256,16 +256,16 @@ class WebsocketSession(object):
         if ssl_context is not None:
             try:
                 ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
-            except Exception:
-                pass
+            except Exception as error:
+                log.debug('unable to set minimum TLS version; %s', error)
             try:
                 ssl_context.options |= ssl.OP_NO_TLSv1
-            except Exception:
-                pass
+            except Exception as error:
+                log.debug('unable to disable TLSv1; %s', error)
             try:
                 ssl_context.options |= ssl.OP_NO_TLSv1_1
-            except Exception:
-                pass
+            except Exception as error:
+                log.debug('unable to disable TLSv1.1; %s', error)
 
         if ssl_context is not None:
             if HAS_SNI:
@@ -310,7 +310,7 @@ class WebsocketSession(object):
                 self._sock.close()
         except socket.error:
             # Socket is already closed, just a no-op
-            pass
+            return
         except Exception as error:
             # Paranoia
             log.warning('error closing socket; %s', error)
@@ -340,7 +340,7 @@ class WebsocketSession(object):
             try:
                 self.websocket.send_ping()
             except errors.WebSocketError:
-                pass  # If the websocket has gone away
+                return  # If the websocket has gone away
 
     def _check_ping_timeout(self, ping_timeout, session_time):
         """Check if the server is not responding to pings."""
@@ -394,7 +394,7 @@ class WebsocketSession(object):
             self.websocket.send_pong(event.data)
         except errors.WebSocketError:
             # In case the websocket has gone away
-            pass
+            return
 
     def _on_pong(self, event):
         """Record last pong time."""
@@ -456,27 +456,23 @@ class WebsocketSession(object):
         selector = self._selector_cls(sock)
         log.debug('%r created', selector)
 
-        def _regular():
-            """Run regular events if websocket is ready."""
-            if self._ready:
-                return self._regular(
-                    poll, ping_rate, ping_timeout, close_timeout
-                )
-            return ()
-
         try:
             while not websocket.is_closed:
                 readable, max_bytes = selector.wait(self.BUFFER_SIZE, poll)
-                for event in _regular():
-                    yield event
+                if self._ready:
+                    for event in self._regular(
+                            poll, ping_rate, ping_timeout, close_timeout):
+                        yield event
                 if readable:
                     data = self._recv(max_bytes)
                     if data:
                         for event in self.websocket.feed(data):
                             self._on_event(event, auto_pong)
                             yield event
-                            for event in _regular():
-                                yield event
+                            if self._ready:
+                                for regular_event in self._regular(
+                                        poll, ping_rate, ping_timeout, close_timeout):
+                                    yield regular_event
                     else:
                         if websocket.is_active:
                             self._socket_fail('connection lost')
@@ -501,3 +497,4 @@ class WebsocketSession(object):
             yield events.Disconnected(graceful=True)
         finally:
             selector.close()
+        return

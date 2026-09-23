@@ -1,5 +1,4 @@
-import lomond.message
-from lomond.message import Message, Text, Close
+from lomond.message import Message, Text, Close, Ping, Pong, Binary
 from lomond.opcode import Opcode
 from lomond.frame import Frame
 from lomond.errors import ProtocolError, CriticalProtocolError
@@ -15,11 +14,11 @@ def test_constructor():
 
 
 @pytest.mark.parametrize("opcode, message_class, attrname", [
-    (Opcode.CLOSE, lomond.message.Close, 'is_close'),
-    (Opcode.PING, lomond.message.Ping, 'is_ping'),
-    (Opcode.PONG, lomond.message.Pong, 'is_pong'),
-    (Opcode.BINARY, lomond.message.Binary, 'is_binary'),
-    (Opcode.TEXT, lomond.message.Text, 'is_text'),
+    (Opcode.CLOSE, Close, 'is_close'),
+    (Opcode.PING, Ping, 'is_ping'),
+    (Opcode.PONG, Pong, 'is_pong'),
+    (Opcode.BINARY, Binary, 'is_binary'),
+    (Opcode.TEXT, Text, 'is_text'),
 ])
 def test_build_control_messages(opcode, message_class, attrname):
     frames = [
@@ -59,18 +58,18 @@ def test_repr_for_text():
 
 
 def test_repr_for_close():
-    msg = lomond.message.Close(1, b'1234')
+    msg = Close(1, b'1234')
     assert repr(msg) == "<message CLOSE 1, %s>" % repr(b'1234')
 
 
 def test_close_payload_has_to_be_longer_than_1_byte():
     with pytest.raises(ProtocolError) as e:
-        lomond.message.Close.from_payload(b'1')
+        Close.from_payload(b'1')
     assert str(e.value) == "invalid close frame payload"
 
 
 def test_close_long_payload():
-    msg = lomond.message.Close.from_payload(b'\x00\x01\x41')
+    msg = Close.from_payload(b'\x00\x01\x41')
     assert msg.code == 1
     assert msg.reason == 'A'
 

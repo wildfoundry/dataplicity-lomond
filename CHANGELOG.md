@@ -44,7 +44,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
-- Use bytearray internaly to reduce memcpys
+- Use bytearray internally to reduce memcpys
 
 ## [0.3.1] - 2018-06-27
 
@@ -142,7 +142,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 - Fixed disconnect when recv buffer is full
 
-## [0.1.9] - 2017-06-06
+## [0.1.9] - 2017-06-06
 
 ### Fixed
 - Change struct to use byte strings, to fix a std lib issue

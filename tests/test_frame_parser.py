@@ -5,7 +5,6 @@ import pytest
 from lomond.frame import Frame
 from lomond.frame_parser import ClientFrameParser, FrameParser
 from lomond.opcode import Opcode
-from lomond.parser import ParseError
 from lomond.errors import PayloadTooLarge, ProtocolError
 
 

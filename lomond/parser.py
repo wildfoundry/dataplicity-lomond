@@ -44,7 +44,7 @@ class _ReadUtf8(_ReadBytes):
     __slots__ = ['utf8_validator']
 
     def __init__(self, count, utf8_validator):
-        self.remaining = count
+        super(_ReadUtf8, self).__init__(count)
         self.utf8_validator = utf8_validator
 
     def validate(self, data):

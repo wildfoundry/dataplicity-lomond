@@ -11,6 +11,11 @@ from lomond.frame import Frame
 from lomond.opcode import Opcode
 
 
+def _ignore_cleanup_error():
+    """Best-effort fixture teardown should never fail tests."""
+    return
+
+
 def get_free_port():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.bind(('127.0.0.1', 0))
@@ -119,7 +124,7 @@ class LocalWebSocketServer(object):
             try:
                 self._server.close()
             except Exception:
-                pass
+                _ignore_cleanup_error()
         if self._thread is not None:
             self._thread.join(1.0)
 
@@ -159,7 +164,7 @@ class LocalWebSocketServer(object):
                 except Exception:
                     # The test fixture should not fail teardown if the client
                     # races socket close and no CLOSE frame is readable.
-                    pass
+                    _ignore_cleanup_error()
                 return
 
             while True:
@@ -173,7 +178,7 @@ class LocalWebSocketServer(object):
             try:
                 conn.close()
             except Exception:
-                pass
+                _ignore_cleanup_error()
 
 
 class LocalHTTPServer(object):
@@ -199,7 +204,7 @@ class LocalHTTPServer(object):
             try:
                 self._server.close()
             except Exception:
-                pass
+                _ignore_cleanup_error()
         if self._thread is not None:
             self._thread.join(1.0)
 
@@ -247,7 +252,7 @@ class LocalConnectProxy(object):
             try:
                 self._server.close()
             except Exception:
-                pass
+                _ignore_cleanup_error()
         if self._thread is not None:
             self._thread.join(1.0)
 
@@ -300,9 +305,9 @@ class LocalConnectProxy(object):
             try:
                 client.close()
             except Exception:
-                pass
+                _ignore_cleanup_error()
             if upstream is not None:
                 try:
                     upstream.close()
                 except Exception:
-                    pass
+                    _ignore_cleanup_error()

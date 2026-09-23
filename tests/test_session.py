@@ -1,7 +1,6 @@
 import socket
 
 import pytest
-from freezegun import freeze_time
 from lomond import errors, events
 from lomond import constants
 from lomond.session import WebsocketSession, _ForceDisconnect, _SocketFail
