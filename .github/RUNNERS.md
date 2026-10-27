@@ -1,5 +1,10 @@
 # GitHub Actions runners
 
+This public repository intentionally uses GitHub-hosted runners. Its existing
+Ubuntu version pins are retained. `GENERAL_RUNNER=ubuntu-latest` also keeps the
+on-demand health check hosted. The self-hosted policy below applies to private
+repositories, or a future explicitly approved migration.
+
 Compatible Linux x64 jobs default to the organization self-hosted `wf-general`
 pool. They queue for that pool when it is busy or offline; they do not silently
 fall back to paid GitHub-hosted runners. New compatible Linux jobs should follow
