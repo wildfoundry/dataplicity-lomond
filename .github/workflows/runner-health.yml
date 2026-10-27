@@ -1,0 +1,29 @@
+name: Runner health check
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: Use self-hosted by default, or deliberately use GitHub-hosted
+        type: choice
+        default: default
+        options: [default, ubuntu-latest]
+permissions:
+  contents: read
+jobs:
+  runner-health:
+    runs-on: ${{ inputs.runner == 'ubuntu-latest' && 'ubuntu-latest' || vars.GENERAL_RUNNER || 'wf-general' }}
+    timeout-minutes: 5
+    steps:
+      - name: Verify runner and disk headroom
+        env:
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
+          EXPECT_SELF_HOSTED: ${{ inputs.runner != 'ubuntu-latest' && vars.GENERAL_RUNNER != 'ubuntu-latest' }}
+        run: |
+          echo "Runner: $RUNNER_NAME ($RUNNER_ENVIRONMENT)"
+          uname -sm
+          df -h /
+          if [ "$EXPECT_SELF_HOSTED" = true ]; then
+            test "$RUNNER_ENVIRONMENT" = self-hosted
+          fi
+          available=$(df -Pk / | awk 'NR==2 {print $4}')
+          test "$available" -ge 10485760

@@ -11,7 +11,7 @@ permissions:
 jobs:
   build:
     if: github.repository == 'wildfoundry/dataplicity-lomond' && github.event_name == 'release' && github.event.action == 'published' && github.event.release.prerelease == false && github.event.release.draft == false
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || vars.GENERAL_RUNNER || 'wf-general' }}
     permissions:
       contents: read
     concurrency:
@@ -62,7 +62,7 @@ jobs:
   publish:
     needs: build
     if: github.repository == 'wildfoundry/dataplicity-lomond' && github.event_name == 'release' && github.event.action == 'published' && github.event.release.prerelease == false && github.event.release.draft == false
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || vars.GENERAL_RUNNER || 'wf-general' }}
     environment:
       name: release
     permissions:

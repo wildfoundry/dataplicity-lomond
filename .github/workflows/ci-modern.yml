@@ -13,7 +13,7 @@ permissions:
 jobs:
   test:
     name: py${{ matrix.python-version }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || vars.GENERAL_RUNNER || 'wf-general' }}
     strategy:
       fail-fast: false
       matrix:
