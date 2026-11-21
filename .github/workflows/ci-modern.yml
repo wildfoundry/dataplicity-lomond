@@ -13,7 +13,7 @@ permissions:
 jobs:
   test:
     name: py${{ matrix.python-version }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
@@ -26,6 +26,17 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Create isolated job environment
+        shell: python
+        run: |
+          import os
+          from pathlib import Path
+          import tempfile
+          import venv
+          root = Path(tempfile.mkdtemp(prefix="lomond-ci-", dir=os.environ["RUNNER_TEMP"]))
+          venv.EnvBuilder(with_pip=True).create(root)
+          with open(os.environ["GITHUB_PATH"], "a", encoding="utf-8") as target:
+              target.write(str(root / ("Scripts" if os.name == "nt" else "bin")) + "\n")
       - name: Install test dependencies
         run: |
           python -m pip install --upgrade pip
