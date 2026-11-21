@@ -41,8 +41,6 @@ setup(
     platforms=['any'],
     packages=find_packages(),
     classifiers=classifiers,
-    setup_requires=['pytest-runner'],
-    tests_require=['pytest'],
     install_requires=[
         "monotonic>=1.5; python_version < '3.3'",
         'six>=1.10.0',
